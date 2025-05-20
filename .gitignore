@@ -1,2 +1,20 @@
+# Ignore node_modules and build folders
+node_modules/
+dist/
+build/
+
+# Ignore system files
 .DS_Store
+Thumbs.db
+
+# Ignore log files and temp data
+*.log
+*.tmp
+
+# Ignore environment files
 .env
+
+# Ignore compiled binaries (C/C++/Java)
+*.o
+*.class
+*.exe
