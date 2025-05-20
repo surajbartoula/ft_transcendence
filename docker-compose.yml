@@ -1,0 +1,33 @@
+services:
+  gateway:
+    build: ./services/gateway-service
+    port:
+      - "8080:8080"
+    depends_on:
+      - auth
+      - user
+      - game
+      - chat
+  
+  auth:
+    build: ./services/auth-service
+    env_file:
+      - ./service/auth-service/.env
+  
+  user:
+    build: ./services/user-service
+    volumes:
+      -./data/user:/data
+
+  game:
+    build: ./services/game-service
+    volumes:
+      -./data/game:/data
+    
+  chat:
+    build: ./services/chat-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      -"3000:80"
