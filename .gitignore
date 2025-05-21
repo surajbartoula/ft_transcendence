@@ -14,7 +14,3 @@ Thumbs.db
 # Ignore environment files
 .env
 
-# Ignore compiled binaries (C/C++/Java)
-*.o
-*.class
-*.exe
