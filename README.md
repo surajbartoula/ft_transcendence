@@ -4,7 +4,7 @@
   <img src="pong.gif" alt="alt text" />
 </p>
 
-<p align="center">
+<p>
   🚀 <strong>The microservice project is created with Fastify for Node.js as backend.</strong><br>
   🎨 <strong>TypeScript and Tailwind CSS for frontend.</strong><br>
   🕹️ <strong>For gameplay and graphics, Babylon.js is used.</strong>
