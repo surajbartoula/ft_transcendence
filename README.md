@@ -4,8 +4,9 @@
   <img src="pong.gif" alt="alt text" />
 </p>
 
-
-**The microservice project is created with Fastify for node.js as backend. Typescript and Tailwind CSS for frontend. For game play and graphics Babylon.js is used.**
+<p align="center">
+The microservice project is created with Fastify for node.js as backend. Typescript and Tailwind CSS for frontend. For game play and graphics Babylon.js is used.
+</p>
 
 Below are the features available for the game.
 
