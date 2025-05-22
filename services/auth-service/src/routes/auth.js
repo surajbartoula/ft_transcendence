@@ -1,11 +1,11 @@
-import { verifyGoogleToken } from "../google";
-import { generateSecret, getQRCode, verifyToken } from "../twofa";
+import { verifyGoogleToken } from "../google.js";
+import { generateSecret, getQRCode, verifyToken } from "../twofa.js";
 import {
 	getUserByEmail,
 	createUser,
 	updateUserSecret,
 	enable2FA,
-} from "../db";
+} from "../db.js";
 
 export default async function (app, opts) {
 	//Post /login - Google Sign-in
