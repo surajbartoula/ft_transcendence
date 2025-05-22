@@ -13,7 +13,7 @@
 
 
 <p align="center">
-### Below are the features available for the game.
+### Below are the features available for the game ###
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/🎮%20Live%20Pong%20Game-2%20Players%20Local%20Play-blueviolet" />
