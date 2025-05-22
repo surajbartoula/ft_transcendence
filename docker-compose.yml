@@ -1,7 +1,7 @@
 services:
   gateway:
     build: ./services/gateway-service
-    port:
+    ports:
       - "8080:8080"
     depends_on:
       - auth
@@ -14,22 +14,31 @@ services:
     ports:
     - "3001:3000"
     env_file:
-      - ./service/auth-service/.env
-  
+      - ./services/auth-service/.env
+    volumes:
+      - auth-db-data:/app/data
   user:
     build: ./services/user-service
     volumes:
-      -./data/user:/data
+      - user-db-data:/app/data
 
   game:
     build: ./services/game-service
     volumes:
-      -./data/game:/data
+      - game-db-data:/app/data
     
   chat:
     build: ./services/chat-service
+    volumes:
+      - chat-db-data:/app/data
 
   frontend:
     build: ./frontend
     ports:
-      -"3000:80"
+      - "3000:80"
+
+volumes:
+    auth-db-data:
+    user-db-data:
+    game-db-data:
+    chat-db-data:

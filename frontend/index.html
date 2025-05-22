@@ -1,13 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>ft_transcendence frontend</title>
-	<link href="./src/style.css" rel="stylesheet" />
+  <meta charset="UTF-8" />
+  <title>Auth SPA</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link href="style.css" rel="stylesheet">
 </head>
-<body>
-	<canvas id="renderCanvas" class="w-full h-screen"></canvas>
-	<script type="module" src="./src/main.ts"></script>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen">
+  <canvas id="renderCanvas" class="absolute top-0 left-0 w-full h-full -z-10"></canvas>
+
+  <div id="login-container" class="space-y-4">
+    <div id="g_id_onload"
+         data-client_id="YOUR_GOOGLE_CLIENT_ID"
+         data-callback="onGoogleLogin"
+         data-auto_prompt="false"></div>
+    <div class="g_id_signin"
+         data-type="standard"
+         data-size="large"
+         data-theme="outline"></div>
+  </div>
+
+  <div id="2fa-container" class="hidden space-y-4">
+    <img id="qrcode" class="mx-auto" />
+    <p id="secret-text" class="text-center text-sm"></p>
+    <input id="totp-code" type="text" placeholder="Enter 6-digit code"
+           class="p-2 rounded bg-gray-800 text-white border border-gray-600 w-48 text-center">
+    <button id="verify-btn"
+            class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Verify</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <h1 class="text-3xl font-bold">Welcome to the App</h1>
+    <button id="logout-btn" class="mt-4 bg-red-600 px-4 py-2 rounded hover:bg-red-700">Logout</button>
+  </div>
+
+  <script type="module" src="main.ts"></script>
 </body>
 </html>
