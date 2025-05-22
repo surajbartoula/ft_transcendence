@@ -1,7 +1,11 @@
 import { verifyGoogleToken } from "../google";
 import { generateSecret, getQRCode, verifyToken } from "../twofa";
-
-const users = {}; //!Need to replace with DB
+import {
+	getUserByEmail,
+	createUser,
+	updateUserSecret,
+	enable2FA,
+} from "../db";
 
 export default async function (app, opts) {
 	//Post /login - Google Sign-in
@@ -10,14 +14,11 @@ export default async function (app, opts) {
 			const { token } = req.body;
 			const userData = await verifyGoogleToken(token);
 
-			//!simulating DB lookput for the mean time but need to change later
-			const user = users[userData.email] || {
-				email: userData.email,
-				name: userData.name,
-				twoFA: false,
-				secret: null,
-			};
-			users[user.email] = user;
+			let user = getUserByEmail(userData.email);
+			if (!user) {
+				createUser({email: userData.email, name: userData.name});
+				user = getUserByEmail(userData.email);
+			}
 			if (user.twoFA) {
 				return res.send({ twoFA: true });
 			}
@@ -30,21 +31,22 @@ export default async function (app, opts) {
 	});
 
 	app.post('/enable-2fa', async(req, res) => {
-		const { email, token } = req.body;
-		if (!email || !users[email]) return res.code(400).send({error: 'Invalid user'});
+		const { email } = req.body;
+		const user = getUserByEmail(email);
+		if (!user) return res.code(400).send({ error: 'Invalid user '});
 		const secret = generateSecret(email);
-		users[email].secret = secret.ascii;
+		updateUserSecret(email, secret.ascii);
 		const qr = await getQRCode(secret);
 		res.send({ qr });
 	});
 
 	app.post('/verify-2a', async(req, res) => {
 		const { email, token } = req.body;
-		const user = users[email];
+		const user = getUserByEmail(email);
 		if (!user || !user.secret) return res.code(400).send({ error: '2FA not set up'});
 		const isValid = verifyToken(user.secret, token);
 		if (!isValid) return res.code(401).send({ error: 'Invalid 2FA token' });
-		user.twoFA = true;
+		enable2FA(email);
 		const jwt = app.jwt.sign({ email: user.email });
 		res.send({ jwt });
 	});

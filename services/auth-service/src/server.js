@@ -21,10 +21,12 @@ app.register(fastifyCORS, {
 app.register(authRoutes, {prefix: '/auth'});
 app.register(twoFARoutes, {prefix: '/2fa'});
 
-app.listen({port:3000}, (err, address) => {
-	if (err) {
-		console.error(err);
+(async () => {
+	try {
+		await app.listen({ port: 3000 });
+		console.log('Server ready on http:://localhost:3000');
+	} catch (err) {
+		app.log.error(err);
 		process.exit(1);
 	}
-	console.log(`Server ready at ${address}`);
-});
+})();
