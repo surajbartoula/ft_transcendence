@@ -5,7 +5,7 @@
 </p>
 
 
-The microservice project is created with Fastify for node.js as backend. Typescript and Tailwind CSS for frontend. For game play and graphics Babylon.js is used.
+**The microservice project is created with Fastify for node.js as backend. Typescript and Tailwind CSS for frontend. For game play and graphics Babylon.js is used.**
 
 Below are the features available for the game.
 
