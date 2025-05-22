@@ -1,4 +1,5 @@
 <h1 align="center">ft_transcendence</h1>
+
 ![alt text](pong.gif)
 
 The microservice project is created with Fastify for node.js as backend. Typescript and Tailwind CSS for frontend. For game play and graphics Babylon.js is used.
