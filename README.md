@@ -10,8 +10,6 @@
   🕹️ <strong>For gameplay and graphics, Babylon.js is used.</strong>
 </p>
 
-
-
 <p align="center">
 ### Below are the features available for the game ###
 </p>

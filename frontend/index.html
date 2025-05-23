@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <title>Auth SPA</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <link href="style.css" rel="stylesheet">
+  <link href="./src/style.css" rel="stylesheet">
 </head>
 <body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen">
   <canvas id="renderCanvas" class="absolute top-0 left-0 w-full h-full -z-10"></canvas>
 
   <div id="login-container" class="space-y-4">
     <div id="g_id_onload"
-         data-client_id="YOUR_GOOGLE_CLIENT_ID"
+         data-client_id="544627230228-6hc2tiiid9mf4kvraftp0mmimf5n7a69.apps.googleusercontent.com"
          data-callback="onGoogleLogin"
          data-auto_prompt="false"></div>
     <div class="g_id_signin"
@@ -34,6 +34,6 @@
     <button id="logout-btn" class="mt-4 bg-red-600 px-4 py-2 rounded hover:bg-red-700">Logout</button>
   </div>
 
-  <script type="module" src="main.ts"></script>
+  <script type="module" src="./src/main.ts"></script>
 </body>
 </html>

@@ -6,13 +6,16 @@ export function generateSecret(email) {
 }
 
 export async function getQRCode(secret) {
-	return await qrcode.toDataURL(secret.otpath_url);
+	if (!secret.otpauth_url) {
+		throw new Error('Invalid secret: missing otpauth_url');
+	}
+	return await qrcode.toDataURL(secret.otpauth_url);
 }
 
 export function verifyToken(secret, token) {
 	return speakeasy.totp.verify({
 		secret,
-		encoding: 'ascii',
+		encoding: 'base32',
 		token,
 	});
 }

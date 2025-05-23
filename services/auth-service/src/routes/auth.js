@@ -35,12 +35,12 @@ export default async function (app, opts) {
 		const user = getUserByEmail(email);
 		if (!user) return res.code(400).send({ error: 'Invalid user '});
 		const secret = generateSecret(email);
-		updateUserSecret(email, secret.ascii);
+		updateUserSecret(email, secret.base32);
 		const qr = await getQRCode(secret);
 		res.send({ qr });
 	});
 
-	app.post('/verify-2a', async(req, res) => {
+	app.post('/verify-2fa', async(req, res) => {
 		const { email, token } = req.body;
 		const user = getUserByEmail(email);
 		if (!user || !user.secret) return res.code(400).send({ error: '2FA not set up'});
