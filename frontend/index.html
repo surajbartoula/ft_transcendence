@@ -1,39 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Auth SPA</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <link href="./src/style.css" rel="stylesheet">
+	<meta charset="UTF-8" />
+	<title>Auth SPA</title>
+	<link href="./src/style.css" rel="stylesheet">
+	<style>
+		.fade-in {
+			animation: fadeIn 0.5s ease-in;
+		}
+		
+		@keyframes fadeIn {
+			from { opacity: 0; transform: translateY(20px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+		
+		.slide-up {
+			animation: slideUp 0.3s ease-out;
+		}
+		
+		@keyframes slideUp {
+			from { opacity: 0; transform: translateY(10px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+	</style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center h-screen">
-  <canvas id="renderCanvas" class="absolute top-0 left-0 w-full h-full -z-10"></canvas>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+	<div id="app" class="min-h-screen flex items-center justify-center px-4">
+		<!-- Background image for login -->
+		 <div id="loginBg" class="hidden fixed inset-0 bg-cover bg-center blur-none z-0" style="background-image: url('./welcome.JPG');"></div>
 
-  <div id="login-container" class="space-y-4">
-    <div id="g_id_onload"
-         data-client_id="544627230228-6hc2tiiid9mf4kvraftp0mmimf5n7a69.apps.googleusercontent.com"
-         data-callback="onGoogleLogin"
-         data-auto_prompt="false"></div>
-    <div class="g_id_signin"
-         data-type="standard"
-         data-size="large"
-         data-theme="outline"></div>
-  </div>
+        <!-- Loading State -->
+        <div id="loading" class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Loading...</p>
+        </div>
 
-  <div id="2fa-container" class="hidden space-y-4">
-    <img id="qrcode" class="mx-auto" />
-    <p id="secret-text" class="text-center text-sm"></p>
-    <input id="totp-code" type="text" placeholder="Enter 6-digit code"
-           class="p-2 rounded bg-gray-800 text-white border border-gray-600 w-48 text-center">
-    <button id="verify-btn"
-            class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Verify</button>
-  </div>
 
-  <div id="app" class="hidden">
-    <h1 class="text-3xl font-bold">Welcome to the App</h1>
-    <button id="logout-btn" class="mt-4 bg-red-600 px-4 py-2 rounded hover:bg-red-700">Logout</button>
-  </div>
+        <!-- Login Form -->
+        <div id="loginForm" class="hidden w-full max-w-md relative z-10">
+            <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 fade-in">
+                <div class="text-center mb-8">
+                    <div class="mx-auto h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                        <svg class="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-900">Welcome to Ping Pong</h2>
+                    <p class="text-gray-600 mt-2">Please sign in to your account</p>
+                </div>
 
-  <script type="module" src="./src/main.ts"></script>
+                <form id="authForm" class="space-y-6">
+                    <div id="nameField" class="hidden">
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <input type="text" id="name" name="name" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Enter your full name">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Enter your email">
+                    </div>
+                    
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="password" name="password" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                               placeholder="Enter your password">
+                    </div>
+
+                    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div class="flex">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="ml-2 text-sm text-red-700" id="errorText"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-indigo-300">
+                        <span id="submitText">Sign In</span>
+                        <div id="submitLoading" class="hidden flex items-center justify-center">
+                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                            Signing In...
+                        </div>
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <p class="text-gray-600">
+                        <span id="switchText">Don't have an account?</span>
+                        <button id="switchMode" class="text-indigo-600 hover:text-indigo-700 font-semibold ml-1 transition-colors">
+                            Sign Up
+                        </button>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="hidden w-full max-w-2xl text-center">
+            <div class="bg-white rounded-2xl shadow-xl p-12 fade-in">
+                <div class="mx-auto h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                    <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to the Site!</h1>
+                <p class="text-xl text-gray-600 mb-8">
+                    Hello <span id="userName" class="font-semibold text-indigo-600"></span>, you have successfully logged in.
+                </p>
+                <div class="bg-gray-50 rounded-lg p-6 mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Your Profile</h3>
+                    <div class="space-y-2 text-left">
+                        <p><span class="font-medium">Email:</span> <span id="userEmail" class="text-gray-600"></span></p>
+                        <p><span class="font-medium">User ID:</span> <span id="userId" class="text-gray-600"></span></p>
+                        <p><span class="font-medium">Member Since:</span> <span id="userCreated" class="text-gray-600"></span></p>
+                    </div>
+                </div>
+                <button id="logoutBtn" 
+                        class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-red-300">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+	<script type="module" src="src/main.ts"></script>
 </body>
 </html>

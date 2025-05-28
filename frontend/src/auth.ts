@@ -1,71 +1,46 @@
-import { setupBabylon } from "./scene";
-import { apiLogin, api2FASetup, api2FAVerify, api2FAValidate } from './api';
+const API_BASE = 'http://localhost:3001/api/auth';
 
-export async function onGoogleLogin(response:any) {
-	const result = await apiLogin(response.credential);
-	if (result.jwt) {
-		localStorage.setItem('jwt', result.jwt);
-		result.is2FAEnabled ? show2FAValidation() : await show2FASetup(result.email);
-	} else {
-		alert('Google login failed');
-	}
+export interface User {
+	id: string;
+	name: string;
+	email: string;
+	created_at: string;
 }
 
-export function setup2FAHandlers() {
-	document.getElementById('verify-btn')?.addEventListener('click', async () => {
-		const token = (document.getElementById('totp-code') as HTMLInputElement).value;
-		const email = localStorage.getItem('email');
-		if (!email) {
-			alert('Email not found in localStorage.');
-			return;
-		}
-		const res = await api2FAVerify(email, token);
-		if (res.verified)
-			showApp();
-		else
-			alert('Invalid code');
+async function handleResponse<T>(res:Response): Promise<T> {
+	if (!res.ok) {
+		let message = 'Unknown error';
+		try {
+			const error = await res.json();
+			message = error.erro || message;
+		} catch {}
+		throw new Error(message);
+	}
+	return res.json();
+}
+
+export async function login(email:string, password: string): Promise<{token: string, user: User}> {
+	const res = await fetch(`${API_BASE}/login`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({email, password}),
 	});
+	return handleResponse(res);
 }
 
-export async function show2FASetup(email: string) {
-	try {
-		const setup = await api2FASetup(email);
-		if (!setup.qr || !setup.secret) {
-			throw new Error('Invalid setup response');
-		}
-		localStorage.setItem('email', email);
-		(document.getElementById('qrcode') as HTMLImageElement).src = setup.qr;
-		document.getElementById('secret-text')!.textContent = setup.secret;
-		toggleView('2fa-container');
-	} catch (error) {
-		console.error('2FA setup failed:', error);
-		alert('Failed to setup 2FA. Please try again.');
-	}
-}
-
-export function show2FAValidation() {
-	try {
-		toggleView('2fa-container');
-	} catch (error) {
-		console.error('2FA validation failed:', error);
-		alert('Failed to show 2FA validation. Please try again.');
-	}
-}
-
-export function showApp() {
-	toggleView('app');
-	setupBabylon();
-}
-
-export function checkAuthOnLoad() {
-	const jwt = localStorage.getItem('jwt');
-	if (jwt) showApp();
-}
-
-function toggleView(showId: string) {
-	['login-container', '2fa-container', 'app'].forEach(id => {
-		const el = document.getElementById(id);
-		if (el)
-			el.classList.toggle('hidden', id !== showId);
+export async function register(name:string, email: string, password: string): Promise<{token: string, user: User}> {
+	const res = await fetch(`${API_BASE}/register`, {
+		method: 'POST',
+		headers: {'Content-Type': 'application/json'},
+		body: JSON.stringify({name, email, password}),
 	});
+	return handleResponse(res);
+}
+
+export async function getCurrentUser(token:string): Promise<User> {
+	const res = await fetch(`${API_BASE}/me`, {
+		headers: {Authorization: `Bearer ${token}`},
+	});
+	const data = await handleResponse<{user: User}>(res);
+	return data.user;
 }

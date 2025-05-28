@@ -1,38 +1,53 @@
 import Fastify from 'fastify';
-import fastifyJWT from '@fastify/jwt';
-import fastifyCORS from '@fastify/cors'
-import dotenv from 'dotenv';
+import cors from '@fastify/cors';
+import jwt from '@fastify/jwt';
+import { initDB } from './db.js';
+import authRoutes from './auth.js'
+import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
-
-import authRoutes from './routes/auth.js';
-import twoFARoutes from './routes/2fa.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load the .env file from the root directory
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const app = Fastify({logger: true});
-app.register(fastifyJWT, {
-	secret: process.env.JWT_SECRET,
+const fastify = Fastify({
+	logger: true
 });
 
-app.register(fastifyCORS, {
-	origin: true,
+/** Register CORS */
+await fastify.register(cors, {
+	origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
 	credentials: true
 });
 
-app.register(authRoutes, {prefix: '/auth'});
-app.register(twoFARoutes, {prefix: '/2fa'});
+/** Register JWT */
+await fastify.register(jwt, {
+	secret: process.env.JWT_SECRET
+});
 
-(async () => {
+initDB();
+
+await fastify.register(authRoutes, { prefix: '/api/auth' });
+
+fastify.get('/health', async (request, reply) => {
+	return { status: 'OK', service: 'auth-service' };
+});
+
+const start = async () => {
+
+
+	
 	try {
-		await app.listen({ port: 3000 });
-		console.log('Server ready on http:://localhost:3000');
+		await fastify.listen({
+			port: 3001,
+			host: '0.0.0.0'
+		});
+		console.log('Auth service running on http://localhost:3001');
 	} catch (err) {
-		app.log.error(err);
+		fastify.log.error(err);
 		process.exit(1);
 	}
-})();
+};
+start();
