@@ -7,25 +7,15 @@ export interface User {
 	created_at: string;
 }
 
-async function handleResponse<T>(res:Response): Promise<T> {
-	if (!res.ok) {
-		let message = 'Unknown error';
-		try {
-			const error = await res.json();
-			message = error.erro || message;
-		} catch {}
-		throw new Error(message);
-	}
-	return res.json();
-}
-
 export async function login(email:string, password: string): Promise<{token: string, user: User}> {
 	const res = await fetch(`${API_BASE}/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({email, password}),
 	});
-	return handleResponse(res);
+	const data = await res.json();
+	if (!res.ok) throw new Error(data.error || 'Login failed');
+	return data;
 }
 
 export async function register(name:string, email: string, password: string): Promise<{token: string, user: User}> {
@@ -34,13 +24,16 @@ export async function register(name:string, email: string, password: string): Pr
 		headers: {'Content-Type': 'application/json'},
 		body: JSON.stringify({name, email, password}),
 	});
-	return handleResponse(res);
+	const data = await res.json();
+	if (!res.ok) throw new Error(data.error || 'Registration failed');
+	return data;
 }
 
 export async function getCurrentUser(token:string): Promise<User> {
 	const res = await fetch(`${API_BASE}/me`, {
 		headers: {Authorization: `Bearer ${token}`},
 	});
-	const data = await handleResponse<{user: User}>(res);
+	const data = await res.json();
+	if (!res.ok) throw new Error(data.error || 'Failed to fetch user');
 	return data.user;
 }
