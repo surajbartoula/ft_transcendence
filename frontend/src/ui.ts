@@ -14,21 +14,16 @@ export function toggleMode(isLogin: boolean): void {
 
 export function showLoginForm(): void {
 	document.getElementById('loading')?.classList.add('hidden');
-	document.getElementById('welcomeScreen')?.classList.add('hidden');
 	document.getElementById('loginForm')?.classList.remove('hidden');
 	document.getElementById('loginBg')?.classList.remove('hidden');
+	document.getElementById('gameCanvas')?.classList.add('hidden');
 }
 
-export function showWelcomeScreen(user: User): void {
+export function showBabylonWelcome(): void {
 	document.getElementById('loading')?.classList.add('hidden');
 	document.getElementById('loginForm')?.classList.add('hidden');
 	document.getElementById('loginBg')?.classList.add('hidden');
-	document.getElementById('welcomeScreen')?.classList.remove('hidden');
-
-	(document.getElementById('userName') as HTMLElement).textContent = user.name;
-	(document.getElementById('userEmail') as HTMLElement).textContent = user.email;
-	(document.getElementById('userId') as HTMLElement).textContent = user.id;
-	(document.getElementById('userCreated') as HTMLElement).textContent = new Date(user.created_at).toLocaleDateString();
+	document.getElementById('gameCanvas')?.classList.remove('hidden');
 }
 
 export function showError(message: string): void {

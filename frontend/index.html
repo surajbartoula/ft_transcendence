@@ -26,6 +26,9 @@
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
 	<div id="app" class="min-h-screen flex items-center justify-center px-4">
+		<!-- Canvas for babylon.js -->
+		 <canvas id="gameCanvas" class="hidden absolute inset-0 w-full h-full z-0"></canvas>
+
 		<!-- Background image for login -->
 		 <div id="loginBg" class="hidden fixed inset-0 bg-cover bg-center blur-none z-0" style="background-image: url('./welcome.JPG');"></div>
 
@@ -98,33 +101,6 @@
                         </button>
                     </p>
                 </div>
-            </div>
-        </div>
-
-        <!-- Welcome Screen -->
-        <div id="welcomeScreen" class="hidden w-full max-w-2xl text-center">
-            <div class="bg-white rounded-2xl shadow-xl p-12 fade-in">
-                <div class="mx-auto h-20 w-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                    <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                </div>
-                <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to the Site!</h1>
-                <p class="text-xl text-gray-600 mb-8">
-                    Hello <span id="userName" class="font-semibold text-indigo-600"></span>, you have successfully logged in.
-                </p>
-                <div class="bg-gray-50 rounded-lg p-6 mb-8">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Your Profile</h3>
-                    <div class="space-y-2 text-left">
-                        <p><span class="font-medium">Email:</span> <span id="userEmail" class="text-gray-600"></span></p>
-                        <p><span class="font-medium">User ID:</span> <span id="userId" class="text-gray-600"></span></p>
-                        <p><span class="font-medium">Member Since:</span> <span id="userCreated" class="text-gray-600"></span></p>
-                    </div>
-                </div>
-                <button id="logoutBtn" 
-                        class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-red-300">
-                    Sign Out
-                </button>
             </div>
         </div>
     </div>

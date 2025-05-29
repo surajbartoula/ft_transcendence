@@ -1,5 +1,6 @@
+import { runBabylonGame } from "./scene";
 import { login, register, getCurrentUser, User } from "./auth";
-import { showLoginForm, showWelcomeScreen, toggleMode, showError, hideError } from "./ui";
+import { showLoginForm, showBabylonWelcome, toggleMode, showError, hideError } from "./ui";
 
 let isLoginMode = true;
 let token: string | null = localStorage.getItem('token') || null;
@@ -9,8 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 	if (token) {
 		try {
 			const user = await getCurrentUser(token);
-			showWelcomeScreen(user);
-		} catch {
+			localStorage.setItem('userData', JSON.stringify(user));
+			showBabylonWelcome();
+			runBabylonGame(user);
+		} catch (error) {
+			console.error('Failed to get current user: ', error);
+			localStorage.removeItem('userData');
 			localStorage.removeItem('token');
 			token = null;
 			showLoginForm();
@@ -30,12 +35,12 @@ function bindEvents(): void {
 		toggleMode(isLoginMode);
 	});
 
-	const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
-	logoutBtn.addEventListener('click', () => {
-		localStorage.removeItem('token');
-		token = null;
-		showLoginForm();
-	});
+	// const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
+	// logoutBtn.addEventListener('click', () => {
+	// 	localStorage.removeItem('token');
+	// 	token = null;
+	// 	showLoginForm();
+	// });
 }
 
 async function handleSubmit(e:Event): Promise<void> {
@@ -69,7 +74,9 @@ async function handleSubmit(e:Event): Promise<void> {
 			user = res.user;
 		}
 		localStorage.setItem('token', token);
-		showWelcomeScreen(user);
+		localStorage.setItem('userData', JSON.stringify(user));
+		showBabylonWelcome();
+		runBabylonGame(user);
 	} catch (err: any) {
 		showError(err.message);
 	} finally {

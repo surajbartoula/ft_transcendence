@@ -1,29 +1,88 @@
 import * as BABYLON from 'babylonjs';
+import * as GUI from '@babylonjs/gui';
+import type { User } from './auth';
+import { showLoginForm } from './ui';
 
-export function setupBabylon() {
-  const canvas = document.getElementById('renderCanvas') as HTMLCanvasElement;
-  const engine = new BABYLON.Engine(canvas, true);
+let engine: BABYLON.Engine | null = null;
+let scene: BABYLON.Scene | null = null;
 
-  const createScene = () => {
-	const scene = new BABYLON.Scene(engine);
+function getCanvas(): HTMLCanvasElement | null {
+    const element = document.getElementById('gameCanvas');
+    return element instanceof HTMLCanvasElement ? element : null;
+}
 
-	const camera = new BABYLON.ArcRotateCamera('camera1', Math.PI / 2, Math.PI / 2, 2, BABYLON.Vector3.Zero(), scene);
-	camera.attachControl(canvas, true);
+function cleanupResources(): void {
+    if (scene && !scene.isDisposed) {
+        scene.dispose();
+        scene = null;
+    }
+    if (engine && !engine.isDisposed) {
+        engine.dispose();
+        engine = null;
+    }
+}
 
-	const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(1, 1, 0), scene);
+export function showBabylonWelcome(): void {
+    const canvas = getCanvas();
+    if (!canvas) {
+        console.error('Canvas element not found');
+        return;
+    }
 
-	const sphere = BABYLON.MeshBuilder.CreateSphere('sphere', { diameter: 1 }, scene);
+    cleanupResources();
 
-	return scene;
-  };
+    try {
+        engine = new BABYLON.Engine(canvas, true);
+        scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.1, 0.1, 0.2, 1.0);
 
-  const scene = createScene();
+        // Basic camera and lighting
+        const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 0, 0), scene);
+        new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene);
 
-  engine.runRenderLoop(() => {
-	scene.render();
-  });
+        // Create UI
+        const ui = GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI', true, scene);
 
-  window.addEventListener('resize', () => {
-	engine.resize();
-  });
+        // Welcome message
+        const welcomeText = new GUI.TextBlock();
+        welcomeText.text = 'Welcome!';
+        welcomeText.color = 'white';
+        welcomeText.fontSize = 48;
+        welcomeText.top = "-100px";
+        ui.addControl(welcomeText);
+
+        // Logout button
+        const logoutButton = GUI.Button.CreateSimpleButton('logout', 'Logout');
+        logoutButton.width = "120px";
+        logoutButton.height = "50px";
+        logoutButton.color = 'white';
+        logoutButton.background = '#dc2626';
+        logoutButton.fontSize = 16;
+        logoutButton.top = "50px";
+
+        logoutButton.onPointerUpObservable.add(() => {
+            cleanupResources();
+            showLoginForm();
+        });
+
+        ui.addControl(logoutButton);
+
+        // Start render loop
+        engine.runRenderLoop(() => {
+            if (scene && !scene.isDisposed) {
+                scene.render();
+            }
+        });
+
+        // Handle resize
+        window.addEventListener('resize', () => engine?.resize());
+
+    } catch (error) {
+        console.error('Failed to initialize Babylon.js:', error);
+        cleanupResources();
+    }
+}
+
+export function runBabylonGame(user: User): void {
+    showBabylonWelcome();
 }

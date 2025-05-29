@@ -7,7 +7,12 @@ export interface User {
 	created_at: string;
 }
 
-export async function login(email:string, password: string): Promise<{token: string, user: User}> {
+export interface LoginResponse {
+	token: string;
+	user: User;
+}
+
+export async function login(email:string, password: string): Promise<LoginResponse> {
 	const res = await fetch(`${API_BASE}/login`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
