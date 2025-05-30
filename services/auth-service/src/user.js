@@ -1,7 +1,45 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import speakeasy from 'speakeasy'
+import QRCode from 'qrcode'
 import { db } from './db.js';
 
 export class User {
+	static ENCRYPTION_KEY = process.env.TWO_FA_ENCRYPTION_KEY
+		? Buffer.from(process.env.TWO_FA_ENCRYPTION_KEY, 'hex')
+		: crypto.randomBytes(32);
+
+	/**
+	 * Encrypt 2FA secret using AES-256-GCM
+	 */
+	static encrypt2FASecret(secret) {
+		const iv = crypto.randomBytes(16);
+		const cipher = crypto.createCipher('aes-256-gcm', USER.ENCRYPTION_KEY);
+		let encrypted = cipher.update(secret, 'utf8', 'hex');
+		encrypted += cipher.final('hex');
+		const authTag = cipher.getAuthTag();
+		/**Return iv + authTag + encrypted data as single string */
+		return iv.toString('hex') + ':' + authTag.toString('hex') + ":" + encrypted;
+	}
+
+	/**
+	 * Decrypt 2FA secret
+	 */
+	static decrypt2FASecret(encryptedData) {
+		const parts = encryptedData.split(':');
+		if (parts.length !== 3) {
+			throw new Error('Invalid encrypted data format');
+		}
+		const iv = Buffer.from(parts[0], 'hex');
+		const authTag = Buffer.from(parts[1], 'hex');
+		const encrypted = parts[2];
+		const decipher = crypto.createDecipheriv('aes-256-gcm', User.ENCRYPTION_KEY);
+		decipher.setAuthTag(authTag);
+		let decrypted = decipher.update(encrypted, 'hex', 'utf-8');
+		decrypted += decipher.final('utf-8');
+		return decrypted;
+	}
+
 	static async create(email, password, name) {
 		const hasedPassword = await bcrypt.hash(password, 10);
 		return new Promise((resolve, reject) => {
@@ -63,6 +101,8 @@ export class User {
 			issuer: appName,
 			length: 32
 		});
+		//Encrypt the secret before storing
+		const encryptedSecret = User.encrypt2FASecret(secret.base32);
 		//Store the secret in database(temporarily until user confirms setup)
 		return new Promise((resolve, reject) => {
 			const stmt = db.prepare(`
@@ -118,26 +158,30 @@ export class User {
 					if (!row || !row.two_factor_temp_secret) {
 						reject(new Error('No 2FA setup in progress'));
 						return;
-					}
-					const isValid = User.verifyTOTP(row.two_factor_temp_secret, token);
-					if (isValid) {
-						const stmt = db.prepare(`
-							UPDATE users
-							SET two_factor_enabled = 1,
-								two_factor_secret = two_factor_temp_secret,
-								two_factor_temp_secret = NULL
-							WHERE id = ?
-						`);
-						stmt.run([userId], function(err) {
-							if (err) {
-								reject(err);
-							} else {
-								resolve({ success: true })
-							}
-						});
-						stmt.finalize();
-					} else {
-						reject(new Error('Invalid verification code'));
+					}try {
+						const decryptedTempSecret = User.decrypt2FASecret(row.two_factor_temp_secret);
+						const isValid = User.verifyTOTP(decryptedTempSecret, token);
+						if (isValid) {
+							const stmt = db.prepare(`
+								UPDATE users
+								SET two_factor_enabled = 1,
+									two_factor_secret = two_factor_temp_secret,
+									two_factor_temp_secret = NULL
+								WHERE id = ?
+							`);
+							stmt.run([userId], function(err) {
+								if (err) {
+									reject(err);
+								} else {
+									resolve({ success: true })
+								}
+							});
+							stmt.finalize();
+						} else {
+							reject(new Error('Invalid verification code'));
+						}
+					} catch (decryptError) {
+						reject(new Error('Failed to decrypt 2FA secret'));
 					}
 				}
 			)
@@ -180,8 +224,13 @@ export class User {
 						reject(new Error('2FA not enabled for this user'));
 						return;
 					}
-					const isValid = User.verifyTOTP(row.two_factor_secret, token);
-					resolve(isValid);
+					try {
+						const decryptedSecret = User.decrypt2FASecret(row.two_factor_secret);
+						const isValid = User.verifyTOTP(decryptedSecret, token);
+						resolve(isValid);
+					} catch (decryptError) {
+						reject(new Error('Failed to decrypt 2FA secret'));
+					}
 				}
 			);
 		});

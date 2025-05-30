@@ -22,6 +22,14 @@ function cleanupResources(): void {
     }
 }
 
+function handleLogout(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
+    
+    cleanupResources();
+    showLoginForm();
+}
+
 export function showBabylonWelcome(): void {
     const canvas = getCanvas();
     if (!canvas) {
@@ -51,7 +59,7 @@ export function showBabylonWelcome(): void {
         welcomeText.top = "-100px";
         ui.addControl(welcomeText);
 
-        // Logout button
+        // Logout button - UPDATED TO USE NEW LOGOUT FUNCTION
         const logoutButton = GUI.Button.CreateSimpleButton('logout', 'Logout');
         logoutButton.width = "120px";
         logoutButton.height = "50px";
@@ -59,12 +67,9 @@ export function showBabylonWelcome(): void {
         logoutButton.background = '#dc2626';
         logoutButton.fontSize = 16;
         logoutButton.top = "50px";
-
         logoutButton.onPointerUpObservable.add(() => {
-            cleanupResources();
-            showLoginForm();
+            handleLogout(); // Use the new logout function
         });
-
         ui.addControl(logoutButton);
 
         // Start render loop

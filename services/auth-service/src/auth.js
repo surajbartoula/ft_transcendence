@@ -148,7 +148,7 @@ export default async function authRoutes(fastify, options) {
 			});
 		} catch (error) {
 			if (error.message === 'Invalid verification code' || error.message === 'No 2FA setup in progress') {
-				return reply.send(400).send({
+				return reply.status(400).send({
 					error: error.message
 				});
 			}
