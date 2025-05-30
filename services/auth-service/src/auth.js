@@ -96,6 +96,128 @@ export default async function authRoutes(fastify, options) {
 	});
 
 	/**
+	 * Setup 2FA - Generate QR code
+	 */
+	fastify.post('/2fa/setup', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const userId = request.user.id;
+			const user = await User.findById(userId);
+			if (!user) {
+				return reply.status(404).send({
+					error: 'User not found'
+				});
+			}
+			if (user.two_factor_enabled) {
+				return reply.status(400).send({
+					error: '2FA is already enabled'
+				});
+			}
+			const { secret, qrCodeUrl } = await User.generate2FASecret(userId, user.email);
+			const qrCodeDataUrl = await User.generateQRCode(qrCodeUrl);
+			reply.send({
+				message: '2FA setup initiated',
+				qrCode: qrCodeDataUrl,
+				manualEntryKey: secret
+			});
+		} catch (error) {
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/**
+	 * Verify & enable 2FA
+	 */
+	fastify.post('/2fa/verify', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const { token } = request.body;
+			const userId = request.user.id;
+			if (!token) {
+				return reply.status(400).send({
+					error: '2FA token is required'
+				});
+			}
+			await User.enable2FA(userId, token);
+			reply.send({
+				message: '2FA enabled successfully'
+			});
+		} catch (error) {
+			if (error.message === 'Invalid verification code' || error.message === 'No 2FA setup in progress') {
+				return reply.send(400).send({
+					error: error.message
+				});
+			}
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/**
+	 * Disable 2FA
+	 */
+	fastify.post('/2fa/disable', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const { token, password } = request.body;
+			const userId = request.user.id;
+			if (!token || !password) {
+				return reply.status(400).send({
+					error: '2FA token and password are required'
+				});
+			}
+			/**verify password */
+			const user = await User.findByEmail(request.user.email);
+			const isValidPassword = await User.verifyPassword(password, user.password);
+			if (!isValidPassword) {
+				return reply.status(401).send({
+					error: 'Invalid password'
+				});
+			}
+			/**Verify 2FA token */
+			const is2FAValid = await User.verify2FALogin(userId, token);
+			if (!is2FAValid) {
+				return reply.status(401).send({
+					error: 'Invalid 2FA token'
+				});
+			}
+			await User.disable2FA(userId);
+			reply.send({
+				message: '2FA disabled successfully'
+			});
+		} catch (error) {
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/**
+	 * Get 2FA status
+	 */
+	fastify.get('/2fa/status', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const userId = request.user.id;
+			const has2FA = await User.has2FAEnabled(userId);
+			reply.send({
+				two_factor_enabled: has2FA
+			});
+		} catch (error) {
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/**
 	 * Protected route - Get user profile
 	 * fastify.get(path, [options], handler)
 	 */
