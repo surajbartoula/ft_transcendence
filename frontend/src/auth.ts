@@ -42,3 +42,8 @@ export async function getCurrentUser(token:string): Promise<User> {
 	if (!res.ok) throw new Error(data.error || 'Failed to fetch user');
 	return data.user;
 }
+
+export async function logout(): Promise<void> {
+	localStorage.removeItem('token');
+	localStorage.removeItem('userData');
+}

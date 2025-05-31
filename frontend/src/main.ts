@@ -35,12 +35,15 @@ function bindEvents(): void {
 		toggleMode(isLoginMode);
 	});
 
-	// const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
-	// logoutBtn.addEventListener('click', () => {
-	// 	localStorage.removeItem('token');
-	// 	token = null;
-	// 	showLoginForm();
-	// });
+	const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
+	if (logoutBtn) {
+		logoutBtn.addEventListener('click', () => {
+			localStorage.removeItem('token');
+			localStorage.removeItem('userData');
+			token = null;
+			showLoginForm();
+		});
+	}
 }
 
 async function handleSubmit(e:Event): Promise<void> {
