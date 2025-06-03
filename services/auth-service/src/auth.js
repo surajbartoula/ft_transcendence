@@ -1,5 +1,14 @@
 import { User } from './user.js'
 import { authenticationToken } from './authtoken.js'
+import fastifyOAuth2 from '@fastify/oauth2';
+import fetch from 'node-fetch';
+import dotenv from 'dotenv'
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 export default async function authRoutes(fastify, options) {
 	/**
@@ -253,4 +262,145 @@ export default async function authRoutes(fastify, options) {
 			message: 'Logout successful'
 		});
 	});
+
+	/**
+	 * Google authentication code below
+	 */
+
+	/**Register OAuth2 plugin for Google */
+	await fastify.register(fastifyOAuth2, {
+		name: 'googleOAuth2',
+		credentials: {
+			client: {
+				id: process.env.GOOGLE_CLIENT_ID,
+				secret: process.env.GOOGLE_CLIENT_SECRET
+			},
+			auth: {
+				authorizeHost: 'https://accounts.google.com',
+				authorizePath: '/o/oauth2/v2/auth',
+				tokenHost: 'https://www.googleapis.com',
+				tokenPath: '/oauth2/v4/token'
+			}
+		},
+		startRedirectPath: '/google',
+		callbackUri: process.env.GOOGLE_REDIRECT_URI,
+		scope: ['openid', 'email', 'profile']
+	});
+
+	/**Google OAuth callback*/
+	/**This handles the response from Google after user consent*/
+	fastify.get('/google/callback', async (request, reply) => {
+		try {
+			const { token } = await fastify.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
+			const googleUserInfo = await fetchGoogleUserInfo(token.access_token);
+			if (!googleUserInfo) {
+				return reply.status(400).send({
+					error: 'Failed to fetch user information from Google'
+				});
+			}
+			let user = await User.findByEmail(googleUserInfo.email);
+			if (!user) {
+				user = await User.createGoogleUser(
+					googleUserInfo.email,
+					googleUserInfo.name,
+					googleUserInfo.picture,
+					googleUserInfo.sub //google user ID
+				);
+			} else {
+				await User.updateGoogleInfo(user.id, googleUserInfo.picture, googleUserInfo.sub);
+			}
+			const jwtToken = await reply.jwtSign({
+				id: user.id,
+				email: user.email
+			});
+			return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+		} catch (error) {
+			console.error('Google OAuth callback error:', error);
+			return reply.status(500).send({
+				error: 'Google authentication failed'
+			});
+		}
+	});
+
+	/**
+	 * Link Google account to existing user
+	 */
+	fastify.post('/google/link', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const { googleToken } = request.body;
+			const userId = request.user.id;
+			if (!googleToken) {
+				return reply.status(400).send({
+					error: 'Google token is required'
+				});
+			}
+			const googleUserInfo = await fetchGoogleUserInfo(googleToken);
+			if (!googleUserInfo) {
+				return reply.status(400).send({
+					error: 'Invalid Google token'
+				});
+			}
+			const existingGoogleUser = await User.findByGoogleId(googleUserInfo.sub);
+			if (existingGoogleUser && existingGoogleUser.id !== userId) {
+				return reply.status(400).send({
+					error: 'This Google account is already linked to another user'
+				});
+			}
+			await User.linkGoogleAccount(userId, googleUserInfo.sub, googleUserInfo.picture);
+			reply.send({
+				message: 'Google account linked successfully'
+			});
+		} catch (error) {
+			console.log('Google account linking error:', error);
+			reply.status(500).send({
+				error: 'Failed to link Google account'
+			});
+		}
+	});
+
+	/**Unlink Google account*/
+	fastify.post('/google/unlink', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const userId = request.user.id;
+			const user = await User.findById(userId);
+			if (!user.password) {
+				return reply.status(400).send({
+					error: 'Cannot unlink Google account. Please set a password first.'
+				});
+			}
+			await User.unlinkGoogleAccount(userId);
+			reply.send({
+				message: 'Google account unlinked successfully'
+			});
+		} catch (error) {
+			console.error('Google account unlinking error:', error);
+			reply.status(500).send({
+				error: 'Failed to unlink Google account'
+			});
+		}
+	});
+}
+
+/**
+ * Fetch user information from Google using access token
+ */
+async function fetchGoogleUserInfo(accessToken) {
+	try {
+		const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+			headers: {
+				'Authorization': `Bearer ${accessToken}`
+			}
+		});
+		if (!response.ok) {
+			throw new Error('Failed to fetch user info from Google');
+		}
+		return await response.json();
+	} catch (error) {
+		console.error('Error fetching Google user info:', error);
+		return null;
+	}
 }

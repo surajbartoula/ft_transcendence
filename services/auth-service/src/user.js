@@ -71,7 +71,7 @@ export class User {
 
 	static async findById(id) {
 		return new Promise((resolve, reject) => {
-			db.get('SELECT id, email, name, created_at, two_factor_enabled FROM users WHERE id = ?', [id], (err, row) => {
+			db.get('SELECT id, email, name, picture, google_id, created_at, two_factor_enabled FROM users WHERE id = ?', [id], (err, row) => {
 				if (err) reject(err);
 				else resolve(row);
 			});
@@ -204,6 +204,94 @@ export class User {
 			db.get('SELECT two_factor_enabled FROM users WHERE id = ?', [userId], (err, row) => {
 				if (err) reject(err);
 				else resolve(Boolean(row?.two_factor_enabled));
+			});
+		});
+	}
+
+	/**Create user with Google OAuth */
+	static async createGoogleUser(email, name, picture, googleId) {
+		return new Promise((resolve, reject) => {
+			const stmt = db.prepare(`
+				INSERT INTO users (email, name, google_id, picture, password, two_factor_enabled, two_factor_secret, two_factor_temp_secret)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`)
+			stmt.run([email, name, googleId, picture, null, 0, null, null], function(err) {
+				if (err) reject(err);
+				else resolve({
+					id: this.lastID,
+					email,
+					name,
+					picture,
+					googleId: googleId,
+					two_factor_enabled: false
+				});
+			});
+			stmt.finalize();
+		});
+	}
+
+	/**Find user by google ID */
+	static async findByGoogleId(googleId) {
+		return new Promise((resolve, reject) => {
+			db.get('SELECT * FROM users WHERE google_id = ?', [googleId], (err, row) => {
+				if (err) reject(err);
+				else resolve(row);
+			});
+		});
+	}
+
+	/**Update user's Google information*/
+	static async updateGoogleInfo(userId, picture, googleId) {
+		return new Promise((resolve, reject) => {
+			const stmt = db.prepare(`
+				UPDATE users
+				SET picture = ?, google_id = ?
+				WHERE id = ?
+			`);
+			stmt.run([picture, googleId, userId], function(err) {
+				if (err) reject(err);
+				else resolve({ success: true });
+			});
+			stmt.finalize();
+		});
+	}
+
+	static async linkGoogleAccount(userId, googleId, picture) {
+		return new Promise((resolve, reject) => {
+			const stmt = db.prepare(`
+				UPDATE users
+				SET google_id = ?, picture = ?
+				WHERE id = ?
+			`);
+			stmt.run([googleId, picture, userId], function(err) {
+				if (err) reject(err);
+				else resolve({success: true});
+			});
+			stmt.finalize();
+		});
+	}
+
+	static async unlinkGoogleAccount(userId) {
+		return new Promise((resolve, reject) => {
+			const stmt = db.prepare(`
+				UPDATE users
+				SET google_id = NULL, picture = NULL
+				WHERE id = ?
+			`);
+			stmt.run([userId], function(err) {
+				if (err) reject(err);
+				else resolve({success: true});
+			});
+			stmt.finalize();
+		});
+	}
+
+	/**Check if user has Google account linked*/
+	static async hasGoogleLinked(userId) {
+		return new Promise((resolve, reject) => {
+			db.get('SELECT google_id FROM users WHERE id = ?', [userId], (err, row) => {
+				if (err) reject(err);
+				else resolve(Boolean(row?.google_id));
 			});
 		});
 	}

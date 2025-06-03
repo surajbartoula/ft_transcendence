@@ -7,6 +7,27 @@ let token: string | null = localStorage.getItem('token') || null;
 
 document.addEventListener('DOMContentLoaded', async () => {
 	bindEvents();
+	/**Check for Google OAuth callback token in URL*/
+	const urlParams = new URLSearchParams(window.location.search);
+	const googleToken = urlParams.get('token');
+	if (googleToken) {
+		/**Handle Google OAauth callback*/
+		token = googleToken;
+		localStorage.setItem('token', token);
+		/**Clean the URL*/
+		window.history.replaceState({}, document.title, window.location.pathname);
+		try {
+			const user = await getCurrentUser(token);
+			localStorage.setItem('userData', JSON.stringify(user));
+			showBabylonWelcome();
+			runBabylonGame(user);
+			return;
+		} catch (error) {
+			console.error('Failed to get user after Google OAuth:', error);
+			localStorage.removeItem('token');
+			token = null;
+		}
+	}
 	if (token) {
 		try {
 			const user = await getCurrentUser(token);
@@ -34,6 +55,12 @@ function bindEvents(): void {
 		isLoginMode = !isLoginMode;
 		toggleMode(isLoginMode);
 	});
+
+	/**Google Sign-In button */
+	const googleBtn = document.getElementById('googleSignInBtn') as HTMLButtonElement;
+	if (googleBtn) {
+		googleBtn.addEventListener('click', handleGoogleSignIn);
+	}
 
 	const logoutBtn = document.getElementById('logoutBtn') as HTMLButtonElement;
 	if (logoutBtn) {
@@ -87,4 +114,17 @@ async function handleSubmit(e:Event): Promise<void> {
 		submitText.classList.remove('hidden');
 		submitLoading.classList.add('hidden');
 	}
+}
+
+/**
+ * Google Sign-In handler
+ */
+function handleGoogleSignIn(): void {
+	const googleBtn = document.getElementById('googleSignInBtn') as HTMLButtonElement;
+	const googleBtnText = document.getElementById('googleBtnText') as HTMLElement;
+	const googleBtnLoading = document.getElementById('googleBtnLoading') as HTMLElement;
+	googleBtn.disabled = true;
+	if (googleBtnText) googleBtnText.classList.add('hidden');
+	if (googleBtnLoading) googleBtnLoading.classList.remove('hidden');
+	window.location.href = 'http://localhost:3001/api/auth/google';
 }
