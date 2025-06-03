@@ -4,9 +4,8 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { db } from './db.js';
 import dotenv from 'dotenv'
-import path, { resolve } from 'path';
+import path from 'path';
 import { fileURLToPath } from 'url';
-import { rejects } from 'assert';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

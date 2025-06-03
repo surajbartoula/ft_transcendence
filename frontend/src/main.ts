@@ -128,5 +128,3 @@ function handleGoogleSignIn(): void {
 	if (googleBtnLoading) googleBtnLoading.classList.remove('hidden');
 	window.location.href = 'http://localhost:3001/api/auth/google';
 }
-
-export { handleGoogleSignIn };

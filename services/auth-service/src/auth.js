@@ -343,7 +343,7 @@ export default async function authRoutes(fastify, options) {
 				});
 			}
 			const existingGoogleUser = await User.findByGoogleId(googleUserInfo.sub);
-			if (existingGoogleUser && existingGoogleUser.id != userId) {
+			if (existingGoogleUser && existingGoogleUser.id !== userId) {
 				return reply.status(400).send({
 					error: 'This Google account is already linked to another user'
 				});
