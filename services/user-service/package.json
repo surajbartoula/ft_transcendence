@@ -1,15 +1,12 @@
 {
-  "name": "user-service",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "type": "module",
   "dependencies": {
-    "fastify": "^5.3.3"
+    "@fastify/static": "^latest-version",
+    "fastify": "^latest-version",
+    "fastify-cli": "^7.4.0",
+    "fastify-static": "^4.7.0"
+  },
+  "scripts": {
+    "start": "fastify start server.js"
   }
 }
