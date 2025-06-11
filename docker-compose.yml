@@ -21,6 +21,8 @@ services:
     build: ./services/user-service
     volumes:
       - user-db-data:/app/data
+    ports:
+      - "3002:3002"
 
   game:
     build: ./services/game-service

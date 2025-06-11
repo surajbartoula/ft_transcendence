@@ -1,10 +1,12 @@
 {
   "type": "module",
   "dependencies": {
-    "@fastify/static": "^latest-version",
-    "fastify": "^latest-version",
+    "@fastify/static": "latest",
+    "@tailwindcss/cli": "^4.1.8",
+    "fastify": "^5.3.3",
     "fastify-cli": "^7.4.0",
-    "fastify-static": "^4.7.0"
+    "fastify-static": "^4.7.0",
+    "tailwindcss": "^4.1.8"
   },
   "scripts": {
     "start": "fastify start server.js"
