@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 	<meta charset="UTF-8" />
-	<title>Auth SPA</title>
+	<title>ft_transcendence</title>
+	<link rel="icon" href="./favicon/favicon1.ico" type="image/x-icon" />
 	<link href="./src/style.css" rel="stylesheet">
 	<style>
 		.fade-in {
@@ -22,9 +23,30 @@
 			from { opacity: 0; transform: translateY(10px); }
 			to { opacity: 1; transform: translateY(0); }
 		}
+		.card-hover {
+			transition: transform 0.2s ease-in-out;
+		}
+		
+		.card-hover:hover {
+			transform: translateY(-2px);
+		}
+
+		.loading-spinner {
+			width: 20px;
+			height: 20px;
+			border: 2px solid #e2e8f0;
+			border-top: 2px solid #3b82f6;
+			border-radius: 50%;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
 	</style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<body class="bg-slate-900 text-white font-sans m-0 p-0">
 	<div id="app" class="min-h-screen flex items-center justify-center px-4">
 		<!-- Canvas for babylon.js -->
 		 <canvas id="gameCanvas" class="hidden absolute inset-0 w-full h-full z-0"></canvas>
@@ -40,7 +62,7 @@
 
 
         <!-- Login Form -->
-        <div id="loginForm" class="hidden w-full max-w-md relative z-10">
+        <div id="loginContainer" class="hidden w-full max-w-md relative z-10">
             <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 fade-in">
                 <div class="text-center mb-8">
                     <div class="mx-auto h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
@@ -86,7 +108,7 @@
                     <button type="submit" id="submitBtn"
                             class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-indigo-300">
                         <span id="submitText">Sign In</span>
-                        <div id="submitLoading" class="hidden flex items-center justify-center">
+                        <div id="submitLoading" class="hidden items-center justify-center">
                             <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                             Signing In...
                         </div>
@@ -113,7 +135,7 @@
 						</span>
 
 						<!-- Loading Spinner -->
-						<span id="googleBtnLoading" class="loading hidden absolute inset-0 flex items-center justify-center gap-2 bg-[#4285F4] rounded-lg">
+						<span id="googleBtnLoading" class="loading hidden absolute inset-0 items-center justify-center gap-2 bg-[#4285F4] rounded-lg">
 							<span class="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
 							Connecting...
 						</span>
@@ -131,6 +153,189 @@
             </div>
         </div>
     </div>
+	<div class="fixed inset-0 flex h-screen bg-slate-900" id="dashboardContainer" style="display: none;">
+		<!-- Sidebar -->
+		<div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
+			<div class="p-6 border-b border-slate-700">
+				<div class="flex items-center space-x-3">
+					<div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+						<span class="text-white font-bold text-lg">G</span>
+					</div>
+					<h1 class="text-xl font-bold text-blue-400">GameHub</h1>
+				</div>
+			</div>
+			
+			<nav class="p-4 space-y-2 flex-1">
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-blue-600 text-white play-btn" data-game="game1" id="playButton">
+					<span>🎮</span>
+					<span>Play</span>
+				</a>
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+					<span>👤</span>
+					<span>Profile</span>
+				</a>
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+					<span>🏆</span>
+					<span>Leaderboard</span>
+				</a>
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+					<span>👥</span>
+					<span>Friends</span>
+				</a>
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+					<span>⚙️</span>
+					<span>Settings</span>
+				</a>
+				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
+					<span>🚪</span>
+					<span>Logout</span>
+				</a>
+			</nav>
+		</div>
+
+							<!-- Modal Overlay -->
+		<div id="modalOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+			<!-- Modal Content -->
+			<div class="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 relative">
+				<!-- Close Button -->
+				<button id="closeButton" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</button>
+
+				<!-- Modal Header -->
+				<h3 class="text-xl font-bold text-white mb-6">Game Options</h3>
+
+				<!-- Game Options -->
+				<div class="space-y-3">
+					<!-- Solo vs Computer (AI) -->
+					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+						<div class="flex items-center">
+							<div class="bg-blue-600 p-2 rounded-lg mr-3">
+								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+									<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+								</svg>
+							</div>
+							<span class="font-medium">Solo vs Computer (AI)</span>
+						</div>
+						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+						</svg>
+					</button>
+
+					<!-- Multiplayer Local -->
+					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+						<div class="flex items-center">
+							<div class="bg-green-600 p-2 rounded-lg mr-3">
+								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+									<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+								</svg>
+							</div>
+							<span class="font-medium">Multiplayer Local</span>
+						</div>
+						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+						</svg>
+					</button>
+
+					<!-- Game Settings -->
+					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+						<div class="flex items-center">
+							<div class="bg-gray-600 p-2 rounded-lg mr-3">
+								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+									<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+									<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+								</svg>
+							</div>
+							<span class="font-medium">Game Settings</span>
+						</div>
+						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+						</svg>
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Main Content -->
+		<div class="flex-1 p-8 overflow-y-auto">
+			<!-- User Profile Header -->
+			<div class="flex items-center justify-between mb-8">
+				<div class="flex items-center space-x-4">
+					<div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl font-bold" id="userAvatar">
+						<div class="loading-spinner"></div>
+					</div>
+					<div>
+						<h2 class="text-2xl text-white font-bold" id="userName">Loading...</h2>
+						<p class="text-gray-400" id="userHandle">@loading</p>
+						<div class="flex items-center space-x-2 mt-1">
+							<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+							<span class="text-sm text-green-400">Online</span>
+						</div>
+					</div>
+				</div>
+				<div class="text-right">
+					<div class="text-3xl font-bold text-yellow-500" id="userRating">0</div>
+					<div class="text-sm text-gray-400">Rating</div>
+				</div>
+			</div>
+
+			<!-- Game Statistics -->
+			<div class="mb-8">
+				<h3 class="text-xl font-semibold text-white mb-4">Game Statistics</h3>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+					<div class="bg-slate-700 rounded-lg p-6 card-hover">
+						<div class="text-3xl font-bold text-blue-400" id="gamesPlayed">0</div>
+						<div class="text-gray-400 mt-1">Games Played</div>
+					</div>
+					<div class="bg-slate-700 rounded-lg p-6 card-hover">
+						<div class="text-3xl font-bold text-green-400" id="wins">0</div>
+						<div class="text-gray-400 mt-1">Wins</div>
+					</div>
+					<div class="bg-slate-700 rounded-lg p-6 card-hover">
+						<div class="text-3xl font-bold text-red-400" id="losses">0</div>
+						<div class="text-gray-400 mt-1">Losses</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Recent Games -->
+			<div class="mb-8">
+				<h3 class="text-xl font-semibold mb-4 text-white">Recent Games</h3>
+				<div class="bg-slate-800 rounded-lg overflow-hidden">
+					<div class="grid grid-cols-4 gap-4 p-4 bg-slate-700 text-sm font-medium text-gray-300">
+						<div>GAME</div>
+						<div>OPPONENT</div>
+						<div>RESULT</div>
+						<div>DATE</div>
+					</div>
+					<div id="recentGamesContainer">
+						<div class="p-8 text-center empty-state">
+							<div class="text-4xl mb-4">🎮</div>
+							<p class="text-gray-400">No games played yet</p>
+							<p class="text-sm text-gray-500 mt-2">Start playing to see your game history here</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="mb-8">
+				<!-- Recent Achievements -->
+				<div>
+					<h3 class="text-xl font-semibold mb-4 text-white text-center">Recent Achievements</h3>
+					<div id="achievementsContainer" class="space-y-4">
+						<div class="text-center py-8 empty-state">
+							<div class="text-4xl mb-4">🏆</div>
+							<p class="text-gray-400">No achievements yet</p>
+							<p class="text-sm text-gray-500 mt-2">Play games to unlock achievements</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script type="module" src="src/main.ts"></script>
 </body>
 </html>
