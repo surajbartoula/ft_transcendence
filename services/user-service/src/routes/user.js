@@ -42,40 +42,37 @@ export default async function userRoutes(fastify, options) {
 						avatar_url: { type: 'string' },
 						bio: { type: 'string' },
 						location: { type: 'string' },
-						games_played: { type: 'number'},
-						games_won: { type: 'number'},
-						total_score: { type: 'number'},
-						best_score: { type: 'number'},
-						level: { type: 'number'},
-						experience_points: { type: 'number'},
-						win_rate: { type: 'number'},
+						games_played: { type: 'number' },
+						games_won: { type: 'number' },
+						total_score: { type: 'number' },
+						best_score: { type: 'number' },
+						level: { type: 'number' },
+						experience_points: { type: 'number' },
+						win_rate: { type: 'number' },
 						created_at: { type: 'string' },
 						updated_at: { type: 'string' },
 						last_seen: { type: 'string' }
 					}
 				}
-		}
-	},
-	preHandler: fastify.authenticate,
-	handler: async (request, reply) => {
-		try {
-			const user_id = request.user.sub || request.user.user_id || request.user.id;
-			let profile = await fastify.db.getUserProfile(user_id);
-			
-			// If profile doesn't exist, create it automatically
-			if (!profile) {
-				fastify.log.info(`Creating profile for new user: ${user_id}`);
-				profile = await createDefaultProfile(user_id, request.user);
 			}
-			
-			// Update last seen
-			await fastify.db.updateLastSeen(user_id);
-			return profile;
-		} catch (error) {
-			fastify.log.error('Error fetching user profile:', error);
-			return reply.code(500).send({ error: 'Internal server error'});
+		},
+		preHandler: fastify.authenticate,
+		handler: async (request, reply) => {
+			try {
+				const user_id = request.user.sub || request.user.user_id || request.user.id;
+				let profile = await fastify.db.getUserProfile(user_id);
+
+				if (!profile) {
+					fastify.log.info(`Creating profile for new user: ${user_id}`);
+					profile = await createDefaultProfile(user_id, request.user);
+				}
+				await fastify.db.updateLastSeen(user_id);
+				return profile;
+			} catch (error) {
+				fastify.log.error('Error fetching user profile:', error);
+				return reply.code(500).send({ error: 'Internal server error' });
+			}
 		}
-	}
 	});
 
 	/** Update user profile */
@@ -676,7 +673,7 @@ export default async function userRoutes(fastify, options) {
 		handler: async (request, reply) => {
 			try {
 				const { q, limit = 10 } = request.query;
-				const users = await fastify.db.db.allAsync(`
+				const users = await fastify.db.allAsync(`
 					SELECT user_id, username, avatar_url, last_seen
 					FROM user_profiles 
 					WHERE username LIKE ? 

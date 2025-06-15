@@ -10,7 +10,9 @@ RUN mkdir -p data
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN apk add --no-cache build-base python3 && \
+    npm ci --omit=dev && \
+    apk del build-base python3
 
 # Copy source code
 COPY src/ ./src/

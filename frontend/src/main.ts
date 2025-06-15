@@ -580,7 +580,7 @@ async function fetchUserProfile(token: string): Promise<any> {
 }
 
 async function fetchLeaderboard(token: string): Promise<any> {
-    const response = await fetch('http://localhost:3002/api/leaderboard', {
+    const response = await fetch('http://localhost:3002/api/user/leaderboard', {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch Leaderboard');
