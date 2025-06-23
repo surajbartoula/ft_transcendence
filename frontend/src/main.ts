@@ -235,7 +235,7 @@ function handleGameOptionSelection(option: string, index: number): void {
         case 2: // Game Settings
             console.log('Opening game settings...');
             /** Need to switch to settings section instead */
-            // switchDashboardSection('settings');
+            switchDashboardSection('settings');
             break;
         default:
             console.log('Unknown option selected');
