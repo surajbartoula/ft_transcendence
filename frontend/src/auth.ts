@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:3001/api/auth';
+import { API_CONFIG } from "./config";
+
+const API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;
 
 export interface User {
 	id: string;

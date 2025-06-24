@@ -1,19 +1,44 @@
 import sqlite3 from 'sqlite3';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import dotenv from 'dotenv'
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const sqlite = sqlite3.verbose();
 
 export class Database {
 	constructor() {
 		this.db = null;
 	}
 
+	getDatabasePath() {
+		const isDocker = process.env.DOCKER_ENV || fs.existsSync('/app');
+		if (isDocker) {
+			const dataDir = '/app/data';
+			if (!fs.existsSync(dataDir)) {
+				fs.mkdirSync(dataDir, { recursive: true });
+			}
+			return path.join(dataDir, 'chat.db');
+		} else {
+			return './chat.db';
+		}
+	}
+
 	async init() {
 		return new Promise((resolve, reject) => {
-			this.db = new sqlite3.Database('./chat.db', (err) => {
+			const dbPath = this.getDatabasePath();
+			this.db = new sqlite3.Database(dbPath, (err) => {
 				if (err) {
 					console.error('Error opening database:', err);
 					reject(err);
 				} else {
-					console.log('Connected to SQLite database');
+					console.log('Connected to chat.db');
 					this.createTables().then(resolve).catch(reject);
 				}
 			});

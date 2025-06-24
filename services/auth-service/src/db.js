@@ -1,12 +1,37 @@
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
+import dotenv from 'dotenv'
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const sqlite = sqlite3.verbose();
 
-export const db = new sqlite.Database('./auth.db', (err) => {
+const getDatabasePath = () => {
+	const isDocker = process.env.DOCKER_ENV || fs.existsSync('/app');
+	if (isDocker) {
+		const dataDir = '/app/data';
+		if (!fs.existsSync(dataDir)) {
+			fs.mkdirSync(dataDir, { recursive: true });
+		}
+		return path.join(dataDir, 'auth.db');
+	} else {
+		return './auth.db';
+	}
+};
+
+const dbPath = getDatabasePath();
+
+export const db = new sqlite3.Database(dbPath, (err) => {
 	if (err) {
 		console.error('Error opening database:', err.message);
+		process.exit(1);
 	} else {
-		console.log('Connected to SQLite database');
+		console.log('Connected auth.db at:', dbPath);
 	}
 });
 

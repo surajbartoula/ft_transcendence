@@ -1,4 +1,7 @@
 import { User } from "auth";
+import { API_CONFIG } from "./config";
+
+const USER_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}`;
 
 export interface GameStats {
 	gamesPlayed: number;
@@ -42,7 +45,7 @@ export interface GameData {
 /** Fetch user's complete game data */
 export async function fetchUserGameData(token: string): Promise<GameData> {
 	try {
-		const response = await fetch('http://localhost:3002/api/user/dashboard', {
+		const response = await fetch(`${USER_API_BASE}/dashboard`, {
 			headers: {
 				'Authorization': `Bearer ${token}`,
 				'Content-Type': 'application/json'
