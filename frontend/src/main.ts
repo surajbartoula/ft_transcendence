@@ -1,14 +1,16 @@
 import { login, register, getCurrentUser, User } from "./auth";
 import { fetchUserGameData } from "./dashboard";
 import { showLoginForm, showError, hideError, toggleMode } from "./ui";
-import { startFaviconAnimation } from './favicon';
+import { API_CONFIG } from "./config";
+
+const AUTH_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;
+const USER_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}`;
 
 let isLoginMode = true;
 let token: string | null = localStorage.getItem('token') || null;
 let currentSection = 'play'; // Track current section
 
 document.addEventListener('DOMContentLoaded', async () => {
-    startFaviconAnimation();
     bindEvents();
     const urlParams = new URLSearchParams(window.location.search);
     const googleToken = urlParams.get('token');
@@ -568,11 +570,11 @@ function handleGoogleSignIn(): void {
     if (googleBtnText) googleBtnText.classList.add('hidden');
     if (googleBtnLoading) googleBtnLoading.classList.remove('hidden');
     
-    window.location.href = 'http://localhost:3001/api/auth/google';
+    window.location.href = `${AUTH_API_BASE}/google`;
 }
 
 async function fetchUserProfile(token: string): Promise<any> {
-    const response = await fetch('http://localhost:3002/api/user/profile', {
+    const response = await fetch(`${USER_API_BASE}/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch profile');
@@ -580,7 +582,7 @@ async function fetchUserProfile(token: string): Promise<any> {
 }
 
 async function fetchLeaderboard(token: string): Promise<any> {
-    const response = await fetch('http://localhost:3002/api/user/leaderboard', {
+    const response = await fetch(`${USER_API_BASE}/leaderboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch Leaderboard');
@@ -588,7 +590,7 @@ async function fetchLeaderboard(token: string): Promise<any> {
 }
 
 async function fetchFriends(token: string): Promise<any> {
-    const response = await fetch('http://localhost:3002/api/user/friends', {
+    const response = await fetch(`${USER_API_BASE}/friends`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!response.ok) throw new Error('Failed to fetch friends');

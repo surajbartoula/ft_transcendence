@@ -1,44 +1,139 @@
+version: '3.8'
 services:
-  gateway:
-    build: ./services/gateway-service
-    ports:
-      - "8080:8080"
-    depends_on:
-      - auth
-      - user
-      - game
-      - chat
-  
-  auth:
-    build: ./services/auth-service
-    ports:
-    - "3001:3000"
-    env_file:
-      - ./services/auth-service/.env
+  # Init container to set proper ownership
+  volume-init:
+    image: alpine:latest
+    command: |
+      sh -c "
+        chown -R 1001:1001 /auth-data /user-data /chat-data /game-data &&
+        chmod -R 755 /auth-data /user-data /chat-data /game-data
+      "
     volumes:
-      - auth-db-data:/app/data
-  user:
-    build: ./services/user-service
-    volumes:
-      - user-db-data:/app/data
-
-  game:
-    build: ./services/game-service
-    volumes:
-      - game-db-data:/app/data
-    
-  chat:
-    build: ./services/chat-service
-    volumes:
-      - chat-db-data:/app/data
+      - auth-db:/auth-data
+      - user-db:/user-data
+      - chat-db:/chat-data
+      - game-db:/game-data
+    networks:
+      - pong-network
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - gateway-service
+    networks:
+      - pong-network
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./services/auth-service/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    volumes:
+      - auth-db:/app/data
+    user: "1001:1001"
+    depends_on:
+      - volume-init
+    networks:
+      - pong-network
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./services/user-service/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+    volumes:
+      - user-db:/app/data
+    user: "1001:1001"
+    depends_on:
+      - volume-init
+    networks:
+      - pong-network
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./services/chat-service/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+    volumes:
+      - chat-db:/app/data
+    user: "1001:1001"
+    depends_on:
+      - volume-init
+    networks:
+      - pong-network
+
+  game-service:
+    build:
+      context: ./services/game-service
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
+    env_file:
+      - ./services/game-service/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+    volumes:
+      - game-db:/app/data
+    user: "1001:1001"
+    depends_on:
+      - volume-init
+    networks:
+      - pong-network
+
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+      dockerfile: Dockerfile
+    ports:
+      - "3005:3005"
+    env_file:
+      - ./services/gateway-service/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3002
+      - CHAT_SERVICE_URL=http://chat-service:3003
+      - GAME_SERVICE_URL=http://game-service:3004
+    depends_on:
+      - auth-service
+      - user-service
+      - chat-service
+      - game-service
+    networks:
+      - pong-network
+
+networks:
+  pong-network:
+    driver: bridge
 
 volumes:
-    auth-db-data:
-    user-db-data:
-    game-db-data:
-    chat-db-data:
+  auth-db:
+  user-db:
+  chat-db:
+  game-db:

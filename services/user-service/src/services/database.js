@@ -1,24 +1,42 @@
 import sqlite3 from 'sqlite3';
 import { promisify } from 'util';
+import fs from 'fs';
+import dotenv from 'dotenv'
 import path, { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 export class DatabaseService {
 	constructor() {
 		this.db = null;
 	}
 
-	async initialize() {
-		const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/users.db');
-		const fs = await import('fs');
-		const dataDir = path.dirname(dbPath);
-		if (!fs.existsSync(dataDir)) {
-			fs.mkdirSync(dataDir, { recursive: true });
+	getDatabasePath() {
+		const isDocker = process.env.DOCKER_ENV || fs.existsSync('/app');
+		if (isDocker) {
+			const dataDir = '/app/data'
+			if (!fs.existsSync(dataDir)) {
+				fs.mkdirSync(dataDir, { recursive: true });
+			}
+			return path.join(dataDir, 'users.db');
+		} else {
+			return './users.db';
 		}
-		this.db = new sqlite3.Database(dbPath);
+	}
+
+	async initialize() {
+		const dbPath = this.getDatabasePath();
+		this.db = new sqlite3.Database(dbPath, (err) => {
+			if (err) {
+				console.error('Error creating userdatabase:', err.message);
+				throw err;
+			}
+			console.log('User database successfully created');
+		});
 		/** Promisify database methods */
 		this.db.runAsync = promisify(this.db.run.bind(this.db));
 		this.db.getAsync = promisify(this.db.get.bind(this.db));
