@@ -1,32 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8" />
+	<meta charset="UTF-8">
 	<title>ft_transcendence</title>
-	<link rel="icon" href="./favicon/favicon.ico" type="image/x-icon" />
+	<link rel="icon" href="./favicon/favicon.ico" type="image/x-icon">
 	<link href="./src/style.css" rel="stylesheet">
 	<style>
-		.fade-in {
-			animation: fadeIn 0.5s ease-in;
-		}
-		
+		/* Animations */
 		@keyframes fadeIn {
 			from { opacity: 0; transform: translateY(20px); }
 			to { opacity: 1; transform: translateY(0); }
-		}
-		
-		.slide-up {
-			animation: slideUp 0.3s ease-out;
 		}
 		
 		@keyframes slideUp {
 			from { opacity: 0; transform: translateY(10px); }
 			to { opacity: 1; transform: translateY(0); }
 		}
+		
+		@keyframes slideInRight {
+			from { opacity: 0; transform: translateX(100%); }
+			to { opacity: 1; transform: translateX(0); }
+		}
+		
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+		
+		@keyframes pulse {
+			0%, 60%, 100% {
+				transform: scale(0.8);
+				opacity: 0.5;
+			}
+			30% {
+				transform: scale(1);
+				opacity: 1;
+			}
+		}
+
+		/* Utility classes */
+		.fade-in { animation: fadeIn 0.5s ease-in; }
+		.slide-up { animation: slideUp 0.3s ease-out; }
+		.notification { animation: slideInRight 0.3s ease-out; }
+		.message-enter { animation: slideUp 0.3s ease-out; }
+		
 		.card-hover {
 			transition: transform 0.2s ease-in-out;
 		}
-		
 		.card-hover:hover {
 			transform: translateY(-2px);
 		}
@@ -40,500 +60,157 @@
 			animation: spin 1s linear infinite;
 		}
 
-		@keyframes spin {
-			0% { transform: rotate(0deg); }
-			100% { transform: rotate(360deg); }
+		/* Page transitions */
+		.page-transition {
+			transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
 		}
-		/* For chat sliders */
+		
+		.page-enter {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		
+		.page-exit {
+			opacity: 0;
+			transform: translateY(-20px);
+		}
+
+		/* Typing indicator */
 		.typing-indicator {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background-color: #94a3b8;
-            opacity: 0.6;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-        
-        .typing-indicator:nth-child(2) {
-            animation-delay: 0.3s;
-        }
-        
-        .typing-indicator:nth-child(3) {
-            animation-delay: 0.6s;
-        }
-        
-        @keyframes pulse {
-            0%, 60%, 100% {
-                transform: scale(0.8);
-                opacity: 0.5;
-            }
-            30% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        
-        .message-enter {
-            animation: slideInUp 0.3s ease-out;
-        }
-        
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .notification {
-            animation: slideInRight 0.3s ease-out;
-        }
-        
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(100%);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
+			display: inline-block;
+			width: 20px;
+			height: 20px;
+			border-radius: 50%;
+			background-color: #94a3b8;
+			opacity: 0.6;
+			animation: pulse 1.5s ease-in-out infinite;
+		}
+		
+		.typing-indicator:nth-child(2) { animation-delay: 0.3s; }
+		.typing-indicator:nth-child(3) { animation-delay: 0.6s; }
+
+		/* Hide scrollbar */
+		.hide-scrollbar {
+			-ms-overflow-style: none;
+			scrollbar-width: none;
+		}
+		.hide-scrollbar::-webkit-scrollbar {
+			display: none;
+		}
+
+		/* Fixed notifications container */
+		#notifications {
+			position: fixed;
+			top: 1rem;
+			right: 1rem;
+			z-index: 9999;
+			display: flex;
+			flex-direction: column;
+			gap: 0.5rem;
+			max-width: 24rem;
+			width: 100%;
+			pointer-events: none;
+		}
+
+		/* Notification styling */
+		.notification-item {
+			background: rgba(30, 41, 59, 0.95);
+			border: 1px solid rgba(71, 85, 105, 0.5);
+			border-radius: 0.5rem;
+			padding: 1rem;
+			color: white;
+			box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+			backdrop-filter: blur(10px);
+			pointer-events: auto;
+			min-height: 3rem;
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+		}
+
+		.notification-success {
+			border-left: 4px solid #10b981;
+		}
+
+		.notification-error {
+			border-left: 4px solid #ef4444;
+		}
+
+		.notification-info {
+			border-left: 4px solid #3b82f6;
+		}
+
+		.notification-warning {
+			border-left: 4px solid #f59e0b;
+		}
 	</style>
 </head>
 <body class="bg-slate-900 text-white font-sans m-0 p-0">
-	<div id="app" class="min-h-screen flex items-center justify-center px-4">
-		<!-- Canvas for babylon.js -->
-		 <canvas id="gameCanvas" class="hidden absolute inset-0 w-full h-full z-0"></canvas>
-
-		<!-- Background image for login -->
-		 <div id="loginBg" class="hidden fixed inset-0 bg-cover bg-center blur-none z-0" style="background-image: url('./welcome.JPG');"></div>
-
-        <!-- Loading State -->
-        <div id="loading" class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p class="mt-4 text-gray-600">Loading...</p>
-        </div>
-
-
-        <!-- Login Form -->
-        <div id="loginContainer" class="hidden w-full max-w-md relative z-10">
-            <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 fade-in">
-                <div class="text-center mb-8">
-                    <div class="mx-auto h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-                        <svg class="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                        </svg>
-                    </div>
-                    <h2 class="text-3xl font-bold text-gray-900">Welcome to Ping Pong</h2>
-                    <p class="text-gray-600 mt-2">Please sign in to your account</p>
-                </div>
-
-                <form id="authForm" class="space-y-6">
-                    <div id="nameField" class="hidden">
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                        <input type="text" id="name" name="name" 
-                               class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Enter your full name">
-                    </div>
-                    
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                        <input type="email" id="email" name="email" required
-                               class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Enter your email">
-                    </div>
-                    
-                    <div>
-                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="password" name="password" required
-                               class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                               placeholder="Enter your password">
-                    </div>
-
-                    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div class="flex">
-                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                            </svg>
-                            <span class="ml-2 text-sm text-red-700" id="errorText"></span>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="submitBtn"
-                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-indigo-300">
-                        <span id="submitText">Sign In</span>
-                        <div id="submitLoading" class="hidden items-center justify-center">
-                            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                            Signing In...
-                        </div>
-                    </button>
-					<!-- Divider -->
-					<div class="flex items-center gap-4 my-6">
-						<hr class="flex-grow border-t border-gray-700" />
-						<span class="text-gray-500 text-sm">or</span>
-						<hr class="flex-grow border-t border-gray-700" />
-					</div>
-
-					<!-- Google Sign-In Button -->
-					<button type="button" id="googleSignInBtn" class="google-btn relative w-full flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg focus:ring-4 focus:ring-[#4285F4]/50transform hover:scale-105">
-
-						<!-- Default Text and Icon -->
-						<span id="googleBtnText" class="flex items-center justify-center gap-2">
-							<svg class="google-icon w-5 h-5" viewBox="0 0 24 24">
-								<path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-								<path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-								<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-								<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-							</svg>
-							<span>Continue with Google</span>
-						</span>
-
-						<!-- Loading Spinner -->
-						<span id="googleBtnLoading" class="loading hidden absolute inset-0 items-center justify-center gap-2 bg-[#4285F4] rounded-lg">
-							<span class="spinner w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-							Connecting...
-						</span>
-					</button>
-                </form>
-
-                <div class="mt-6 text-center">
-                    <p class="text-gray-600">
-                        <span id="switchText">Don't have an account?</span>
-                        <button id="switchMode" class="text-indigo-600 hover:text-indigo-700 font-semibold ml-1 transition-colors">
-                            Sign Up
-                        </button>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-	<div class="fixed inset-0 flex h-screen bg-slate-900" id="dashboardContainer" style="display: none;">
-		<!-- Sidebar -->
-		<div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
-			<div class="p-6 border-b border-slate-700">
-				<div class="flex items-center space-x-3">
-					<div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-						<span class="text-white font-bold text-lg">G</span>
-					</div>
-					<h1 class="text-xl font-bold text-blue-400">GameHub</h1>
-				</div>
-			</div>
-			
-			<nav class="p-4 space-y-2 flex-1">
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-blue-600 text-white play-btn" data-game="game1" id="playButton">
-					<span>🎮</span>
-					<span>Play</span>
-				</a>
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-					<span>👤</span>
-					<span>Profile</span>
-				</a>
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-					<span>🏆</span>
-					<span>Leaderboard</span>
-				</a>
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-					<span>👥</span>
-					<span>Friends</span>
-				</a>
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-					<span>⚙️</span>
-					<span>Settings</span>
-				</a>
-				<a href="#" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
-					<span>🚪</span>
-					<span>Logout</span>
-				</a>
-			</nav>
-		</div>
-
-							<!-- Modal Overlay -->
-		<div id="modalOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
-			<!-- Modal Content -->
-			<div class="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 relative">
-				<!-- Close Button -->
-				<button id="closeButton" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-					</svg>
-				</button>
-
-				<!-- Modal Header -->
-				<h3 class="text-xl font-bold text-white mb-6">Game Options</h3>
-
-				<!-- Game Options -->
-				<div class="space-y-3">
-					<!-- Solo vs Computer (AI) -->
-					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
-						<div class="flex items-center">
-							<div class="bg-blue-600 p-2 rounded-lg mr-3">
-								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-								</svg>
-							</div>
-							<span class="font-medium">Solo vs Computer (AI)</span>
-						</div>
-						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-						</svg>
-					</button>
-
-					<!-- Multiplayer Local -->
-					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
-						<div class="flex items-center">
-							<div class="bg-green-600 p-2 rounded-lg mr-3">
-								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
-								</svg>
-							</div>
-							<span class="font-medium">Multiplayer Local</span>
-						</div>
-						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-						</svg>
-					</button>
-
-					<!-- Game Settings -->
-					<button class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
-						<div class="flex items-center">
-							<div class="bg-gray-600 p-2 rounded-lg mr-3">
-								<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-									<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-									<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-								</svg>
-							</div>
-							<span class="font-medium">Game Settings</span>
-						</div>
-						<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-						</svg>
-					</button>
-				</div>
-			</div>
-		</div>
-
+	<div id="app" class="min-h-screen">
+		<!-- Game Canvas -->
+		<canvas id="gameCanvas" class="hidden absolute inset-0 w-full h-full z-0"></canvas>
+		
 		<!-- Main Content -->
-		<div class="flex-1 p-8 overflow-y-auto">
-			<!-- User Profile Header -->
-			<div class="flex items-center justify-between mb-8">
-				<div class="flex items-center space-x-4">
-					<div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl font-bold" id="userAvatar">
-						<div class="loading-spinner"></div>
-					</div>
-					<div>
-						<h2 class="text-2xl text-white font-bold" id="userName">Loading...</h2>
-						<p class="text-gray-400" id="userHandle">@loading</p>
-						<div class="flex items-center space-x-2 mt-1">
-							<div class="w-2 h-2 bg-green-500 rounded-full"></div>
-							<span class="text-sm text-green-400">Online</span>
-						</div>
-					</div>
-				</div>
-				<div class="text-right">
-					<div class="text-3xl font-bold text-yellow-500" id="userRating">0</div>
-					<div class="text-sm text-gray-400">Rating</div>
-				</div>
-			</div>
-
-			<!-- Game Statistics -->
-			<div class="mb-8">
-				<h3 class="text-xl font-semibold text-white mb-4">Game Statistics</h3>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-					<div class="bg-slate-700 rounded-lg p-6 card-hover">
-						<div class="text-3xl font-bold text-blue-400" id="gamesPlayed">0</div>
-						<div class="text-gray-400 mt-1">Games Played</div>
-					</div>
-					<div class="bg-slate-700 rounded-lg p-6 card-hover">
-						<div class="text-3xl font-bold text-green-400" id="wins">0</div>
-						<div class="text-gray-400 mt-1">Wins</div>
-					</div>
-					<div class="bg-slate-700 rounded-lg p-6 card-hover">
-						<div class="text-3xl font-bold text-red-400" id="losses">0</div>
-						<div class="text-gray-400 mt-1">Losses</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Recent Games -->
-			<div class="mb-8">
-				<h3 class="text-xl font-semibold mb-4 text-white">Recent Games</h3>
-				<div class="bg-slate-800 rounded-lg overflow-hidden">
-					<div class="grid grid-cols-4 gap-4 p-4 bg-slate-700 text-sm font-medium text-gray-300">
-						<div>GAME</div>
-						<div>OPPONENT</div>
-						<div>RESULT</div>
-						<div>DATE</div>
-					</div>
-					<div id="recentGamesContainer">
-						<div class="p-8 text-center empty-state">
-							<div class="text-4xl mb-4">🎮</div>
-							<p class="text-gray-400">No games played yet</p>
-							<p class="text-sm text-gray-500 mt-2">Start playing to see your game history here</p>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="mb-8">
-				<!-- Recent Achievements -->
-				<div>
-					<h3 class="text-xl font-semibold mb-4 text-white text-center">Recent Achievements</h3>
-					<div id="achievementsContainer" class="space-y-4">
-						<div class="text-center py-8 empty-state">
-							<div class="text-4xl mb-4">🏆</div>
-							<p class="text-gray-400">No achievements yet</p>
-							<p class="text-sm text-gray-500 mt-2">Play games to unlock achievements</p>
-						</div>
-					</div>
-				</div>
-			</div>
+		<div id="main-content" class="min-h-screen page-transition">
+			<!-- Content loaded dynamically -->
 		</div>
 	</div>
 
-	<!-- Main Chat Interface -->
-	<div id="chatInterface" class="hidden min-h-screen flex">
-		<!-- Sidebar -->
-		<div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-			<!-- Header -->
-			<div class="p-4 border-b border-gray-700">
-				<div class="flex items-center justify-between mb-4">
-					<div class="flex items-center space-x-3">
-						<div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-							<span id="userInitial" class="font-bold text-white"></span>
-						</div>
-						<div>
-							<h2 id="currentUsername" class="font-semibold text-white"></h2>
-							<span id="connectionStatus" class="text-xs text-green-400">Connected</span>
-						</div>
-					</div>
-				</div>
-				<!-- Search Bar -->
-				<div class="relative">
-					<input type="text" id="searchInput" placeholder="Search users..."
-						class="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400">
-					<svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-					</svg>
-				</div>
-			</div>
-
-			<!-- Tabs -->
-			<div class="flex border-b border-gray-700">
-				<button id="chatsTab" class="flex-1 py-3 px-4 text-center text-purple-400 border-b-2 border-purple-400 font-medium">
-					Chats
-				</button>
-				<button id="onlineTab" class="flex-1 py-3 px-4 text-center text-gray-400 hover:text-white font-medium">
-					Online
-				</button>
-				<button id="invitesTab" class="flex-1 py-3 px-4 text-center text-gray-400 hover:text-white font-medium relative">
-					Invites
-					<span id="invitesBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-				</button>
-			</div>
-
-			<!-- Content Area -->
-			<div class="flex-1 overflow-y-auto">
-				<!-- Recent Chats -->
-				<div id="chatsList" class="p-2">
-					<!-- Chat items will be populated here -->
-				</div>
-
-				<!-- Online Users -->
-				<div id="onlineList" class="hidden p-2">
-					<!-- Online users will be populated here -->
-				</div>
-
-				<!-- Game Invites -->
-				<div id="invitesList" class="hidden p-2">
-					<!-- Game invites will be populated here -->
-				</div>
-
-				<!-- Search Results -->
-				<div id="searchResults" class="hidden p-2">
-					<!-- Search results will be populated here -->
-				</div>
-			</div>
-		</div>
-
-		<!-- Main Chat Area -->
-		<div class="flex-1 flex flex-col">
-			<!-- Chat Header -->
-			<div id="chatHeader" class="hidden p-4 border-b border-gray-700 bg-gray-800">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center space-x-3">
-						<img id="chatUserAvatar" class="w-10 h-10 rounded-full" src="" alt="">
-						<div>
-							<h3 id="chatUsername" class="font-semibold text-white"></h3>
-							<p id="chatUserStatus" class="text-sm text-gray-400"></p>
-						</div>
-					</div>
-					<div class="flex items-center space-x-2">
-						<button id="gameInviteBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-							🎮 Invite to Game
-						</button>
-						<button id="blockUserBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-							Block
-						</button>
-					</div>
-				</div>
-			</div>
-
-			<!-- Welcome Screen -->
-			<div id="welcomeScreen" class="flex-1 flex items-center justify-center bg-gray-900">
-				<div class="text-center">
-					<div class="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-						<svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-						</svg>
-					</div>
-					<h2 class="text-2xl font-bold text-white mb-2">Welcome to Chat</h2>
-					<p class="text-gray-400">Select a conversation to start messaging</p>
-				</div>
-			</div>
-
-			<!-- Messages Area -->
-			<div id="messagesArea" class="flex-1 flex flex-col">
-				<div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
-					<!-- Messages will be populated here -->
-				</div>
-
-				<!-- Typing Indicator -->
-				<div id="typingIndicator" class="hidden px-4 py-2">
-					<div class="flex items-center space-x-2 text-gray-400">
-						<span class="text-sm">Someone is typing</span>
-						<div class="flex space-x-1">
-							<div class="typing-indicator"></div>
-							<div class="typing-indicator"></div>
-							<div class="typing-indicator"></div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Message Input -->
-				<div class="p-4 border-t border-gray-700">
-					<div class="flex items-center space-x-2">
-						<input type="text" id="messageInput" placeholder="Type a message..."
-							class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400">
-						<button id="sendBtn" class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg transition-colors">
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+	<!-- Game Options Modal -->
+	<div id="modalOverlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+		<div class="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 relative">
+			<button id="closeButton" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+				</svg>
+			</button>
+			<h3 class="text-xl font-bold text-white mb-6">Game Options</h3>
+			<div class="space-y-3">
+				<button data-game-mode="solo-ai" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+					<div class="flex items-center">
+						<div class="bg-blue-600 p-2 rounded-lg mr-3">
+							<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
 							</svg>
-						</button>
+						</div>
+						<span class="font-medium">Solo vs Computer (AI)</span>
 					</div>
-				</div>
+					<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+					</svg>
+				</button>
+				<button data-game-mode="multiplayer-local" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+					<div class="flex items-center">
+						<div class="bg-green-600 p-2 rounded-lg mr-3">
+							<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+							</svg>
+						</div>
+						<span class="font-medium">Multiplayer Local</span>
+					</div>
+					<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+					</svg>
+				</button>
+				<button data-game-mode="settings" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-4 rounded-lg flex items-center justify-between transition-colors duration-200 group">
+					<div class="flex items-center">
+						<div class="bg-gray-600 p-2 rounded-lg mr-3">
+							<svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+								<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+								<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+							</svg>
+						</div>
+						<span class="font-medium">Game Settings</span>
+					</div>
+					<svg class="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+					</svg>
+				</button>
 			</div>
 		</div>
 	</div>
 
-	<!-- Notifications -->
-	<div id="notifications" class="fixed top-4 right-4 space-y-2 z-50"></div>
-
-	<!-- Modal for Game Invite -->
+	<!-- Game Invite Modal -->
 	<div id="gameInviteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 		<div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 max-w-md w-full mx-4">
 			<h3 class="text-xl font-bold text-white mb-4">🎮 Game Invite</h3>
@@ -548,6 +225,9 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Notifications Container -->
+	<div id="notifications"></div>
 
 	<script type="module" src="src/main.ts"></script>
 </body>

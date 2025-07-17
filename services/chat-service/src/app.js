@@ -1,11 +1,11 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import websocket from '@fastify/websocket';
+import socketioServer from 'fastify-socket.io';
 import jwt from '@fastify/jwt';
-import { WebSocketHandler } from './websockethandler.js';
-import { Database } from './db.js';
-import { ChatRoutes } from './chat.js';
-import { UserRoutes } from './user.js'
+import { Database } from './database.js';
+import { SocketManager } from './socket.js';
+import { setupRoutes } from './routes.js';
+import { setupSocketHandlers } from './handlers.js';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,85 +14,53 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const fastify = Fastify({
-	logger: true,
-});
-
 const PORT = process.env.PORT;
 const JWT_SECRET = process.env.JWT_SECRET;
-const FRONTEND_URL = process.env.FRONTEND_URL
+const FRONTEND_URL = process.env.FRONTEND_URL;
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
-await fastify.register(cors, {
-	origin: FRONTEND_URL,
-	credentials: true
-});
-
-await fastify.register(websocket);
-
-await fastify.register(jwt, {
-	secret: JWT_SECRET
-});
-
-const db = new Database();
-await db.init();
-
-const wsHandler = new WebSocketHandler(db);
-
-/** Authentication middleware */
-async function authenticate(request, reply) {
-	try {
-		await request.jwtVerify();
-	} catch (err) {
-		reply.code(401).send({ error: 'Unathorized' });
-	}
-}
-
-/** WebSocket endpoint */
-fastify.register(async function (fastify) {
-	fastify.get('/ws', { websocket: true }, async (connection, req) => {
-		const token = req.query.token;
-		if (!token) {
-			connection.socket.close(1008, 'No token provided');
-			return;
-		}
+async function start() {
+	const fastify = Fastify({
+		logger: true
+	});
+	/** Initialize database */
+	const db = new Database();
+	await db.init();
+	/** Register plugins */
+	await fastify.register(cors, { origin: CORS_ORIGIN, credentials: true});
+	await fastify.register(jwt, { secret: JWT_SECRET });
+	await fastify.register(socketioServer, {
+		cors: { origin: CORS_ORIGIN, credentials: true }
+	});
+	/** Initialize socketManager */
+	const socketManager = new SocketManager();
+	/** Decorators */
+	fastify.decorate('db', db);
+	fastify.decorate('socketManager', socketManager);
+	fastify.decorate('authenticate', async function(request, reply) {
 		try {
-			const decoded = fastify.jwt.verify(token);
-			const userId = decoded.userId;
-			await wsHandler.handleConnection(connection, userId);
-		} catch (error) {
-			fastify.log.error('WebSocket auth error:', error);
-			connection.socket.close(1008, 'Invalid token');
+			await request.jwtVerify();
+		} catch (err) {
+			reply.code(401).send({ error: 'Unauthorized' });
 		}
 	});
-});
 
-await fastify.register(ChatRoutes, {
-	prefix: '/api/chat',
-	authenticate,
-	db
-});
+	await fastify.register(async function(fastify) {
+		setupRoutes(fastify);
+	}, { prefix: '/api/chat '});
 
-await fastify.register(UserRoutes, {
-	prefix: '/api/user',
-	authenticate,
-	db
-});
+	setupSocketHandlers(fastify.io, socketManager, db);
 
-fastify.get('/health', async (request, reply) => {
-	return { status: 'ok', service: 'chat-service' };
-});
+	fastify.get('/health', async () => ({status: 'ok'}));
 
-const start = () => {
+	/** Start server */
 	try {
-		fastify.listen({
-			port: PORT,
-			host: '0.0.0.0'
-		});
-		fastify.log.info(`Chat service running on port ${PORT}`);
+		await fastify.listen({ port: PORT, host: '0.0.0.0'});
+		console.log(`Server running on port ${PORT}`);
 	} catch (err) {
-		fastify.log.error(err);
+		console.error('Error starting server:', err);
 		process.exit(1);
 	}
-};
+}
 
 start();
