@@ -430,8 +430,7 @@ export class ProfilePage implements Page {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
         if (!file) return;
-
-        // Validate file
+        /** Validate file */
         if (!file.type.startsWith('image/')) {
             showError('Please select a valid image file');
             return;
@@ -440,14 +439,11 @@ export class ProfilePage implements Page {
             showError('Image must be smaller than 5MB');
             return;
         }
-
         try {
             const formData = new FormData();
             formData.append('file', file); // Changed from 'avatar' to 'file' to match your backend
-
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
                 method: 'POST',
                 headers: {
@@ -455,16 +451,13 @@ export class ProfilePage implements Page {
                 },
                 body: formData
             });
-
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to upload photo');
             }
-
             const result: PhotoData = await response.json();
             this.updatePhotoDisplay(result);
             showNotification('Photo updated successfully!', 'success');
-
         } catch (error: any) {
             showError(error.message || 'Failed to upload photo');
         }

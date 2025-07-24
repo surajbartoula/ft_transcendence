@@ -5,7 +5,14 @@ export interface User {
     name: string;
     email: string;
     created_at: string;
-    avatar?: string;
+    photo?: {
+        id: string;
+        user_id: string;
+        filename: string;
+        path: string;
+        created_at: string;
+        updated_at: string;
+    };
 }
 
 export interface LoginResponse {
