@@ -28,6 +28,49 @@ export function setupRoutes(fastify) {
 		return { success: true, messages };
 	});
 
+	fastify.get('/online', {
+		preValidation: [fastify.authenticate]
+	}, async (request, reply) => {
+		try {
+			/** Get all online users IDs from socketManager */
+			const onlineUserIds = socketManager.getOnlineUsersIds();
+			if (onlineUserIds.length === 0) {
+				return {
+					success: true,
+					data: {
+						count: 0,
+						users: []
+					}
+				};
+			}
+			/** Fetch user details for all online users */
+			const onlineUsers = [];
+			for (const userId of onlineUserIds) {
+				const user = await db.getUser(parseInt(userId));
+				if (user) {
+					onlineUsers.push({
+						id: user.id,
+						username: user.username,
+						isOnline: true
+					});
+				}
+			}
+			return {
+				success: true,
+				data: {
+					count: onlineUsers.length,
+					users: onlineUsers
+				}
+			};
+		} catch (error) {
+			console.error('Error fetching online users:', error);
+			return reply.code(500).send({
+				success: false,
+				error: 'Failed to fetch online users'
+			});
+		}
+	});
+
 	fastify.put('/read/:messageId', {
 		preValidation: [fastify.authenticate]
 	}, async (request, reply) => {

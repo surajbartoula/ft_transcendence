@@ -1,10 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import httpProxy from '@fastify/http-proxy';
-import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { io as ioClient } from 'socket.io-client';
-import httpProxyLib from 'http-proxy';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -34,7 +32,9 @@ await fastify.register(cors, {
         process.env.FRONTEND_URL || 'http://localhost:3000',
         process.env.FRONTEND_DOCKER_URL || 'http://frontend:3000'
     ],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 });
 
 /** Service endpoints configuration */
@@ -44,6 +44,15 @@ const services = {
     chat: process.env.CHAT_SERVICE_URL || 'http://localhost:3003',
     game: process.env.GAME_SERVICE_URL || 'http://localhost:3004'
 };
+
+await fastify.register(async function (fastify) {
+    await fastify.register(httpProxy, {
+        upstream: services.user,
+        prefix: '/uploads',
+        rewritePrefix: '/uploads',
+        http2: false
+    });
+});
 
 /** Health check endpoint */
 fastify.get('/health', async (request, reply) => {
@@ -107,7 +116,13 @@ await fastify.register(async function (fastify) {
         upstream: services.user,
         prefix: '/api/user',
         rewritePrefix: '/api/user',
-        http2: false
+        http2: false,
+        // Increase timeout for file uploads
+        http: {
+            requestOptions: {
+                timeout: 30000 // 30 seconds
+            }
+        }
     });
 });
 

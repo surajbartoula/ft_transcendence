@@ -1,16 +1,18 @@
-// pages/ChatPage.ts - Chat page with all related functionality
+// pages/ChatPage.ts - Chat page with Socket.io integration
 import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { showNotification, showError } from '../utils/ui';
 import { API_CONFIG } from '../config';
+import { io, Socket } from 'socket.io-client';
 
 interface ChatMessage {
     id: string;
-    senderId: string;
-    recipientId: string;
+    sender_id: string;  // Match the backend field names
+    recipient_id: string;
     content: string;
-    timestamp: Date;
-    isRead: boolean;
+    created_at: string;
+    read_at?: string;
+    type?: string;
 }
 
 interface ChatUser {
@@ -22,15 +24,23 @@ interface ChatUser {
     lastSeen?: Date;
 }
 
+interface GameInvite {
+    id: string;
+    senderId: string;
+    senderUsername: string;
+    expiresAt: string;
+    status?: string;
+}
+
 export class ChatPage implements Page {
     public title = 'Chat';
     public requiresAuth = true;
     
     private currentUser: User | null = null;
     private selectedChatUser: ChatUser | null = null;
-    private chatUsers: ChatUser[] = [];
+    private chatUsers: Map<string, ChatUser> = new Map();
     private messages: ChatMessage[] = [];
-    private websocket: WebSocket | null = null;
+    private socket: Socket | null = null;
     
     // DOM elements
     private searchInput: HTMLInputElement | null = null;
@@ -45,6 +55,17 @@ export class ChatPage implements Page {
     private activeTab: 'chats' | 'online' | 'invites' = 'chats';
     private isTyping: boolean = false;
     private typingTimeout: number | null = null;
+    private typingUsers: Set<string> = new Set();
+
+    private boundHandleSearch: ((event: Event) => void) | null = null;
+    private boundHandleMessageKeyPress: ((e: KeyboardEvent) => void) | null = null;
+    private boundHandleTyping: (() => void) | null = null;
+    private boundSendMessage: (() => Promise<void>) | null = null;
+    private boundSendGameInvite: (() => Promise<void>) | null = null;
+    private boundBlockUser: (() => Promise<void>) | null = null;
+    private boundSwitchToChats: (() => void) | null = null;
+    private boundSwitchToOnline: (() => void) | null = null;
+    private boundSwitchToInvites: (() => void) | null = null;
 
     public render(): string {
         return `
@@ -60,7 +81,7 @@ export class ChatPage implements Page {
                                 </div>
                                 <div>
                                     <h2 id="currentUsername" class="font-semibold text-white"></h2>
-                                    <span id="connectionStatus" class="text-xs text-green-400">Connected</span>
+                                    <span id="connectionStatus" class="text-xs text-green-400">Connecting...</span>
                                 </div>
                             </div>
                             <button data-route="/dashboard" class="text-gray-400 hover:text-white transition-colors">
@@ -175,7 +196,7 @@ export class ChatPage implements Page {
                         <!-- Typing Indicator -->
                         <div id="typingIndicator" class="hidden px-4 py-2">
                             <div class="flex items-center space-x-2 text-gray-400">
-                                <span class="text-sm">Someone is typing</span>
+                                <span id="typingText" class="text-sm">Someone is typing</span>
                                 <div class="flex space-x-1">
                                     <div class="typing-indicator"></div>
                                     <div class="typing-indicator"></div>
@@ -207,15 +228,16 @@ export class ChatPage implements Page {
         this.loadUserData();
         this.attachEventListeners();
         this.populateUserInfo();
-        await this.loadChatData();
-        this.initializeWebSocket();
+        this.initializeSocketIO();
+        await this.loadInitialData();
     }
 
     public cleanup(): void {
-        // Close WebSocket connection
-        if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
+        // Close Socket.io connection
+        if (this.socket) {
+			this.socket.removeAllListeners();
+            this.socket.disconnect();
+            this.socket = null;
         }
 
         // Clear typing timeout
@@ -245,43 +267,116 @@ export class ChatPage implements Page {
     }
 
     private attachEventListeners(): void {
-        // Tab switching
+        // Tab switching - store bound functions
+        this.boundSwitchToChats = () => this.switchTab('chats');
+        this.boundSwitchToOnline = () => this.switchTab('online');
+        this.boundSwitchToInvites = () => this.switchTab('invites');
+
         const chatsTab = document.getElementById('chatsTab');
         const onlineTab = document.getElementById('onlineTab');
         const invitesTab = document.getElementById('invitesTab');
 
-        chatsTab?.addEventListener('click', () => this.switchTab('chats'));
-        onlineTab?.addEventListener('click', () => this.switchTab('online'));
-        invitesTab?.addEventListener('click', () => this.switchTab('invites'));
+        chatsTab?.addEventListener('click', this.boundSwitchToChats);
+        onlineTab?.addEventListener('click', this.boundSwitchToOnline);
+        invitesTab?.addEventListener('click', this.boundSwitchToInvites);
 
         // Search functionality
         if (this.searchInput) {
-            this.searchInput.addEventListener('input', this.debounce((event: Event) => {
-				const target = event.target as HTMLInputElement;
-				this.handleSearch(target.value);
-			}, 300));
+            this.boundHandleSearch = this.debounce((event: Event) => {
+                const target = event.target as HTMLInputElement;
+                this.handleSearch(target.value);
+            }, 300) as (event: Event) => void;
+            
+            this.searchInput.addEventListener('input', this.boundHandleSearch);
         }
 
         // Message sending
         if (this.messageInput) {
-            this.messageInput.addEventListener('keypress', this.handleMessageKeyPress.bind(this));
-            this.messageInput.addEventListener('input', this.handleTyping.bind(this));
+            this.boundHandleMessageKeyPress = this.handleMessageKeyPress.bind(this);
+            this.boundHandleTyping = this.handleTyping.bind(this);
+            
+            this.messageInput.addEventListener('keypress', this.boundHandleMessageKeyPress);
+            this.messageInput.addEventListener('input', this.boundHandleTyping);
         }
 
         if (this.sendButton) {
-            this.sendButton.addEventListener('click', this.sendMessage.bind(this));
+            this.boundSendMessage = this.sendMessage.bind(this);
+            this.sendButton.addEventListener('click', this.boundSendMessage);
         }
 
         // Game invite and block buttons
         const gameInviteBtn = document.getElementById('gameInviteBtn');
         const blockUserBtn = document.getElementById('blockUserBtn');
 
-        gameInviteBtn?.addEventListener('click', this.sendGameInvite.bind(this));
-        blockUserBtn?.addEventListener('click', this.blockUser.bind(this));
+        if (gameInviteBtn) {
+            this.boundSendGameInvite = this.sendGameInvite.bind(this);
+            gameInviteBtn.addEventListener('click', this.boundSendGameInvite);
+        }
+
+        if (blockUserBtn) {
+            this.boundBlockUser = this.blockUser.bind(this);
+            blockUserBtn.addEventListener('click', this.boundBlockUser);
+        }
     }
 
     private removeEventListeners(): void {
-        // Implementation for cleanup
+        // Remove tab event listeners
+        const chatsTab = document.getElementById('chatsTab');
+        const onlineTab = document.getElementById('onlineTab');
+        const invitesTab = document.getElementById('invitesTab');
+
+        if (chatsTab && this.boundSwitchToChats) {
+            chatsTab.removeEventListener('click', this.boundSwitchToChats);
+        }
+        if (onlineTab && this.boundSwitchToOnline) {
+            onlineTab.removeEventListener('click', this.boundSwitchToOnline);
+        }
+        if (invitesTab && this.boundSwitchToInvites) {
+            invitesTab.removeEventListener('click', this.boundSwitchToInvites);
+        }
+
+        // Remove search event listener
+        if (this.searchInput && this.boundHandleSearch) {
+            this.searchInput.removeEventListener('input', this.boundHandleSearch);
+        }
+
+        // Remove message input event listeners
+        if (this.messageInput) {
+            if (this.boundHandleMessageKeyPress) {
+                this.messageInput.removeEventListener('keypress', this.boundHandleMessageKeyPress);
+            }
+            if (this.boundHandleTyping) {
+                this.messageInput.removeEventListener('input', this.boundHandleTyping);
+            }
+        }
+
+        // Remove send button event listener
+        if (this.sendButton && this.boundSendMessage) {
+            this.sendButton.removeEventListener('click', this.boundSendMessage);
+        }
+
+        // Remove game invite and block button event listeners
+        const gameInviteBtn = document.getElementById('gameInviteBtn');
+        const blockUserBtn = document.getElementById('blockUserBtn');
+
+        if (gameInviteBtn && this.boundSendGameInvite) {
+            gameInviteBtn.removeEventListener('click', this.boundSendGameInvite);
+        }
+
+        if (blockUserBtn && this.boundBlockUser) {
+            blockUserBtn.removeEventListener('click', this.boundBlockUser);
+        }
+
+        // Clear references
+        this.boundHandleSearch = null;
+        this.boundHandleMessageKeyPress = null;
+        this.boundHandleTyping = null;
+        this.boundSendMessage = null;
+        this.boundSendGameInvite = null;
+        this.boundBlockUser = null;
+        this.boundSwitchToChats = null;
+        this.boundSwitchToOnline = null;
+        this.boundSwitchToInvites = null;
     }
 
     private populateUserInfo(): void {
@@ -299,35 +394,152 @@ export class ChatPage implements Page {
         }
     }
 
-    private async loadChatData(): Promise<void> {
+    private initializeSocketIO(): void {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        // Connect to the gateway
+        this.socket = io(API_CONFIG.GATEWAY_URL, {
+            path: '/socket.io/',
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+
+        // Connection events
+        this.socket.on('connect', () => {
+            console.log('Connected to gateway');
+            this.updateConnectionStatus('Authenticating...');
+            // Send auth event with token
+            this.socket?.emit('auth', { token: token });
+        });
+
+        this.socket.on('auth:success', () => {
+            console.log('Chat authentication successful');
+            this.updateConnectionStatus('Connected');
+			/** Rejoin current chat room if any */
+			if (this.selectedChatUser) {
+				this.socket?.emit('chat:join', {userId: this.selectedChatUser.id});
+			}
+        });
+
+        this.socket.on('auth:error', (error) => {
+            console.error('Authentication failed:', error);
+            this.updateConnectionStatus('Auth Failed');
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from chat server');
+            this.updateConnectionStatus('Disconnected');
+        });
+
+		this.socket.on('reconnect', () => {
+			if (this.selectedChatUser) {
+				this.loadChatMessages(this.selectedChatUser.id);
+			}
+		})
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            this.updateConnectionStatus('Error');
+        });
+
+        // Chat events
+        this.socket.on('message:receive', (message) => {
+            this.handleIncomingMessage(message);
+        });
+
+        this.socket.on('message:sent', (message) => {
+            // Confirmation that message was sent
+            console.log('Message sent:', message);
+        });
+
+        this.socket.on('message:typing', ({ senderId, isTyping }) => {
+            this.handleTypingIndicator({ senderId, isTyping });
+        });
+
+        this.socket.on('message:read', ({ messageId }) => {
+            this.handleMessageRead(messageId);
+        });
+
+        // Game invite events
+        this.socket.on('game:invite:received', (invite) => {
+            this.handleGameInvite(invite);
+        });
+
+        this.socket.on('game:invite:sent', ({ inviteId }) => {
+            showNotification('Game invite sent!', 'success');
+        });
+
+        this.socket.on('game:invite:accepted', ({ inviteId, gameRoomId }) => {
+            showNotification('Game invite accepted! Joining game...', 'success');
+            // Navigate to game with room ID
+            setTimeout(() => {
+                const event = new CustomEvent('navigate', {
+                    detail: { path: `/game?room=${gameRoomId}` }
+                });
+                window.dispatchEvent(event);
+            }, 1000);
+        });
+
+        this.socket.on('game:invite:declined', ({ inviteId }) => {
+            showNotification('Game invite was declined', 'info');
+        });
+
+        // User status events
+        this.socket.on('user:online', ({ userId }) => {
+            this.handleUserOnline(userId);
+        });
+
+        this.socket.on('user:offline', ({ userId }) => {
+            this.handleUserOffline(userId);
+        });
+
+        this.socket.on('user:blocked', ({ by }) => {
+            showNotification('You have been blocked', 'error');
+            if (this.selectedChatUser && this.selectedChatUser.id === by) {
+                this.selectedChatUser = null;
+                this.showWelcomeScreen();
+            }
+        });
+
+        // Error handling
+        this.socket.on('error', (error) => {
+            console.error('Socket error:', error);
+            showError(error.message || 'Connection error');
+        });
+		// Add token refresh handling
+		this.socket.on('auth:token-expired', () => {
+			// Handle token refresh or redirect to login
+			this.handleTokenExpired();
+		});
+    }
+
+	private handleTokenExpired(): void {
+		localStorage.removeItem('token');
+		localStorage.removeItem('userData');
+		const event = new CustomEvent('navigate', {
+			detail: { path: '/login' }
+		});
+		window.dispatchEvent(event);
+	}
+
+    private async loadInitialData(): Promise<void> {
         try {
             await Promise.all([
-                this.loadChatUsers(),
+                this.loadRecentChats(),
                 this.loadOnlineUsers(),
                 this.loadGameInvites()
             ]);
         } catch (error) {
-            console.error('Failed to load chat data:', error);
-            showError('Failed to load chat data');
+            console.error('Failed to load initial data:', error);
         }
     }
 
-    private async loadChatUsers(): Promise<void> {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/conversations`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const conversations = await response.json();
-                this.renderChatUsers(conversations);
-            }
-        } catch (error) {
-            console.error('Failed to load chat users:', error);
-        }
+    private async loadRecentChats(): Promise<void> {
+        // For now, we'll just show an empty state
+        // In a real implementation, you'd load recent conversations
+        this.renderChatUsers([]);
     }
 
     private async loadOnlineUsers(): Promise<void> {
@@ -335,13 +547,13 @@ export class ChatPage implements Page {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/online`, {
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/online`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.ok) {
-                const users = await response.json();
-                this.renderOnlineUsers(users);
+                const data = await response.json();
+                this.renderOnlineUsers(data.users || []);
             }
         } catch (error) {
             console.error('Failed to load online users:', error);
@@ -353,66 +565,16 @@ export class ChatPage implements Page {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.GAME}/invites`, {
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/game/invites`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.ok) {
-                const invites = await response.json();
-                this.renderGameInvites(invites);
+                const data = await response.json();
+                this.renderGameInvites(data.invites || []);
             }
         } catch (error) {
             console.error('Failed to load game invites:', error);
-        }
-    }
-
-    private initializeWebSocket(): void {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        const wsUrl = `ws://localhost:3005/ws?token=${token}`;
-        this.websocket = new WebSocket(wsUrl);
-
-        this.websocket.onopen = () => {
-            console.log('WebSocket connected');
-            this.updateConnectionStatus('Connected');
-        };
-
-        this.websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            this.handleWebSocketMessage(data);
-        };
-
-        this.websocket.onclose = () => {
-            console.log('WebSocket disconnected');
-            this.updateConnectionStatus('Disconnected');
-            // Attempt to reconnect after 3 seconds
-            setTimeout(() => this.initializeWebSocket(), 3000);
-        };
-
-        this.websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            this.updateConnectionStatus('Error');
-        };
-    }
-
-    private handleWebSocketMessage(data: any): void {
-        switch (data.type) {
-            case 'message':
-                this.handleIncomingMessage(data.message);
-                break;
-            case 'typing':
-                this.handleTypingIndicator(data);
-                break;
-            case 'user_online':
-                this.handleUserOnline(data.user);
-                break;
-            case 'user_offline':
-                this.handleUserOffline(data.user);
-                break;
-            case 'game_invite':
-                this.handleGameInvite(data.invite);
-                break;
         }
     }
 
@@ -437,11 +599,17 @@ export class ChatPage implements Page {
                 }
             }
         });
+
+        // Hide search results when switching tabs
+        document.getElementById('searchResults')?.classList.add('hidden');
     }
 
     private async handleSearch(query: string): Promise<void> {
         if (!query.trim()) {
             document.getElementById('searchResults')?.classList.add('hidden');
+            // Show the current tab content
+            document.getElementById(this.activeTab === 'chats' ? 'chatsList' : 
+                                  this.activeTab === 'online' ? 'onlineList' : 'invitesList')?.classList.remove('hidden');
             return;
         }
 
@@ -454,8 +622,8 @@ export class ChatPage implements Page {
             });
 
             if (response.ok) {
-                const users = await response.json();
-                this.renderSearchResults(users);
+                const data = await response.json();
+                this.renderSearchResults(data.users || []);
             }
         } catch (error) {
             console.error('Search failed:', error);
@@ -470,14 +638,14 @@ export class ChatPage implements Page {
     }
 
     private handleTyping(): void {
-        if (!this.selectedChatUser || !this.websocket) return;
+        if (!this.selectedChatUser || !this.socket) return;
 
         if (!this.isTyping) {
             this.isTyping = true;
-            this.websocket.send(JSON.stringify({
-                type: 'typing_start',
-                recipientId: this.selectedChatUser.id
-            }));
+            this.socket.emit('message:typing', {
+                recipientId: this.selectedChatUser.id,
+                isTyping: true
+            });
         }
 
         // Clear existing timeout
@@ -488,74 +656,61 @@ export class ChatPage implements Page {
         // Set new timeout
         this.typingTimeout = window.setTimeout(() => {
             this.isTyping = false;
-            if (this.websocket) {
-                this.websocket.send(JSON.stringify({
-                    type: 'typing_stop',
-                    recipientId: this.selectedChatUser?.id
-                }));
+            if (this.socket && this.selectedChatUser) {
+                this.socket.emit('message:typing', {
+                    recipientId: this.selectedChatUser.id,
+                    isTyping: false
+                });
             }
         }, 1000);
     }
 
-    private async sendMessage(): Promise<void> {
-        if (!this.messageInput || !this.selectedChatUser) return;
+	private async sendMessage(): Promise<void> {
+		if (!this.messageInput || !this.selectedChatUser || !this.socket) return;
 
-        const content = this.messageInput.value.trim();
-        if (!content) return;
+		const content = this.messageInput.value.trim();
+		if (!content) return;
 
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
+		const tempMessage: ChatMessage = {
+			id: `temp-${Date.now()}`,
+			sender_id: this.currentUser?.id || '',
+			recipient_id: this.selectedChatUser.id,
+			content,
+			created_at: new Date().toISOString(),
+			type: 'text'
+		};
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/messages`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    recipientId: this.selectedChatUser.id,
-                    content
-                })
-            });
+		// Add to UI optimistically
+		this.addMessageToChat(tempMessage);
+		this.messageInput.value = '';
 
-            if (response.ok) {
-                const message = await response.json();
-                this.addMessageToChat(message);
-                this.messageInput.value = '';
-            }
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            showError('Failed to send message');
-        }
-    }
+		// Send with error handling
+		this.socket.emit('message:send', {
+			recipientId: this.selectedChatUser.id,
+			content,
+			type: 'text'
+		}, (response: unknown) => {
+			if (typeof response === 'object' && response !== null && 'error' in response) {
+				// Remove failed message and show error
+				this.messages = this.messages.filter(m => m.id !== tempMessage.id);
+				this.renderMessages();
+				showError('Failed to send message');
+				
+				// Restore message in input
+				if (this.messageInput) {
+					this.messageInput.value = content;
+				}
+			}
+		});
+	}
 
     private async sendGameInvite(): Promise<void> {
-        if (!this.selectedChatUser) return;
+        if (!this.selectedChatUser || !this.socket) return;
 
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.GAME}/invite`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    recipientId: this.selectedChatUser.id,
-                    gameType: 'ping-pong'
-                })
-            });
-
-            if (response.ok) {
-                showNotification('Game invite sent!', 'success');
-            }
-        } catch (error) {
-            console.error('Failed to send game invite:', error);
-            showError('Failed to send game invite');
-        }
+        // Send game invite via Socket.io
+        this.socket.emit('game:invite', {
+            recipientId: parseInt(this.selectedChatUser.id)
+        });
     }
 
     private async blockUser(): Promise<void> {
@@ -568,21 +723,18 @@ export class ChatPage implements Page {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/block`, {
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/block/${this.selectedChatUser.id}`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    userId: this.selectedChatUser.id
-                })
+                    'Authorization': `Bearer ${token}`
+                }
             });
 
             if (response.ok) {
                 showNotification('User blocked successfully', 'success');
                 this.selectedChatUser = null;
                 this.showWelcomeScreen();
+                this.loadRecentChats();
             }
         } catch (error) {
             console.error('Failed to block user:', error);
@@ -613,7 +765,7 @@ export class ChatPage implements Page {
                     <div class="flex-1">
                         <div class="flex justify-between items-center">
                             <h3 class="font-medium text-white">${conv.user.name}</h3>
-                            <span class="text-xs text-gray-400">${this.formatTime(conv.lastMessage.timestamp)}</span>
+                            <span class="text-xs text-gray-400">${this.formatTime(conv.lastMessage.created_at)}</span>
                         </div>
                         <p class="text-sm text-gray-400 truncate">${conv.lastMessage.content}</p>
                     </div>
@@ -676,7 +828,7 @@ export class ChatPage implements Page {
         });
     }
 
-    private renderGameInvites(invites: any[]): void {
+    private renderGameInvites(invites: GameInvite[]): void {
         if (!this.invitesList) return;
 
         const invitesBadge = document.getElementById('invitesBadge');
@@ -704,9 +856,9 @@ export class ChatPage implements Page {
             <div class="p-3 bg-gray-700 rounded-lg mb-2">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="font-medium text-white">${invite.from.name}</h3>
-                        <p class="text-sm text-gray-400">Invited you to play ${invite.gameType}</p>
-                        <p class="text-xs text-gray-500">${this.formatTime(invite.timestamp)}</p>
+                        <h3 class="font-medium text-white">${invite.senderUsername}</h3>
+                        <p class="text-sm text-gray-400">Invited you to play Pong</p>
+                        <p class="text-xs text-gray-500">${this.formatTime(invite.expiresAt)}</p>
                     </div>
                     <div class="flex space-x-2">
                         <button class="accept-invite bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm" data-invite-id="${invite.id}">
@@ -724,22 +876,34 @@ export class ChatPage implements Page {
         this.invitesList.querySelectorAll('.accept-invite').forEach(button => {
             button.addEventListener('click', (e) => {
                 const inviteId = (e.currentTarget as HTMLElement).dataset.inviteId;
-                if (inviteId) this.handleInviteResponse(inviteId, 'accept');
+                if (inviteId && this.socket) {
+                    this.socket.emit('game:invite:accept', { inviteId: parseInt(inviteId) });
+                    this.loadGameInvites(); // Refresh the list
+                }
             });
         });
 
         this.invitesList.querySelectorAll('.decline-invite').forEach(button => {
             button.addEventListener('click', (e) => {
                 const inviteId = (e.currentTarget as HTMLElement).dataset.inviteId;
-                if (inviteId) this.handleInviteResponse(inviteId, 'decline');
+                if (inviteId && this.socket) {
+                    this.socket.emit('game:invite:decline', { inviteId: parseInt(inviteId) });
+                    this.loadGameInvites(); // Refresh the list
+                }
             });
         });
     }
 
-    private renderSearchResults(users: ChatUser[]): void {
+	private renderSearchResults(users: ChatUser[]): void {
         const searchResults = document.getElementById('searchResults');
         if (!searchResults) return;
 
+        // Hide all other lists
+        document.getElementById('chatsList')?.classList.add('hidden');
+        document.getElementById('onlineList')?.classList.add('hidden');
+        document.getElementById('invitesList')?.classList.add('hidden');
+
+        // Show search results
         searchResults.classList.remove('hidden');
 
         if (users.length === 0) {
@@ -747,6 +911,7 @@ export class ChatPage implements Page {
                 <div class="text-center py-8">
                     <div class="text-4xl mb-4">🔍</div>
                     <p class="text-gray-400">No users found</p>
+                    <p class="text-sm text-gray-500 mt-2">Try a different search term</p>
                 </div>
             `;
             return;
@@ -755,7 +920,7 @@ export class ChatPage implements Page {
         searchResults.innerHTML = users.map(user => `
             <div class="p-3 hover:bg-gray-700 rounded-lg cursor-pointer transition-colors search-user" data-user-id="${user.id}">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                         <span class="font-bold text-white">${user.name[0].toUpperCase()}</span>
                     </div>
                     <div>
@@ -773,8 +938,6 @@ export class ChatPage implements Page {
                 const user = users.find(u => u.id === userId);
                 if (user) {
                     this.selectChatUser(user);
-                    this.searchInput!.value = '';
-                    searchResults.classList.add('hidden');
                 }
             });
         });
@@ -782,55 +945,62 @@ export class ChatPage implements Page {
 
     private selectChatUser(user: ChatUser): void {
         this.selectedChatUser = user;
+        this.chatUsers.set(user.id, user);
         this.showChatInterface();
-        this.loadMessagesForUser(user.id);
+        this.updateChatHeader(user);
+        this.loadChatMessages(user.id);
+        
+        if (this.searchInput) {
+            this.searchInput.value = '';
+        }
+        this.switchTab('chats');
     }
 
     private showChatInterface(): void {
         const welcomeScreen = document.getElementById('welcomeScreen');
         const messagesArea = document.getElementById('messagesArea');
         const chatHeader = document.getElementById('chatHeader');
-
+        
         welcomeScreen?.classList.add('hidden');
         messagesArea?.classList.remove('hidden');
         chatHeader?.classList.remove('hidden');
-
-        // Update chat header
-        this.updateChatHeader();
     }
 
     private showWelcomeScreen(): void {
         const welcomeScreen = document.getElementById('welcomeScreen');
         const messagesArea = document.getElementById('messagesArea');
         const chatHeader = document.getElementById('chatHeader');
-
+        
         welcomeScreen?.classList.remove('hidden');
         messagesArea?.classList.add('hidden');
         chatHeader?.classList.add('hidden');
+        
+        this.messages = [];
+        if (this.messagesContainer) {
+            this.messagesContainer.innerHTML = '';
+        }
     }
 
-    private updateChatHeader(): void {
-        if (!this.selectedChatUser) return;
-
-        const chatUserAvatar = document.getElementById('chatUserAvatar');
+    private updateChatHeader(user: ChatUser): void {
+        const chatUserAvatar = document.getElementById('chatUserAvatar')?.querySelector('span');
         const chatUsername = document.getElementById('chatUsername');
         const chatUserStatus = document.getElementById('chatUserStatus');
 
         if (chatUserAvatar) {
-            chatUserAvatar.innerHTML = `<span class="font-bold text-white">${this.selectedChatUser.name[0].toUpperCase()}</span>`;
+            chatUserAvatar.textContent = user.name[0].toUpperCase();
         }
 
         if (chatUsername) {
-            chatUsername.textContent = this.selectedChatUser.name;
+            chatUsername.textContent = user.name;
         }
 
         if (chatUserStatus) {
-            chatUserStatus.textContent = this.selectedChatUser.isOnline ? 'Online' : 'Offline';
-            chatUserStatus.className = this.selectedChatUser.isOnline ? 'text-sm text-green-400' : 'text-sm text-gray-400';
+            chatUserStatus.textContent = user.isOnline ? 'Online' : 
+                (user.lastSeen ? `Last seen ${this.formatTime(user.lastSeen.toISOString())}` : 'Offline');
         }
     }
 
-    private async loadMessagesForUser(userId: string): Promise<void> {
+    private async loadChatMessages(userId: string): Promise<void> {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
@@ -840,114 +1010,118 @@ export class ChatPage implements Page {
             });
 
             if (response.ok) {
-                const messages = await response.json();
-                this.renderMessages(messages);
+                const data = await response.json();
+                this.messages = data.messages || [];
+                this.renderMessages();
             }
         } catch (error) {
             console.error('Failed to load messages:', error);
         }
     }
 
-    private renderMessages(messages: ChatMessage[]): void {
+    private renderMessages(): void {
         if (!this.messagesContainer) return;
 
-        this.messagesContainer.innerHTML = messages.map(message => {
-            const isOwnMessage = message.senderId === this.currentUser?.id;
+        this.messagesContainer.innerHTML = this.messages.map(message => {
+            const isOwn = message.sender_id === this.currentUser?.id;
             return `
-                <div class="flex ${isOwnMessage ? 'justify-end' : 'justify-start'} message-enter">
-                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwnMessage ? 'bg-purple-600 text-white' : 'bg-gray-700 text-white'}">
-                        <p class="text-sm">${this.escapeHtml(message.content)}</p>
-                        <p class="text-xs mt-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</p>
+                <div class="flex ${isOwn ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                        isOwn ? 'bg-purple-600 text-white' : 'bg-gray-700 text-white'
+                    }">
+                        <p class="text-sm">${message.content}</p>
+                        <p class="text-xs ${isOwn ? 'text-purple-200' : 'text-gray-400'} mt-1">
+                            ${this.formatTime(message.created_at)}
+                        </p>
                     </div>
                 </div>
             `;
         }).join('');
 
         // Scroll to bottom
-        this.scrollToBottom();
+        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
 
     private addMessageToChat(message: ChatMessage): void {
-        if (!this.messagesContainer) return;
-
-        const isOwnMessage = message.senderId === this.currentUser?.id;
-        const messageElement = document.createElement('div');
-        messageElement.className = `flex ${isOwnMessage ? 'justify-end' : 'justify-start'} message-enter`;
-        messageElement.innerHTML = `
-            <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwnMessage ? 'bg-purple-600 text-white' : 'bg-gray-700 text-white'}">
-                <p class="text-sm">${this.escapeHtml(message.content)}</p>
-                <p class="text-xs mt-1 ${isOwnMessage ? 'text-purple-200' : 'text-gray-400'}">${this.formatTime(message.timestamp)}</p>
-            </div>
-        `;
-
-        this.messagesContainer.appendChild(messageElement);
-        this.scrollToBottom();
+		/** Prevent duplicate message */
+		if (this.messages.some(m => m.id === message.id)) return;
+        this.messages.push(message);
+        this.renderMessages();
     }
 
     private handleIncomingMessage(message: ChatMessage): void {
-        // Add to current chat if it's from the selected user
-        if (this.selectedChatUser && message.senderId === this.selectedChatUser.id) {
+		//null check
+		if (!message || !this.currentUser) return;
+        // Only add if it's for the current chat
+        if (this.selectedChatUser && 
+            (message.sender_id === this.selectedChatUser.id || message.recipient_id === this.selectedChatUser.id)) {
             this.addMessageToChat(message);
         }
 
-        // Update chat list
-        this.loadChatUsers();
+        // Mark as read if chat is open
+        if (this.selectedChatUser && message.sender_id === this.selectedChatUser.id && this.socket) {
+            this.socket.emit('message:markRead', { messageId: message.id });
+        }
     }
 
-    private handleTypingIndicator(data: any): void {
-        if (this.selectedChatUser && data.senderId === this.selectedChatUser.id) {
-            const typingIndicator = document.getElementById('typingIndicator');
-            if (typingIndicator) {
-                if (data.isTyping) {
-                    typingIndicator.classList.remove('hidden');
-                } else {
-                    typingIndicator.classList.add('hidden');
-                }
+    private handleTypingIndicator({ senderId, isTyping }: { senderId: string; isTyping: boolean }): void {
+        if (this.selectedChatUser && senderId === this.selectedChatUser.id) {
+            if (isTyping) {
+                this.typingUsers.add(senderId);
+            } else {
+                this.typingUsers.delete(senderId);
+            }
+            this.updateTypingIndicator();
+        }
+    }
+
+    private updateTypingIndicator(): void {
+        const typingIndicator = document.getElementById('typingIndicator');
+        const typingText = document.getElementById('typingText');
+        
+        if (!typingIndicator || !typingText) return;
+
+        if (this.typingUsers.size > 0) {
+            typingIndicator.classList.remove('hidden');
+            typingText.textContent = `${this.selectedChatUser?.name || 'Someone'} is typing...`;
+        } else {
+            typingIndicator.classList.add('hidden');
+        }
+    }
+
+    private handleMessageRead(messageId: string): void {
+        const message = this.messages.find(m => m.id === messageId);
+        if (message) {
+            message.read_at = new Date().toISOString();
+            // Optionally update UI to show read status
+        }
+    }
+
+    private handleGameInvite(invite: GameInvite): void {
+        showNotification(`${invite.senderUsername} invited you to play Pong!`, 'info');
+        this.loadGameInvites(); // Refresh invites list
+    }
+
+    private handleUserOnline(userId: string): void {
+        const user = this.chatUsers.get(userId);
+        if (user) {
+            user.isOnline = true;
+            // Update UI if this user is currently selected
+            if (this.selectedChatUser && this.selectedChatUser.id === userId) {
+                this.updateChatHeader(user);
             }
         }
     }
 
-    private handleUserOnline(user: ChatUser): void {
-        // Update user status in lists
-        this.loadOnlineUsers();
-    }
-
-    private handleUserOffline(user: ChatUser): void {
-        // Update user status in lists
-        this.loadOnlineUsers();
-    }
-
-    private handleGameInvite(invite: any): void {
-        showNotification(`${invite.from.name} invited you to play ${invite.gameType}!`, 'info');
-        this.loadGameInvites();
-    }
-
-    private async handleInviteResponse(inviteId: string, action: 'accept' | 'decline'): Promise<void> {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.GAME}/invite/${inviteId}/${action}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                showNotification(`Invite ${action}ed successfully`, 'success');
-                
-                if (action === 'accept') {
-                    // Navigate to game
-                    const event = new CustomEvent('navigate', {
-                        detail: { path: '/game' }
-                    });
-                    window.dispatchEvent(event);
-                }
-                
-                this.loadGameInvites();
+    private handleUserOffline(userId: string): void {
+        const user = this.chatUsers.get(userId);
+        if (user) {
+            user.isOnline = false;
+            user.lastSeen = new Date();
+            // Update UI if this user is currently selected
+            if (this.selectedChatUser && this.selectedChatUser.id === userId) {
+                this.updateChatHeader(user);
             }
-        } catch (error) {
-            console.error(`Failed to ${action} invite:`, error);
-            showError(`Failed to ${action} invite`);
         }
     }
 
@@ -955,39 +1129,266 @@ export class ChatPage implements Page {
         const connectionStatus = document.getElementById('connectionStatus');
         if (connectionStatus) {
             connectionStatus.textContent = status;
-            connectionStatus.className = status === 'Connected' ? 'text-xs text-green-400' : 'text-xs text-red-400';
+            connectionStatus.className = `text-xs ${
+                status === 'Connected' ? 'text-green-400' : 
+                status === 'Disconnected' ? 'text-red-400' : 
+                'text-yellow-400'
+            }`;
         }
     }
 
-    private scrollToBottom(): void {
-        if (this.messagesContainer) {
-            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
-        }
-    }
-
-    private formatTime(timestamp: string | Date): string {
+    private formatTime(timestamp: string): string {
         const date = new Date(timestamp);
         const now = new Date();
-        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        const diff = now.getTime() - date.getTime();
 
-        if (diffInHours < 24) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (diff < 60000) { // Less than 1 minute
+            return 'Just now';
+        } else if (diff < 3600000) { // Less than 1 hour
+            return `${Math.floor(diff / 60000)}m ago`;
+        } else if (diff < 86400000) { // Less than 1 day
+            return `${Math.floor(diff / 3600000)}h ago`;
         } else {
             return date.toLocaleDateString();
         }
     }
 
-    private escapeHtml(text: string): string {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    private debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
-        let timeoutId: ReturnType<typeof setTimeout>;
-        return (...args: Parameters<T>) => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => func.apply(this, args), delay);
+    private debounce(func: Function, wait: number): Function {
+        let timeout: number;
+        return function executedFunction(...args: any[]) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = window.setTimeout(later, wait);
         };
     }
+	private initializeSocketIOWithDebug(): void {
+		const token = localStorage.getItem('token');
+		console.log('🔐 Token exists:', !!token);
+		console.log('🌐 Gateway URL:', API_CONFIG.GATEWAY_URL);
+		
+		if (!token) {
+			console.error('❌ No token found');
+			return;
+		}
+
+		this.socket = io(API_CONFIG.GATEWAY_URL, {
+			path: '/socket.io/',
+			reconnection: true,
+			reconnectionAttempts: 5,
+			reconnectionDelay: 1000,
+			timeout: 10000, // Add timeout
+			forceNew: true // Force new connection
+		});
+
+		// Enhanced connection debugging
+		this.socket.on('connect', () => {
+			console.log('✅ Connected to gateway, socket ID:', this.socket?.id);
+			this.updateConnectionStatus('Authenticating...');
+			
+			// Add timeout for auth
+			const authTimeout = setTimeout(() => {
+				console.error('❌ Auth timeout');
+				this.updateConnectionStatus('Auth Timeout');
+			}, 5000);
+			
+			this.socket?.emit('auth', { token: token }, (response: any) => {
+				clearTimeout(authTimeout);
+				console.log('🔐 Auth response:', response);
+			});
+		});
+
+		this.socket.on('auth:success', (data: any) => {
+			console.log('✅ Authentication successful:', data);
+			this.updateConnectionStatus('Connected');
+			
+			// Join current chat room if any
+			if (this.selectedChatUser) {
+				console.log('🏠 Rejoining chat room for user:', this.selectedChatUser.id);
+				this.socket?.emit('chat:join', {userId: this.selectedChatUser.id});
+			}
+		});
+
+		this.socket.on('auth:error', (error: any) => {
+			console.error('❌ Authentication failed:', error);
+			this.updateConnectionStatus('Auth Failed');
+			// Redirect to login if auth fails
+			setTimeout(() => {
+				window.dispatchEvent(new CustomEvent('navigate', { detail: { path: '/login' } }));
+			}, 2000);
+		});
+
+		// Debug all socket events
+		this.socket.onAny((event: string, ...args: any[]) => {
+			console.log(`📡 Socket event: ${event}`, args);
+		});
+
+		// Debug connection errors
+		this.socket.on('connect_error', (error: any) => {
+			console.error('❌ Connection error:', error);
+			console.log('Error details:', {
+				message: error.message,
+				description: error.description,
+				context: error.context,
+				type: error.type
+			});
+		});
+
+		this.socket.on('disconnect', (reason: string) => {
+			console.log('🔌 Disconnected:', reason);
+			this.updateConnectionStatus('Disconnected');
+		});
+	}
+
+	// 2. Enhanced Message Sending with Debug
+	private async sendMessageWithDebug(): Promise<void> {
+		if (!this.messageInput || !this.selectedChatUser || !this.socket) {
+			console.error('❌ Send message failed - missing dependencies:', {
+				messageInput: !!this.messageInput,
+				selectedChatUser: !!this.selectedChatUser,
+				socket: !!this.socket
+			});
+			return;
+		}
+
+		const content = this.messageInput.value.trim();
+		if (!content) {
+			console.log('⚠️ Empty message content');
+			return;
+		}
+
+		console.log('📤 Sending message:', {
+			to: this.selectedChatUser.id,
+			content: content.substring(0, 50) + '...',
+			socketConnected: this.socket.connected
+		});
+
+		if (!this.socket.connected) {
+			console.error('❌ Socket not connected');
+			showError('Connection lost. Please refresh and try again.');
+			return;
+		}
+
+		const tempMessage: ChatMessage = {
+			id: `temp-${Date.now()}`,
+			sender_id: this.currentUser?.id || '',
+			recipient_id: this.selectedChatUser.id,
+			content,
+			created_at: new Date().toISOString(),
+			type: 'text'
+		};
+
+		// Add to UI optimistically
+		this.addMessageToChat(tempMessage);
+		this.messageInput.value = '';
+
+		// Send with enhanced error handling
+		const sendPromise = new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error('Message send timeout'));
+			}, 10000);
+
+			this.socket?.emit('message:send', {
+				recipientId: parseInt(this.selectedChatUser!.id), // Ensure it's a number
+				content,
+				type: 'text'
+			}, (response: any) => {
+				clearTimeout(timeout);
+				console.log('📤 Message send response:', response);
+				
+				if (response && response.error) {
+					reject(new Error(response.error));
+				} else {
+					resolve(response);
+				}
+			});
+		});
+
+		try {
+			await sendPromise;
+			console.log('✅ Message sent successfully');
+		} catch (error) {
+			console.error('❌ Message send failed:', error);
+			
+			// Remove failed message and show error
+			this.messages = this.messages.filter(m => m.id !== tempMessage.id);
+			this.renderMessages();
+			showError('Failed to send message: ' + (error as Error).message);
+			
+			// Restore message in input
+			if (this.messageInput) {
+				this.messageInput.value = content;
+			}
+		}
+	}
+
+	// 3. Enhanced User Selection with Room Joining
+	private selectChatUserWithDebug(user: ChatUser): void {
+		console.log('👤 Selecting chat user:', user);
+		
+		this.selectedChatUser = user;
+		this.chatUsers.set(user.id, user);
+		this.showChatInterface();
+		this.updateChatHeader(user);
+		
+		// Join chat room
+		if (this.socket?.connected) {
+			console.log('🏠 Joining chat room for user:', user.id);
+			this.socket.emit('chat:join', { userId: user.id }, (response: any) => {
+				console.log('🏠 Chat room join response:', response);
+			});
+		} else {
+			console.error('❌ Cannot join chat room - socket not connected');
+		}
+		
+		this.loadChatMessages(user.id);
+		
+		if (this.searchInput) {
+			this.searchInput.value = '';
+		}
+		this.switchTab('chats');
+	}
+
+	// 4. Message Reception Debug
+	private handleIncomingMessageWithDebug(message: ChatMessage): void {
+		console.log('📥 Incoming message:', {
+			id: message.id,
+			from: message.sender_id,
+			to: message.recipient_id,
+			content: message.content.substring(0, 50) + '...',
+			selectedUser: this.selectedChatUser?.id
+		});
+
+		if (!message || !this.currentUser) {
+			console.error('❌ Invalid message or current user');
+			return;
+		}
+
+		// Only add if it's for the current chat
+		if (this.selectedChatUser && 
+			(message.sender_id === this.selectedChatUser.id || message.recipient_id === this.selectedChatUser.id)) {
+			console.log('✅ Message is for current chat, adding to UI');
+			this.addMessageToChat(message);
+		} else {
+			console.log('ℹ️ Message not for current chat, ignoring');
+		}
+
+		// Mark as read if chat is open
+		if (this.selectedChatUser && message.sender_id === this.selectedChatUser.id && this.socket) {
+			console.log('👁️ Marking message as read');
+			this.socket.emit('message:markRead', { messageId: message.id });
+		}
+	}
+
+	// 5. API Configuration Check
+	private debugAPIConfiguration(): void {
+		console.log('🔧 API Configuration:', {
+			gateway: API_CONFIG.GATEWAY_URL,
+			chatEndpoint: API_CONFIG.ENDPOINTS?.CHAT,
+			userEndpoint: API_CONFIG.ENDPOINTS?.USER,
+			token: localStorage.getItem('token')?.substring(0, 20) + '...'
+		});
+	}
 }

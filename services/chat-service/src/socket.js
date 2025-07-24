@@ -32,4 +32,28 @@ export class SocketManager {
 	isUserOnline(userId) {
 		return this.users.has(userId);
 	}
+
+	/** New methods for online users endpoints */
+	getOnlineUsersIds() {
+		return Array.from(this.users.keys());
+	}
+
+	getOnlineUsersCount() {
+		return this.users.size;
+	}
+
+	getOnlineUsersWithSockets() {
+		return Array.from(this.users.entries()).map(([userId, socketId]) => ({
+			userId: parseInt(userId),
+			socketId
+		}));
+	}
+
+	checkMultipleUsersOnline(userIds) {
+		const result = {};
+		userIds.forEach(userId => {
+			result[userId] = this.isUserOnline(userId);
+		});
+		return result;
+	}
 }

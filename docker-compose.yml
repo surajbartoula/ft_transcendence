@@ -1,18 +1,20 @@
 version: '3.8'
+
 services:
   # Init container to set proper ownership
   volume-init:
     image: alpine:latest
     command: |
       sh -c "
-        chown -R 1001:1001 /auth-data /user-data /chat-data /game-data &&
-        chmod -R 755 /auth-data /user-data /chat-data /game-data
+        chown -R 1001:1001 /auth-data /user-data /chat-data /game-data /user-uploads &&
+        chmod -R 755 /auth-data /user-data /chat-data /game-data /user-uploads
       "
     volumes:
       - auth-db:/auth-data
       - user-db:/user-data
       - chat-db:/chat-data
       - game-db:/game-data
+      - user-uploads:/user-uploads
     networks:
       - pong-network
 
@@ -61,6 +63,7 @@ services:
       - PORT=3002
     volumes:
       - user-db:/app/data
+      - user-uploads:/app/uploads
     user: "1001:1001"
     depends_on:
       - volume-init
@@ -135,5 +138,6 @@ networks:
 volumes:
   auth-db:
   user-db:
+  user-uploads:
   chat-db:
   game-db:

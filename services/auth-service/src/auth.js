@@ -16,7 +16,7 @@ export default async function authRoutes(fastify, options) {
 	 */
 	fastify.post('/register', async (request, reply) => {
 		try {
-			/**Extract email, password and name from the request body */
+			/** Extract email, password and name from the request body */
 			const { email, password, name } = request.body;
 			if (!email || !password || !name) {
 				return reply.status(400).send({
@@ -28,22 +28,22 @@ export default async function authRoutes(fastify, options) {
 					error: 'Password must be at least 6 characters long'
 				});
 			}
-			/**
-			 * Check if user already exists by email
-			 */
+			/** Check if user already exists by email */
 			const existingUser = await User.findByEmail(email);
 			if (existingUser) {
 				return reply.status(400).send({
 					error: 'User already exists with this email'
 				});
 			}
-			/**
-			 * Create new user
-			 */
+			/** Create new user */
 			const user = await User.create(email, password, name);
-			/**
-			 * Generate JWT token. (reply.jwtSign) is a Fasify plugin method
-			 */
+			const defaultProfile = {
+				username: user.name,
+				bio: ''
+			};
+			/** Create user profile in user service */
+			await createUserProfile(defaultProfile, token);
+			/** Generate JWT token. (reply.jwtSign) is a Fasify plugin method */
 			const token = await reply.jwtSign({
 				id: user.id,
 				email: user.email
@@ -287,6 +287,31 @@ export default async function authRoutes(fastify, options) {
 		scope: ['openid', 'email', 'profile']
 	});
 
+	/**
+	 * Create user profile in user service via gateway
+	 */
+	async function createUserProfile(user, jwtToken) {
+		try {
+			const gatewayUrl = process.env.GATEWAY_URL || 'http://localhost:3005';
+			const response = await fetch(`${gatewayUrl}/api/user/profile`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${jwtToken}`
+				},
+				body: JSON.stringify({
+					username: user.username,
+					bio: user.bio || null
+				})
+			});
+			if (!response.ok && response.status !== 409) { /** 409 means profile already exists */
+				fastify.log.error('Failed to create user profile:', await response.text());
+			}
+		} catch (error) {
+			fastify.log.error('Error creating user profile:', error);
+		}
+	}
+
 	/**Google OAuth callback*/
 	/**This handles the response from Google after user consent*/
 	fastify.get('/google/callback', async (request, reply) => {
@@ -299,6 +324,7 @@ export default async function authRoutes(fastify, options) {
 				});
 			}
 			let user = await User.findByEmail(googleUserInfo.email);
+			let isNewUser = false;
 			if (!user) {
 				user = await User.createGoogleUser(
 					googleUserInfo.email,
@@ -306,13 +332,20 @@ export default async function authRoutes(fastify, options) {
 					googleUserInfo.picture,
 					googleUserInfo.sub //google user ID
 				);
+				isNewUser = true;
 			} else {
 				await User.updateGoogleInfo(user.id, googleUserInfo.picture, googleUserInfo.sub);
 			}
+			const defaultProfile = {
+				username: user.name,
+				bio: ''
+			};
+			/** Create user profile if new user or ensure profile exists */
 			const jwtToken = await reply.jwtSign({
 				id: user.id,
 				email: user.email
 			});
+			await createUserProfile(defaultProfile, jwtToken);
 			return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
 		} catch (error) {
 			console.error('Google OAuth callback error:', error);

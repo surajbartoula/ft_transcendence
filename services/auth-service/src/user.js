@@ -4,7 +4,7 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { db } from './db.js';
 import dotenv from 'dotenv'
-import path from 'path';
+import path, { resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -60,6 +60,7 @@ export class User {
 		});
 	}
 
+	/** db.get(sql, [params], callback) */
 	static async findByEmail(email) {
 		return new Promise((resolve, reject) => {
 			db.get('SELECT * FROM users WHERE email = ?', [email], (err, row) => {

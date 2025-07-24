@@ -40,10 +40,11 @@ export function setupSocketHandlers(io, socketManager, db) {
 				if (recipientSocketId) {
 					io.to(recipientSocketId).emit('message:receive', {
 						id: message.id,
-						senderId,
+						sender_id: senderId,
+						recipient_id: recipientId,
 						content,
 						type,
-						createdAt: message.created_at
+						created_at: message.created_at
 					});
 				}
 				/** Acknowledge to sender */
@@ -87,7 +88,7 @@ export function setupSocketHandlers(io, socketManager, db) {
 					return socket.emit('error', { message: 'You are blocked by this user' });
 				}
 				/** create invite */
-				const invite = await db.createGameInvite(senderiD, recipientId);
+				const invite = await db.createGameInvite(senderID, recipientId);
 				const sender = await db.getUser(senderID);
 				/** notify recipient if online */
 				const recipientSocketId = socketManager.getSocketId(recipientId);

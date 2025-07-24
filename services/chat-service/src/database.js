@@ -1,9 +1,15 @@
 import sqlite3 from 'sqlite3';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import path, { join } from 'path';
+import dotenv from 'dotenv';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 /**
 run: executes a SQL statement (e.g., INSERT, UPDATE). run() returns an object with metadata (like lastID, changes)
@@ -13,12 +19,25 @@ all: fetches all rows.
 
 export class Database {
 	constructor() {
-		const dbPath = process.env.DATABASE_PATH || join(__dirname, '../chat.db');
+		const dbPath =this.getDatabasePath();
 		this.db = new sqlite3.Database(dbPath);
+		console.log('Connected chat.db at:', dbPath);
 		/** Promisify database methods */
 		this.run = promisify(this.db.run.bind(this.db));
 		this.get = promisify(this.db.get.bind(this.db));
 		this.all = promisify(this.db.all.bind(this.db));
+	}
+
+	getDatabasePath() {
+		const isDocker = process.env.DOCKER_ENV || fs.existsSync('/app');
+		if (isDocker) {
+			const dataDir = '/app/data';
+			if (!fs.existsSync(dataDir)) {
+				fs.mkdirSync(dataDir, { recursive: true });
+			}
+			return join(dataDir, 'chat.db');
+		}
+		return process.env.DATABASE_PATH || join(__dirname, '../chat.db');
 	}
 
 	/** PRIMARY KEY cannot have null value but UNIQUE can have null value */

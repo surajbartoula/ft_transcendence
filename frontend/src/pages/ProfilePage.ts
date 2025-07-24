@@ -4,14 +4,30 @@ import { User } from '../utils/auth';
 import { showNotification, showError } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
+interface ProfileData {
+    username: string;
+    bio?: string;
+}
+
+interface PhotoData {
+    id: string;
+    user_id: string;
+    filename: string;
+    path: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export class ProfilePage implements Page {
     public title = 'Profile';
     public requiresAuth = true;
     
     private currentUser: User | null = null;
+    private currentProfile: ProfileData | null = null;
     private profileForm: HTMLFormElement | null = null;
     private avatarUpload: HTMLInputElement | null = null;
     private saveButton: HTMLButtonElement | null = null;
+    private isEditing: boolean = false;
 
     public render(): string {
         return `
@@ -26,8 +42,9 @@ export class ProfilePage implements Page {
                             <div class="flex items-center space-x-6">
                                 <div class="relative">
                                     <div class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold" id="profileAvatar">
-                                        <span class="text-white">Loading...</span>
+                                        <span class="text-white">📷</span>
                                     </div>
+                                    <img id="profilePhoto" class="w-24 h-24 rounded-full object-cover hidden" alt="Profile Photo">
                                     <button class="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition-colors" id="avatarButton">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
@@ -44,30 +61,38 @@ export class ProfilePage implements Page {
                             </div>
                         </div>
 
+                        <!-- Profile Display -->
+                        <div id="profileDisplay" class="bg-slate-800 rounded-lg p-6 mb-6" style="display: none;">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="text-lg font-semibold text-white">Profile Information</h3>
+                                <button id="editProfileBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit Profile
+                                </button>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Display name</label>
+                                    <p id="displayUsername" class="text-white">-</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
+                                    <p id="displayBio" class="text-white">No bio provided</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Profile Form -->
-                        <div class="bg-slate-800 rounded-lg p-6 mb-6">
+                        <div id="profileFormContainer" class="bg-slate-800 rounded-lg p-6 mb-6">
                             <h3 class="text-lg font-semibold text-white mb-4">Personal Information</h3>
                             <form id="profileForm" class="space-y-6">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="displayName" class="block text-sm font-medium text-gray-300 mb-2">Display Name</label>
-                                        <input type="text" id="displayName" name="displayName" 
-                                               class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                               placeholder="Enter your display name">
-                                    </div>
-                                    <div>
-                                        <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                                        <input type="text" id="username" name="username" 
-                                               class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                               placeholder="Choose a username">
-                                    </div>
-                                </div>
-                                
                                 <div>
-                                    <label for="email" class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-                                    <input type="email" id="email" name="email" 
+                                    <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username *</label>
+                                    <input type="text" id="username" name="username" required
                                            class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                           placeholder="Enter your email">
+                                           placeholder="Enter your username">
                                 </div>
                                 
                                 <div>
@@ -77,77 +102,17 @@ export class ProfilePage implements Page {
                                               placeholder="Tell us about yourself..."></textarea>
                                     <p class="text-xs text-gray-500 mt-1">Maximum 500 characters</p>
                                 </div>
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label for="location" class="block text-sm font-medium text-gray-300 mb-2">Location</label>
-                                        <input type="text" id="location" name="location" 
-                                               class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                               placeholder="Your location">
-                                    </div>
-                                    <div>
-                                        <label for="website" class="block text-sm font-medium text-gray-300 mb-2">Website</label>
-                                        <input type="url" id="website" name="website" 
-                                               class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                               placeholder="https://yourwebsite.com">
-                                    </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex justify-center items-center space-x-4">
+                                    <button type="button" id="cancelBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors" style="display: none;">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" id="saveButton" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                                        Save Profile
+                                    </button>
                                 </div>
                             </form>
-                        </div>
-
-                        <!-- Privacy Settings -->
-                        <div class="bg-slate-800 rounded-lg p-6 mb-6">
-                            <h3 class="text-lg font-semibold text-white mb-4">Privacy Settings</h3>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="text-white font-medium">Profile Visibility</h4>
-                                        <p class="text-sm text-gray-400">Who can see your profile</p>
-                                    </div>
-                                    <select id="profileVisibility" class="bg-slate-700 border border-slate-600 rounded-lg text-white p-2 focus:ring-2 focus:ring-blue-500">
-                                        <option value="public">Public</option>
-                                        <option value="friends">Friends Only</option>
-                                        <option value="private">Private</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="text-white font-medium">Online Status</h4>
-                                        <p class="text-sm text-gray-400">Show when you're online</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="showOnlineStatus" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
-                                
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h4 class="text-white font-medium">Game Invites</h4>
-                                        <p class="text-sm text-gray-400">Allow others to invite you to games</p>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="allowGameInvites" class="sr-only peer" checked>
-                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div class="flex justify-between items-center">
-                            <button type="button" id="deleteAccountBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                                Delete Account
-                            </button>
-                            <div class="space-x-4">
-                                <button type="button" data-route="/dashboard" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                                    Cancel
-                                </button>
-                                <button type="submit" form="profileForm" id="saveButton" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-                                    Save Changes
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -159,7 +124,8 @@ export class ProfilePage implements Page {
         this.bindElements();
         this.loadUserData();
         this.attachEventListeners();
-        this.populateForm();
+        this.loadProfile();
+        this.loadPhoto();
     }
 
     public cleanup(): void {
@@ -178,9 +144,19 @@ export class ProfilePage implements Page {
             avatarButton.removeEventListener('click', this.handleAvatarClick);
         }
 
-        const deleteButton = document.getElementById('deleteAccountBtn');
-        if (deleteButton) {
-            deleteButton.removeEventListener('click', this.handleDeleteAccount);
+        const editBtn = document.getElementById('editProfileBtn');
+        if (editBtn) {
+            editBtn.removeEventListener('click', this.handleEditClick);
+        }
+
+        const cancelBtn = document.getElementById('cancelBtn');
+        if (cancelBtn) {
+            cancelBtn.removeEventListener('click', this.handleCancelClick);
+        }
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.removeEventListener('click', this.handleLogout);
         }
     }
 
@@ -194,6 +170,7 @@ export class ProfilePage implements Page {
         const userDataStr = localStorage.getItem('userData');
         if (userDataStr) {
             this.currentUser = JSON.parse(userDataStr);
+            this.populateUserInfo();
         }
     }
 
@@ -201,32 +178,35 @@ export class ProfilePage implements Page {
         if (this.profileForm) {
             this.profileForm.addEventListener('submit', this.handleSubmit.bind(this));
         }
-
         if (this.avatarUpload) {
             this.avatarUpload.addEventListener('change', this.handleAvatarChange.bind(this));
         }
-
+        
         const avatarButton = document.getElementById('avatarButton');
         if (avatarButton) {
             avatarButton.addEventListener('click', this.handleAvatarClick.bind(this));
         }
 
-        const deleteButton = document.getElementById('deleteAccountBtn');
-        if (deleteButton) {
-            deleteButton.addEventListener('click', this.handleDeleteAccount.bind(this));
+        const editBtn = document.getElementById('editProfileBtn');
+        if (editBtn) {
+            editBtn.addEventListener('click', this.handleEditClick.bind(this));
         }
 
-        // Auto-save on input change
-        const inputs = this.profileForm?.querySelectorAll('input, textarea, select');
-        inputs?.forEach(input => {
-            input.addEventListener('input', this.handleInputChange.bind(this));
-        });
+        const cancelBtn = document.getElementById('cancelBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', this.handleCancelClick.bind(this));
+        }
+
+        // Add logout button event listener
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', this.handleLogout.bind(this));
+        }
     }
 
-    private populateForm(): void {
+    private populateUserInfo(): void {
         if (!this.currentUser) return;
 
-        // Update profile header
         const profileAvatar = document.getElementById('profileAvatar');
         const currentUserName = document.getElementById('currentUserName');
         const currentUserEmail = document.getElementById('currentUserEmail');
@@ -236,30 +216,154 @@ export class ProfilePage implements Page {
             const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
             profileAvatar.innerHTML = `<span class="text-white text-2xl font-bold">${initials}</span>`;
         }
-
         if (currentUserName) {
             currentUserName.textContent = this.currentUser.name;
         }
-
         if (currentUserEmail) {
             currentUserEmail.textContent = this.currentUser.email;
         }
-
         if (memberSince) {
             const joinDate = new Date(this.currentUser.created_at).toLocaleDateString();
             memberSince.textContent = joinDate;
         }
+    }
 
-        // Populate form fields
-        const displayNameInput = document.getElementById('displayName') as HTMLInputElement;
-        const emailInput = document.getElementById('email') as HTMLInputElement;
+    private async loadProfile(): Promise<void> {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error('No authentication token found');
 
-        if (displayNameInput) {
-            displayNameInput.value = this.currentUser.name;
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const profile = await response.json();
+                this.currentProfile = profile;
+                this.updateProfileDisplay(profile);
+                this.showProfileDisplay();
+            } else if (response.status === 404) {
+                // Profile doesn't exist, show form to create one
+                this.showProfileForm();
+            } else {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to load profile');
+            }
+
+        } catch (error: any) {
+            console.error('Error loading profile:', error);
+            if (error.message.includes('not found')) {
+                this.showProfileForm();
+            } else {
+                showError(error.message || 'Failed to load profile');
+                this.showProfileForm();
+            }
+        }
+    }
+
+    private async loadPhoto(): Promise<void> {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const photo: PhotoData = await response.json();
+                this.updatePhotoDisplay(photo);
+            }
+        } catch (error) {
+            // Photo not found is okay, keep placeholder
+            console.log('No photo found, using placeholder');
+        }
+    }
+
+    private updateProfileDisplay(profile: ProfileData): void {
+        const displayUsername = document.getElementById('displayUsername');
+        const displayBio = document.getElementById('displayBio');
+
+        if (displayUsername) {
+            displayUsername.textContent = profile.username;
+        }
+        if (displayBio) {
+            displayBio.textContent = profile.bio || 'No bio provided';
         }
 
-        if (emailInput) {
-            emailInput.value = this.currentUser.email;
+        // Also update form fields
+        const usernameInput = document.getElementById('username') as HTMLInputElement;
+        const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
+
+        if (usernameInput) {
+            usernameInput.value = profile.username;
+        }
+        if (bioInput) {
+            bioInput.value = profile.bio || '';
+        }
+    }
+
+    private updatePhotoDisplay(photo: PhotoData): void {
+        const profilePhoto = document.getElementById('profilePhoto') as HTMLImageElement;
+        const profileAvatar = document.getElementById('profileAvatar');
+
+        if (profilePhoto && profileAvatar) {
+            profilePhoto.src = `${API_CONFIG.GATEWAY_URL}${photo.path}`;
+            profilePhoto.classList.remove('hidden');
+            profileAvatar.classList.add('hidden');
+        }
+    }
+
+    private showProfileDisplay(): void {
+        const profileDisplay = document.getElementById('profileDisplay');
+        const profileFormContainer = document.getElementById('profileFormContainer');
+
+        if (profileDisplay) {
+            profileDisplay.style.display = 'block';
+        }
+        if (profileFormContainer) {
+            profileFormContainer.style.display = 'none';
+        }
+        this.isEditing = false;
+    }
+
+    private showProfileForm(): void {
+        const profileDisplay = document.getElementById('profileDisplay');
+        const profileFormContainer = document.getElementById('profileFormContainer');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        if (profileDisplay) {
+            profileDisplay.style.display = 'none';
+        }
+        if (profileFormContainer) {
+            profileFormContainer.style.display = 'block';
+        }
+        if (cancelBtn) {
+            cancelBtn.style.display = this.currentProfile ? 'inline-block' : 'none';
+        }
+        this.isEditing = true;
+
+        // Update save button text
+        if (this.saveButton) {
+            this.saveButton.textContent = this.currentProfile ? 'Update Profile' : 'Create Profile';
+        }
+    }
+
+    private handleEditClick(): void {
+        this.showProfileForm();
+    }
+
+    private handleCancelClick(): void {
+        if (this.currentProfile) {
+            this.updateProfileDisplay(this.currentProfile);
+            this.showProfileDisplay();
         }
     }
 
@@ -271,17 +375,26 @@ export class ProfilePage implements Page {
     private async handleSave(): Promise<void> {
         if (!this.profileForm || !this.saveButton) return;
 
+        const formData = new FormData(this.profileForm);
+        const profileData: ProfileData = {
+            username: formData.get('username') as string,
+            bio: formData.get('bio') as string
+        };
+
+        if (!profileData.username.trim()) {
+            showError('Username is required');
+            return;
+        }
+
         this.setLoadingState(true);
 
         try {
-            const formData = new FormData(this.profileForm);
-            const profileData = Object.fromEntries(formData.entries());
-
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
 
+            const method = this.currentProfile ? 'PATCH' : 'POST';
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
-                method: 'PATCH',
+                method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -291,19 +404,19 @@ export class ProfilePage implements Page {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.message || 'Failed to update profile');
+                throw new Error(error.message || 'Failed to save profile');
             }
 
-            const updatedUser = await response.json();
+            const updatedProfile = await response.json();
+            this.currentProfile = updatedProfile;
+            this.updateProfileDisplay(updatedProfile);
+            this.showProfileDisplay();
             
-            // Update localStorage
-            localStorage.setItem('userData', JSON.stringify(updatedUser));
-            this.currentUser = updatedUser;
-            
-            showNotification('Profile updated successfully!', 'success');
+            const message = this.currentProfile ? 'Profile updated successfully!' : 'Profile created successfully!';
+            showNotification(message, 'success');
 
         } catch (error: any) {
-            showError(error.message || 'Failed to update profile');
+            showError(error.message || 'Failed to save profile');
         } finally {
             this.setLoadingState(false);
         }
@@ -316,7 +429,6 @@ export class ProfilePage implements Page {
     private async handleAvatarChange(e: Event): Promise<void> {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
-        
         if (!file) return;
 
         // Validate file
@@ -324,7 +436,6 @@ export class ProfilePage implements Page {
             showError('Please select a valid image file');
             return;
         }
-
         if (file.size > 5 * 1024 * 1024) { // 5MB limit
             showError('Image must be smaller than 5MB');
             return;
@@ -332,89 +443,30 @@ export class ProfilePage implements Page {
 
         try {
             const formData = new FormData();
-            formData.append('avatar', file);
+            formData.append('file', file); // Changed from 'avatar' to 'file' to match your backend
 
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/avatar`, {
+            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: formData
             });
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.message || 'Failed to upload avatar');
+                throw new Error(error.message || 'Failed to upload photo');
             }
 
-            const result = await response.json();
-            showNotification('Avatar updated successfully!', 'success');
-
-            // Update avatar display
-            const profileAvatar = document.getElementById('profileAvatar');
-            if (profileAvatar && result.avatarUrl) {
-                profileAvatar.innerHTML = `<img src="${result.avatarUrl}" alt="Avatar" class="w-full h-full rounded-full object-cover">`;
-            }
+            const result: PhotoData = await response.json();
+            this.updatePhotoDisplay(result);
+            showNotification('Photo updated successfully!', 'success');
 
         } catch (error: any) {
-            showError(error.message || 'Failed to upload avatar');
-        }
-    }
-
-    private handleInputChange(): void {
-        // Show unsaved changes indicator
-        if (this.saveButton) {
-            this.saveButton.textContent = 'Save Changes*';
-            this.saveButton.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-            this.saveButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-        }
-    }
-
-    private async handleDeleteAccount(): Promise<void> {
-        const confirmed = confirm('Are you sure you want to delete your account? This action cannot be undone.');
-        
-        if (!confirmed) return;
-
-        const doubleConfirm = confirm('This will permanently delete all your data. Type "DELETE" in the next prompt to confirm.');
-        
-        if (!doubleConfirm) return;
-
-        const deleteConfirmation = prompt('Type "DELETE" to confirm account deletion:');
-        
-        if (deleteConfirmation !== 'DELETE') {
-            showError('Account deletion cancelled');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) throw new Error('No authentication token found');
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/account`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to delete account');
-            }
-
-            // Clear local storage and redirect
-            localStorage.clear();
-            showNotification('Account deleted successfully', 'success');
-            
-            // Dispatch logout event
-            const event = new CustomEvent('logout');
-            window.dispatchEvent(event);
-
-        } catch (error: any) {
-            showError(error.message || 'Failed to delete account');
+            showError(error.message || 'Failed to upload photo');
         }
     }
 
@@ -431,10 +483,19 @@ export class ProfilePage implements Page {
             `;
         } else {
             this.saveButton.disabled = false;
-            this.saveButton.textContent = 'Save Changes';
-            this.saveButton.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
-            this.saveButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            const buttonText = this.currentProfile ? 'Update Profile' : 'Create Profile';
+            this.saveButton.textContent = buttonText;
         }
+    }
+
+    private handleLogout(): void {
+        // Clear authentication data
+        localStorage.removeItem('token');
+        localStorage.removeItem('userData');
+        sessionStorage.clear();
+        
+        // Redirect to login page
+        window.location.href = '/login';
     }
 
     private renderSidebar(): string {

@@ -5,6 +5,8 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
+	"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+	"type": "module",
     "start": "node src/app.js",
     "dev": "node --watch src/app.js"
   },
@@ -17,5 +19,8 @@
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.6.0",
     "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "jest": "^30.0.4"
   }
 }

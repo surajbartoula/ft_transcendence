@@ -3,6 +3,7 @@ import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { fetchUserGameData } from '../utils/dashboard';
 import { showError, showNotification } from '../utils/ui';
+import { API_CONFIG } from '../config';
 
 export class DashboardPage implements Page {
     public title = 'Dashboard';
@@ -211,11 +212,55 @@ export class DashboardPage implements Page {
             }
 
             if (token) {
+                // Fetch latest profile data with photo
+                await this.fetchLatestProfile(token);
+                
+                // Fetch game data
                 this.gameData = await fetchUserGameData(token);
             }
         } catch (error) {
             console.error('Failed to load user data:', error);
             showError('Failed to load dashboard data. Please try refreshing the page.');
+        }
+    }
+
+    private async fetchLatestProfile(token: string): Promise<void> {
+        try {
+            // Fetch profile data
+            const profileResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (profileResponse.ok) {
+                const profile = await profileResponse.json();
+                // Update current user with profile username
+                if (this.currentUser && profile.username) {
+                    this.currentUser.name = profile.username;
+                }
+            }
+
+            // Fetch photo data
+            const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (photoResponse.ok) {
+                const photo = await photoResponse.json();
+                // Store photo data for later use
+                if (this.currentUser) {
+                    this.currentUser.photo = photo;
+                }
+            }
+        } catch (error) {
+            console.log('Could not fetch profile/photo data:', error);
+            // Not critical, continue with localStorage data
         }
     }
 
@@ -229,8 +274,14 @@ export class DashboardPage implements Page {
         const userRating = document.getElementById('userRating');
         
         if (userAvatar) {
-            const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
-            userAvatar.innerHTML = `<span class="text-white font-bold text-xl">${initials}</span>`;
+            // Check if user has a photo
+            if (this.currentUser.photo) {
+                userAvatar.innerHTML = `<img src="${API_CONFIG.GATEWAY_URL}${this.currentUser.photo.path}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
+            } else {
+                // Use initials as fallback
+                const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                userAvatar.innerHTML = `<span class="text-white font-bold text-xl">${initials}</span>`;
+            }
         }
         
         if (userName) {

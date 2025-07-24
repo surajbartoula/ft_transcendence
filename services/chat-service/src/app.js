@@ -47,12 +47,13 @@ async function start() {
 
 	await fastify.register(async function(fastify) {
 		setupRoutes(fastify);
-	}, { prefix: '/api/chat '});
+	}, { prefix: '/api/chat'});
 
 	setupSocketHandlers(fastify.io, socketManager, db);
 
 	fastify.get('/health', async () => ({status: 'ok'}));
-
+	/** Print all routes for debuggin */
+	console.log(fastify.printRoutes());
 	/** Start server */
 	try {
 		await fastify.listen({ port: PORT, host: '0.0.0.0'});

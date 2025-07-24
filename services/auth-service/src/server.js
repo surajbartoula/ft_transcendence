@@ -36,9 +36,6 @@ fastify.get('/health', async (request, reply) => {
 });
 
 const start = async () => {
-
-
-	
 	try {
 		await fastify.listen({
 			port: 3001,
