@@ -16,11 +16,49 @@ export interface User {
 }
 
 export interface LoginResponse {
-    token: string;
-    user: User;
+	message: string;
+	token?: string;
+	user?: User;
+	requiresVerification?: boolean;
+	email?: string;
+	redirectTo?: string;
 }
 
 const API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;
+
+/**
+ * Email verificaton part
+ */
+
+export const verifyEmail = async (email: string, code: string): Promise<LoginResponse> => {
+	const response = await fetch(`${API_BASE}/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+	})
+	const data = await response.json();
+	if (!response.ok) {
+		throw new Error(data.error || 'Email verification failed');
+	}
+	return data;
+};
+
+export const resendVerificationCode = async (email: string): Promise<LoginResponse> => {
+	const response = await fetch(`${API_BASE}/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+	})
+	const data = await response.json();
+	if (!response.ok) {
+		throw new Error(data.error || 'Failed to resend verification code');
+	}
+	return data;
+};
+
+/**
+ * Login part
+ */
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
     const response = await fetch(`${API_BASE}/login`, {

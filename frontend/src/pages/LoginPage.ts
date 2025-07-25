@@ -1,6 +1,5 @@
-// pages/LoginPage.ts - Login page with all related functionality
 import { Page } from '../router/Router';
-import { login, register, User } from '../utils/auth';
+import { login, register, User, LoginResponse } from '../utils/auth';
 import { showError, hideError } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
@@ -25,15 +24,16 @@ export class LoginPage implements Page {
                                 </svg>
                             </div>
                             <h2 class="text-3xl font-bold text-gray-900">Welcome to Ping Pong</h2>
-                            <p class="text-gray-600 mt-2">Please sign in to your account</p>
+                            <p class="text-gray-600 mt-2">${this.isLoginMode ? 'Please sign in to your account' : 'Create your new account'}</p>
                         </div>
 
                         <form id="authForm" class="space-y-6">
-                            <div id="nameField" class="hidden">
+                            <div id="nameField" class="${this.isLoginMode ? 'hidden' : ''}">
                                 <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                                 <input type="text" id="name" name="name" 
                                        class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                       placeholder="Enter your full name">
+                                       placeholder="Enter your full name"
+                                       ${!this.isLoginMode ? 'required' : ''}>
                             </div>
                             
                             <div>
@@ -47,7 +47,9 @@ export class LoginPage implements Page {
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
                                 <input type="password" id="password" name="password" required
                                        class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                       placeholder="Enter your password">
+                                       placeholder="${this.isLoginMode ? 'Enter your password' : 'Minimum 6 characters'}"
+                                       ${!this.isLoginMode ? 'minlength="6"' : ''}>
+                                ${!this.isLoginMode ? '<p class="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>' : ''}
                             </div>
 
                             <div id="errorMessage" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
@@ -59,12 +61,21 @@ export class LoginPage implements Page {
                                 </div>
                             </div>
 
+                            <div id="successMessage" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div class="flex">
+                                    <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span class="ml-2 text-sm text-green-700" id="successText"></span>
+                                </div>
+                            </div>
+
                             <button type="submit" id="submitBtn"
                                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 focus:ring-4 focus:ring-indigo-300">
-                                <span id="submitText">Sign In</span>
+                                <span id="submitText">${this.isLoginMode ? 'Sign In' : 'Sign Up'}</span>
                                 <div id="submitLoading" class="hidden items-center justify-center">
                                     <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                    Signing In...
+                                    <span id="loadingText">${this.isLoginMode ? 'Signing In...' : 'Creating Account...'}</span>
                                 </div>
                             </button>
 
@@ -93,9 +104,9 @@ export class LoginPage implements Page {
 
                         <div class="mt-6 text-center">
                             <p class="text-gray-600">
-                                <span id="switchText">Don't have an account?</span>
+                                <span id="switchText">${this.isLoginMode ? "Don't have an account?" : 'Already have an account?'}</span>
                                 <button id="switchMode" class="text-indigo-600 hover:text-indigo-700 font-semibold ml-1 transition-colors">
-                                    Sign Up
+                                    ${this.isLoginMode ? 'Sign Up' : 'Sign In'}
                                 </button>
                             </p>
                         </div>
@@ -112,7 +123,6 @@ export class LoginPage implements Page {
     }
 
     public cleanup(): void {
-        // Remove event listeners
         if (this.form) {
             this.form.removeEventListener('submit', this.handleSubmit);
         }
@@ -145,20 +155,23 @@ export class LoginPage implements Page {
     private async handleSubmit(e: Event): Promise<void> {
         e.preventDefault();
         
-        const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
-        const submitText = document.getElementById('submitText') as HTMLElement;
-        const submitLoading = document.getElementById('submitLoading') as HTMLElement;
+        // Hide any previous messages
+        this.hideMessages();
         
-        // Set loading state
+        // Client-side validation
+        if (!this.validateForm()) {
+            return;
+        }
+        
         this.setLoadingState(true);
         
         try {
             const formData = new FormData(this.form!);
-            const email = formData.get('email') as string;
+            const email = (formData.get('email') as string).trim();
             const password = formData.get('password') as string;
-            const name = formData.get('name') as string;
+            const name = (formData.get('name') as string)?.trim();
             
-            let response: { token: string; user: User };
+            let response: LoginResponse;
             
             if (this.isLoginMode) {
                 response = await login(email, password);
@@ -167,37 +180,147 @@ export class LoginPage implements Page {
                 response = await register(name, email, password);
             }
             
-            // Store authentication data
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('userData', JSON.stringify(response.user));
-            
-            // Trigger authentication success event
-            this.triggerAuthSuccess(response);
+            // Handle different response types based on backend behavior
+            this.handleAuthResponse(response);
             
         } catch (err: any) {
-            showError(err.message || 'Authentication failed');
+            this.showError(err.message || 'Authentication failed');
         } finally {
             this.setLoadingState(false);
         }
     }
 
+    private validateForm(): boolean {
+        const email = (document.getElementById('email') as HTMLInputElement).value.trim();
+        const password = (document.getElementById('password') as HTMLInputElement).value;
+        const name = (document.getElementById('name') as HTMLInputElement)?.value?.trim();
+
+        // Email validation
+        if (!email) {
+            this.showError('Email is required');
+            return false;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            this.showError('Please enter a valid email address');
+            return false;
+        }
+
+        // Password validation
+        if (!password) {
+            this.showError('Password is required');
+            return false;
+        }
+
+        // Registration-specific validation
+        if (!this.isLoginMode) {
+            if (!name) {
+                this.showError('Name is required');
+                return false;
+            }
+            if (password.length < 6) {
+                this.showError('Password must be at least 6 characters long');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private handleAuthResponse(response: LoginResponse): void {
+        if (response.requiresVerification) {
+            // Registration successful or login requires verification
+            this.showSuccess(response.message);
+            this.redirectToVerification(response.email!);
+        } else if (response.token && response.user) {
+            // Login successful
+            this.handleSuccessfulAuth(response);
+        } else if (response.message) {
+            // Show success message (like registration confirmation)
+            this.showSuccess(response.message);
+            if (response.email) {
+                this.redirectToVerification(response.email);
+            }
+        }
+    }
+
+    private redirectToVerification(email: string): void {
+        // Store email for verification page
+        sessionStorage.setItem('verificationEmail', email);
+        
+        // Small delay to show success message before redirect
+        setTimeout(() => {
+            // Dispatch custom event to navigate to verification page
+            const event = new CustomEvent('navigateToVerification', {
+                detail: { email }
+            });
+            window.dispatchEvent(event);
+        }, 1500);
+    }
+
+    private handleSuccessfulAuth(response: LoginResponse): void {
+        // Store authentication data
+        localStorage.setItem('token', response.token!);
+        localStorage.setItem('userData', JSON.stringify(response.user));
+        
+        this.showSuccess(response.message || 'Login successful!');
+        
+        // Small delay before redirect
+        setTimeout(() => {
+            // Trigger authentication success event
+            const event = new CustomEvent('authSuccess', {
+                detail: response
+            });
+            window.dispatchEvent(event);
+        }, 1000);
+    }
+
     private toggleMode(): void {
         this.isLoginMode = !this.isLoginMode;
         this.updateUI();
-        hideError();
+        this.hideMessages();
+        this.clearForm();
     }
 
     private updateUI(): void {
         const nameField = document.getElementById('nameField');
+        const nameInput = document.getElementById('name') as HTMLInputElement;
+        const passwordInput = document.getElementById('password') as HTMLInputElement;
         const submitText = document.getElementById('submitText');
+        const loadingText = document.getElementById('loadingText');
         const switchText = document.getElementById('switchText');
         const switchMode = document.getElementById('switchMode');
+        const subtitle = document.querySelector('p.text-gray-600') as HTMLElement;
         
+        // Toggle name field visibility and required attribute
         nameField?.classList.toggle('hidden', this.isLoginMode);
+        if (nameInput) {
+            nameInput.required = !this.isLoginMode;
+        }
         
+        // Update password field attributes
+        if (passwordInput) {
+            passwordInput.placeholder = this.isLoginMode ? 'Enter your password' : 'Minimum 6 characters';
+            if (this.isLoginMode) {
+                passwordInput.removeAttribute('minlength');
+            } else {
+                passwordInput.setAttribute('minlength', '6');
+            }
+        }
+        
+        // Update text content
         if (submitText) submitText.textContent = this.isLoginMode ? 'Sign In' : 'Sign Up';
+        if (loadingText) loadingText.textContent = this.isLoginMode ? 'Signing In...' : 'Creating Account...';
         if (switchText) switchText.textContent = this.isLoginMode ? "Don't have an account?" : 'Already have an account?';
         if (switchMode) switchMode.textContent = this.isLoginMode ? 'Sign Up' : 'Sign In';
+        if (subtitle) subtitle.textContent = this.isLoginMode ? 'Please sign in to your account' : 'Create your new account';
+    }
+
+    private clearForm(): void {
+        if (this.form) {
+            this.form.reset();
+        }
     }
 
     private handleGoogleSignIn(): void {
@@ -209,41 +332,82 @@ export class LoginPage implements Page {
     private handleGoogleCallback(): void {
         const urlParams = new URLSearchParams(window.location.search);
         const googleToken = urlParams.get('token');
+        const error = urlParams.get('error');
+        
+        if (error) {
+            this.showError(decodeURIComponent(error));
+            window.history.replaceState({}, document.title, window.location.pathname);
+            return;
+        }
         
         if (googleToken) {
             localStorage.setItem('token', googleToken);
             window.history.replaceState({}, document.title, window.location.pathname);
             
             // Trigger authentication success with token
-            this.triggerAuthSuccess({ token: googleToken, user: null });
+            this.handleSuccessfulAuth({ 
+                token: googleToken, 
+                user: null as any,
+                message: 'Google sign-in successful'
+            });
         }
+    }
+
+    private showError(message: string): void {
+        const errorDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const successDiv = document.getElementById('successMessage');
+        
+        if (successDiv) successDiv.classList.add('hidden');
+        if (errorText) errorText.textContent = message;
+        if (errorDiv) errorDiv.classList.remove('hidden');
+    }
+
+    private showSuccess(message: string): void {
+        const successDiv = document.getElementById('successMessage');
+        const successText = document.getElementById('successText');
+        const errorDiv = document.getElementById('errorMessage');
+        
+        if (errorDiv) errorDiv.classList.add('hidden');
+        if (successText) successText.textContent = message;
+        if (successDiv) successDiv.classList.remove('hidden');
+    }
+
+    private hideMessages(): void {
+        const errorDiv = document.getElementById('errorMessage');
+        const successDiv = document.getElementById('successMessage');
+        
+        if (errorDiv) errorDiv.classList.add('hidden');
+        if (successDiv) successDiv.classList.add('hidden');
     }
 
     private setLoadingState(isLoading: boolean): void {
         const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
         const submitText = document.getElementById('submitText') as HTMLElement;
         const submitLoading = document.getElementById('submitLoading') as HTMLElement;
+        const googleBtn = document.getElementById('googleSignInBtn') as HTMLButtonElement;
         
         if (submitBtn) submitBtn.disabled = isLoading;
+        if (googleBtn) googleBtn.disabled = isLoading;
         if (submitText) submitText.classList.toggle('hidden', isLoading);
-        if (submitLoading) submitLoading.classList.toggle('hidden', !isLoading);
+        if (submitLoading) {
+            submitLoading.classList.toggle('hidden', !isLoading);
+            submitLoading.classList.toggle('flex', isLoading);
+        }
     }
 
     private setGoogleLoadingState(isLoading: boolean): void {
         const googleBtn = document.getElementById('googleSignInBtn') as HTMLButtonElement;
         const googleBtnText = document.getElementById('googleBtnText') as HTMLElement;
         const googleBtnLoading = document.getElementById('googleBtnLoading') as HTMLElement;
+        const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
         
         if (googleBtn) googleBtn.disabled = isLoading;
+        if (submitBtn) submitBtn.disabled = isLoading;
         if (googleBtnText) googleBtnText.classList.toggle('hidden', isLoading);
-        if (googleBtnLoading) googleBtnLoading.classList.toggle('hidden', !isLoading);
-    }
-
-    private triggerAuthSuccess(response: { token: string; user: User | null }): void {
-        // Dispatch custom event for the main app to handle
-        const event = new CustomEvent('authSuccess', {
-            detail: response
-        });
-        window.dispatchEvent(event);
+        if (googleBtnLoading) {
+            googleBtnLoading.classList.toggle('hidden', !isLoading);
+            googleBtnLoading.classList.toggle('flex', isLoading);
+        }
     }
 }

@@ -7,6 +7,7 @@ import { FriendsPage } from './pages/FriendsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
 import { GamePage } from './pages/GamePage';
+import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { getCurrentUser, User } from './utils/auth';
 import { showNotification, showError } from './utils/ui';
 
@@ -15,6 +16,8 @@ declare global {
 		authSuccess: CustomEvent<{ token: string; user?: User }>;
 		logout: CustomEvent;
 		navigate: CustomEvent<{ path: string }>;
+		navigateToVerification: CustomEvent<{ email?: string }>;
+		navigateToLogin: CustomEvent;
 	}
 }
 
@@ -32,6 +35,7 @@ class App {
 		const routes = [
 			{ path: '/', page: () => new LoginPage(), requiresAuth: false },
 			{ path: '/login', page: () => new LoginPage(), requiresAuth: false },
+			{ path: '/verify-email', page: () => new EmailVerificationPage(), requiresAuth: false},
 			{ path: '/dashboard', page: () => new DashboardPage(), requiresAuth: true },
 			{ path: '/dashboard/profile', page: () => new ProfilePage(), requiresAuth: true },
 			{ path: '/dashboard/leaderboard', page: () => new LeaderboardPage(), requiresAuth: true },
@@ -53,12 +57,22 @@ class App {
 		window.addEventListener('authSuccess', this.handleAuthSuccess.bind(this));
 		window.addEventListener('logout', this.handleLogout.bind(this));
 		window.addEventListener('navigate', (e) => this.router.navigate(e.detail.path));
+		window.addEventListener('navigateToVerification', this.handleNavigateToVerification.bind(this));
+		window.addEventListener('navigateToLogin', this.handleNavigateToLogin.bind(this));
 		window.addEventListener('online', () => showNotification('Connection restored', 'success'));
 		window.addEventListener('offline', () => showNotification('You are offline', 'error'));
 		window.addEventListener('error', (e) => {
 			console.error('Global error:', e.error);
 			showError('An unexpected error occurred');
 		});
+	}
+
+	private handleNavigateToVerification(event: CustomEvent<{ email?: string }>): void {
+		this.router.navigate('/verify-email');
+	}
+
+	private handleNavigateToLogin(): void {
+		this.router.navigate('/login');
 	}
 
 	private async handleAuthSuccess(event: CustomEvent<{ token: string; user?: User }>): Promise<void> {

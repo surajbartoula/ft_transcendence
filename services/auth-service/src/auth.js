@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { emailService } from './emailService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,27 +38,108 @@ export default async function authRoutes(fastify, options) {
 			}
 			/** Create new user */
 			const user = await User.create(email, password, name);
+			const verificationCode = emailService.generateVerificationCode();
+			await User.storeVerificationCode(email, verificationCode);
+			const emailSent = await emailService.sendVerificationEmail(email, verificationCode, name);
+			if (!emailSent) {
+				return reply.status(500).send({
+					error: 'Failed to send verification email'
+				});
+			}
+			reply.send({
+				message: 'Registration successful! Please check your email and verify your account to continue.',
+				requiresVerification: true,
+				email: email
+			});
+		} catch (error) {
+			console.error('Registration error:', error);
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	fastify.post('/verify-email', async (request, reply) => {
+		try {
+			const { email, code } = request.body;
+			if (!email || !code) {
+				return reply.status(400).send({
+					error: 'Email and verification code are required'
+				});
+			}
+			const verificationRecord = await User.verifyEmailCode(email, code);
+			if (!verificationRecord) {
+				return reply.status(400).send({
+					error: 'Invalid or expired verification code'
+				});
+			}
+			/** Mark code as used and email verified */
+			await User.markCodeAsUsed(verificationRecord.id);
+			await User.markEmailAsVerified(email);
+			const user = await User.findByEmail(email);
+			/** Generate JWT token. (reply.jwtSign) is a Fasify plugin method */
+			const token = await reply.jwtSign({
+				id: user.id,
+				email: user.email
+			});
 			const defaultProfile = {
 				username: user.name,
 				bio: ''
 			};
 			/** Create user profile in user service */
 			await createUserProfile(defaultProfile, token);
-			/** Generate JWT token. (reply.jwtSign) is a Fasify plugin method */
-			const token = await reply.jwtSign({
-				id: user.id,
-				email: user.email
-			});
 			reply.send({
-				message: 'User registered successfully',
+				message: 'Email verified successfully!',
 				token,
+				requiresVerification: false,
 				user: {
 					id: user.id,
+					name: user.name,
 					email: user.email,
-					name: user.name
 				}
 			});
 		} catch (error) {
+			console.error('Email verification error:', error);
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	fastify.post('/resend-verification', async (request, reply) => {
+		try {
+			const { email } = request.body;
+			if (!email) {
+				return reply.status(400).send({
+					error: 'Email is required'
+				});
+			}
+			const user = await User.findByEmail(email);
+			if (!user) {
+				return reply.status(404).send({
+					error: 'User not found'
+				});
+			}
+			if (user.email_verified) {
+				return reply.status(400).send({
+					error: 'Email is already verified'
+				});
+			}
+			/** Generate new verification code */
+			const verificationCode = emailService.generateVerificationCode();
+			await User.storeVerificationCode(email, verificationCode);
+			/** Send verification email */
+			const emailSent = await emailService.sendVerificationEmail(email, verificationCode, user.name);
+			if (!emailSent) {
+				return reply.status(500).send({
+					error: 'Failed to send verification email'
+				});
+			}
+			reply.send({
+				message: 'Verification code sent successfully'
+			});
+		} catch (error) {
+			console.error('Resend verificaton error:', error);
 			reply.status(500).send({
 				error: 'Internal server error'
 			});
@@ -84,6 +166,16 @@ export default async function authRoutes(fastify, options) {
 					error: 'Invalid email or password'
 				});
 			}
+			if (!user.email_verified) {
+				const verificationCode = emailService.generateVerificationCode();
+				await User.storeVerificationCode(email, verificationCode);
+				await emailService.sendVerificationEmail(email, verificationCode, user.name);
+				return reply.status(403).send({
+					message: 'Please verify your email address first. A new verification code has been sent.',
+					email: email,
+					email_verified: false
+				});
+			}
 			const token = await reply.jwtSign({
 				id: user.id,
 				email: user.email
@@ -91,13 +183,15 @@ export default async function authRoutes(fastify, options) {
 			reply.send({
 				message: 'Login successful',
 				token,
+				requiresVerification: false,
 				user: {
 					id: user.id,
 					email: user.email,
-					name: user.name
+					name: user.name,
 				}
 			});
 		} catch (error) {
+			console.error('Login error:', error);
 			reply.status(500).send({
 				error: 'Internal server error'
 			});

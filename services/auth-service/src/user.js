@@ -296,4 +296,74 @@ export class User {
 			});
 		});
 	}
+
+	/**
+	 * Email verification part
+	 */
+	static async storeVerificationCode(email, code) {
+		return new Promise((resolve, reject) => {
+			const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); /** 24 hours */
+			db.run(
+				`INSERT INTO email_verification_codes (email, code, expires_at) VALUES (?, ?, ?)`,
+				[email, code, expiresAt.toISOString()],
+				function(err) {
+					if (err) reject(err);
+					else resolve(this.lastID);
+				}
+			)
+		});
+	}
+
+	static async verifyEmailCode(email, code) {
+		return new Promise((resolve, reject) => {
+			db.get(
+				`SELECT * FROM email_verification_codes
+				WHERE email = ? AND code = ? AND used = 0 AND expires_at > datetime('now')
+				ORDER BY created_at DESC LIMIT 1`,
+				[email, code],
+				(err, row) => {
+					if (err) reject(err);
+					else resolve(row);
+				}
+			);
+		});
+	}
+
+	static async markCodeAsUsed(id) {
+		return new Promise((resolve, reject) => {
+			db.run(
+				`UPDATE email_verification_codes SET used = 1 WHERE id = ?`,
+				[id],
+				function(err) {
+				if (err) reject(err);
+				else resolve(this.changes);
+				}
+			);
+		});
+	}
+
+	static async markEmailAsVerified(email) {
+		return new Promise((resolve, reject) => {
+			db.run(
+				`UPDATE users SET email_verified = 1 WHERE email = ?`,
+				[email],
+				function(err) {
+					if (err) reject(err);
+					else resolve(this.changes);
+				}
+			);
+		});
+	}
+
+	static async cleanupExpiredCodes() {
+		return new Promise((resolve, reject) => {
+			db.run(
+				`DELETE FROM email_verification_codes WHERE expires_at < datetime('now')`,
+				function(err) {
+					if (err) reject(err);
+					else resolve(this.changes);
+				}
+			);
+		});
+	}
 }
