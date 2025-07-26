@@ -22,6 +22,7 @@ export interface LoginResponse {
 	requiresVerification?: boolean;
 	email?: string;
 	redirectTo?: string;
+	requires2FA?: boolean;
 }
 
 const API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;

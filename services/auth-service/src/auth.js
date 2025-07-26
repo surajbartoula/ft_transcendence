@@ -176,6 +176,7 @@ export default async function authRoutes(fastify, options) {
 					email_verified: false
 				});
 			}
+			const has2FA = await User.has2FAEnabled(user.id);
 			const token = await reply.jwtSign({
 				id: user.id,
 				email: user.email
@@ -184,6 +185,7 @@ export default async function authRoutes(fastify, options) {
 				message: 'Login successful',
 				token,
 				requiresVerification: false,
+				requires2FA: has2FA,
 				user: {
 					id: user.id,
 					email: user.email,
@@ -192,6 +194,70 @@ export default async function authRoutes(fastify, options) {
 			});
 		} catch (error) {
 			console.error('Login error:', error);
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/** Verify 2fa for login */
+	fastify.post('/2fa/verify-login', async (request, reply) => {
+		try {
+			const { email, password, token } = request.body;
+			
+			if (!email || !password || !token) {
+				return reply.status(400).send({
+					error: 'Email, password, and 2FA token are required'
+				});
+			}
+			
+			// First verify email and password again
+			const user = await User.findByEmail(email);
+			if (!user) {
+				return reply.status(401).send({
+					error: 'Invalid credentials'
+				});
+			}
+			
+			const isValidPassword = await User.verifyPassword(password, user.password);
+			if (!isValidPassword) {
+				return reply.status(401).send({
+					error: 'Invalid credentials'
+				});
+			}
+			
+			if (!user.email_verified) {
+				return reply.status(403).send({
+					error: 'Email not verified'
+				});
+			}
+			
+			// Verify 2FA token
+			const is2FAValid = await User.verify2FALogin(user.id, token);
+			if (!is2FAValid) {
+				return reply.status(401).send({
+					error: 'Invalid 2FA token'
+				});
+			}
+			
+			// Generate JWT token for successful login
+			const jwtToken = await reply.jwtSign({
+				id: user.id,
+				email: user.email
+			});
+			
+			reply.send({
+				message: 'Login successful',
+				token: jwtToken,
+				requires2FA: true, // They just completed 2FA
+				user: {
+					id: user.id,
+					email: user.email,
+					name: user.name,
+				}
+			});
+		} catch (error) {
+			console.error('2FA login verification error:', error);
 			reply.status(500).send({
 				error: 'Internal server error'
 			});

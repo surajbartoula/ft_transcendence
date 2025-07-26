@@ -1,6 +1,7 @@
 import { Page } from '../router/Router';
 import { login, register, User, LoginResponse } from '../utils/auth';
 import { showError, hideError } from '../utils/ui';
+import { showModal, hideModal, showNotification } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
 export class LoginPage implements Page {
@@ -11,6 +12,7 @@ export class LoginPage implements Page {
     private form: HTMLFormElement | null = null;
     private switchButton: HTMLButtonElement | null = null;
     private googleButton: HTMLButtonElement | null = null;
+    private pendingLoginData: { email: string; password: string; } | null = null;
 
     public render(): string {
         return `
@@ -112,6 +114,59 @@ export class LoginPage implements Page {
                         </div>
                     </div>
                 </div>
+
+                ${this.render2FAModal()}
+            </div>
+        `;
+    }
+
+    private render2FAModal(): string {
+        return `
+            <!-- 2FA Verification Modal -->
+            <div id="twoFactorModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl w-96 max-w-md mx-4">
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900">Two-Factor Authentication</h3>
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mb-6">
+                            Please enter the 6-digit code from your authenticator app to complete the login process.
+                        </p>
+
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Verification Code
+                            </label>
+                            <input 
+                                type="text" 
+                                id="twoFactorCode" 
+                                maxlength="6" 
+                                placeholder="123456" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg tracking-widest"
+                                autocomplete="one-time-code"
+                            >
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button id="verify2FABtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span id="verify2FAText">Verify</span>
+                                <span id="verify2FALoading" class="hidden">
+                                    <span class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                                    Verifying...
+                                </span>
+                            </button>
+                            <button id="cancel2FABtn" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -120,6 +175,7 @@ export class LoginPage implements Page {
         this.bindElements();
         this.attachEventListeners();
         this.handleGoogleCallback();
+        this.setup2FAModalListeners();
     }
 
     public cleanup(): void {
@@ -132,6 +188,9 @@ export class LoginPage implements Page {
         if (this.googleButton) {
             this.googleButton.removeEventListener('click', this.handleGoogleSignIn);
         }
+        
+        // Clean up 2FA listeners
+        this.cleanup2FAListeners();
     }
 
     private bindElements(): void {
@@ -150,6 +209,45 @@ export class LoginPage implements Page {
         if (this.googleButton) {
             this.googleButton.addEventListener('click', this.handleGoogleSignIn.bind(this));
         }
+    }
+
+    private setup2FAModalListeners(): void {
+        const verify2FABtn = document.getElementById('verify2FABtn');
+        const cancel2FABtn = document.getElementById('cancel2FABtn');
+        const twoFactorCodeInput = document.getElementById('twoFactorCode') as HTMLInputElement;
+
+        if (verify2FABtn) {
+            verify2FABtn.addEventListener('click', this.handle2FAVerification.bind(this));
+        }
+
+        if (cancel2FABtn) {
+            cancel2FABtn.addEventListener('click', this.cancel2FA.bind(this));
+        }
+
+        // Format 2FA code input (numbers only)
+        if (twoFactorCodeInput) {
+            twoFactorCodeInput.addEventListener('input', (e) => {
+                const input = e.target as HTMLInputElement;
+                input.value = input.value.replace(/\D/g, '');
+            });
+
+            // Auto-submit when 6 digits are entered
+            twoFactorCodeInput.addEventListener('input', (e) => {
+                const input = e.target as HTMLInputElement;
+                if (input.value.length === 6) {
+                    this.handle2FAVerification();
+                }
+            });
+        }
+    }
+
+    private cleanup2FAListeners(): void {
+        const verify2FABtn = document.getElementById('verify2FABtn');
+        const cancel2FABtn = document.getElementById('cancel2FABtn');
+
+        // Remove event listeners to prevent memory leaks
+        // Note: Since we're using bind(), we can't easily remove these specific listeners
+        // In a production app, you'd want to store the bound functions as class properties
     }
 
     private async handleSubmit(e: Event): Promise<void> {
@@ -181,13 +279,130 @@ export class LoginPage implements Page {
             }
             
             // Handle different response types based on backend behavior
-            this.handleAuthResponse(response);
+            this.handleAuthResponse(response, email, password);
             
         } catch (err: any) {
             this.showError(err.message || 'Authentication failed');
         } finally {
             this.setLoadingState(false);
         }
+    }
+
+	private handleAuthResponse(response: LoginResponse, email?: string, password?: string): void {
+		if (response.requires2FA) {
+			// Store login data for 2FA verification (don't store token yet)
+			this.pendingLoginData = { email: email!, password: password! };
+			this.show2FAModal();
+		} else if (response.requiresVerification) {
+			// Registration successful or login requires verification
+			this.showSuccess(response.message);
+			this.redirectToVerification(response.email!);
+		} else if (response.token && response.user) {
+			// Login successful without 2FA
+			this.handleSuccessfulAuth(response);
+		} else if (response.message) {
+			// Show success message (like registration confirmation)
+			this.showSuccess(response.message);
+			if (response.email) {
+				this.redirectToVerification(response.email);
+			}
+		}
+	}
+
+    private show2FAModal(): void {
+        showModal('twoFactorModal');
+        // Focus on the 2FA input
+        const twoFactorInput = document.getElementById('twoFactorCode') as HTMLInputElement;
+        if (twoFactorInput) {
+            setTimeout(() => twoFactorInput.focus(), 100);
+        }
+    }
+
+	private async handle2FAVerification(): Promise<void> {
+		const twoFactorCode = (document.getElementById('twoFactorCode') as HTMLInputElement)?.value;
+		
+		if (!twoFactorCode || twoFactorCode.length !== 6) {
+			showNotification('Please enter a valid 6-digit verification code.', 'error');
+			return;
+		}
+
+		if (!this.pendingLoginData) {
+			showNotification('Session expired. Please try logging in again.', 'error');
+			this.cancel2FA();
+			return;
+		}
+
+		this.set2FALoadingState(true);
+
+		try {
+			const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/verify-login`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ 
+					email: this.pendingLoginData.email,
+					password: this.pendingLoginData.password,
+					token: twoFactorCode
+				})
+			});
+
+			if (!response.ok) {
+				let errorMessage = 'Invalid verification code';
+				try {
+					const errorData = await response.json();
+					errorMessage = errorData.error || errorMessage;
+				} catch (parseError) {
+					console.error('Failed to parse error response:', parseError);
+					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+				}
+				throw new Error(errorMessage);
+			}
+
+			const data = await response.json();
+			
+			// 2FA verification successful
+			hideModal('twoFactorModal');
+			this.pendingLoginData = null;
+			
+			// Handle successful authentication
+			this.handleSuccessfulAuth({
+				token: data.token,
+				user: data.user,
+				message: data.message || 'Login successful!'
+			});
+
+		} catch (error) {
+			console.error('2FA verification failed:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Verification failed. Please try again.';
+			showNotification(errorMessage, 'error');
+		} finally {
+			this.set2FALoadingState(false);
+		}
+	}
+
+    private cancel2FA(): void {
+        hideModal('twoFactorModal');
+        this.pendingLoginData = null;
+        this.clear2FAInputs();
+        showNotification('Login cancelled.', 'info');
+    }
+
+    private clear2FAInputs(): void {
+        const twoFactorInput = document.getElementById('twoFactorCode') as HTMLInputElement;
+        if (twoFactorInput) twoFactorInput.value = '';
+    }
+
+    private set2FALoadingState(isLoading: boolean): void {
+        const verifyBtn = document.getElementById('verify2FABtn') as HTMLButtonElement;
+        const verifyText = document.getElementById('verify2FAText') as HTMLElement;
+        const verifyLoading = document.getElementById('verify2FALoading') as HTMLElement;
+        const cancelBtn = document.getElementById('cancel2FABtn') as HTMLButtonElement;
+        
+        if (verifyBtn) verifyBtn.disabled = isLoading;
+        if (cancelBtn) cancelBtn.disabled = isLoading;
+        if (verifyText) verifyText.classList.toggle('hidden', isLoading);
+        if (verifyLoading) verifyLoading.classList.toggle('hidden', !isLoading);
     }
 
     private validateForm(): boolean {
@@ -226,23 +441,6 @@ export class LoginPage implements Page {
         }
 
         return true;
-    }
-
-    private handleAuthResponse(response: LoginResponse): void {
-        if (response.requiresVerification) {
-            // Registration successful or login requires verification
-            this.showSuccess(response.message);
-            this.redirectToVerification(response.email!);
-        } else if (response.token && response.user) {
-            // Login successful
-            this.handleSuccessfulAuth(response);
-        } else if (response.message) {
-            // Show success message (like registration confirmation)
-            this.showSuccess(response.message);
-            if (response.email) {
-                this.redirectToVerification(response.email);
-            }
-        }
     }
 
     private redirectToVerification(email: string): void {
