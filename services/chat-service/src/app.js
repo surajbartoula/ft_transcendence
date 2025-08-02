@@ -65,4 +65,21 @@ async function start() {
   }
 }
 
+async function gracefulShutdown(signal) {
+  console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+  
+  try {
+    // Close the Fastify server gracefully
+    await fastify.close();
+    console.log('Server closed successfully');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during graceful shutdown:', err);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 start();
