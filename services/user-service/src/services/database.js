@@ -53,145 +53,230 @@ export class DatabaseService {
 		await this.createTables();
 	}
 
-  async createTables() {
-    await this.db.runAsync(`
-      CREATE TABLE IF NOT EXISTS profiles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL UNIQUE,
-        username TEXT NOT NULL,
-        bio TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+	async createTables() {
+		await this.db.runAsync(`
+			CREATE TABLE IF NOT EXISTS profiles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT NOT NULL UNIQUE,
+			username TEXT NOT NULL,
+			bio TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		`);
 
-    // FIXED: Removed duplicate PRIMARY KEY declaration
-    await this.db.runAsync(`
-      CREATE TABLE IF NOT EXISTS photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL UNIQUE,
-        filename TEXT NOT NULL,
-        path TEXT NOT NULL,
-        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES profiles(user_id) ON DELETE CASCADE
-      )
-    `);
+		await this.db.runAsync(`
+			CREATE TABLE IF NOT EXISTS photos (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id TEXT NOT NULL UNIQUE,
+			filename TEXT NOT NULL,
+			path TEXT NOT NULL,
+			uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (user_id) REFERENCES profiles(user_id) ON DELETE CASCADE
+			)
+		`);
 
-    // Create index for better performance
-    await this.db.runAsync(`
-      CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id)
-    `);
-  }
-
-  async createProfile({ user_id, username, bio }) {
-	try {
-		const query = `
-		  INSERT INTO profiles (user_id, username, bio)
-		  VALUES (?, ?, ?)
-		`;
-		await this.db.runAsync(query, [user_id, username, bio || null]);
-		return this.getProfile(user_id);
-	} catch (error) {
-		// FIXED: Changed 'err' to 'error' to match the catch parameter
-		if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
-			throw new Error('Profile already exists for this user');
-		}
-		throw error;
+		await this.db.runAsync(`
+			CREATE INDEX IF NOT EXISTS idx_photos_user_id ON photos(user_id)
+		`);
 	}
-  }
 
-  async updateProfile(user_id, updates) {
-    // Build dynamic SET clause and values array
-    const fields = [];
-    const values = [];
+	async createProfile({ user_id, username, bio }) {
+		try {
+			const query = `
+				INSERT INTO profiles (user_id, username, bio)
+				VALUES (?, ?, ?)
+			`;
+			await this.db.runAsync(query, [user_id, username, bio || null]);
+			return this.getProfile(user_id);
+		} catch (error) {
+			if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+				throw new Error('Profile already exists for this user');
+			}
+			throw error;
+		}
+	}
 
-    if (updates.username !== undefined) {
-      fields.push('username = ?');
-      values.push(updates.username);
-    }
-    if (updates.bio !== undefined) {
-      fields.push('bio = ?');
-      values.push(updates.bio);
-    }
+	async updateProfile(user_id, updates) {
+		const fields = [];
+		const values = [];
+		if (updates.username !== undefined) {
+			fields.push('username = ?');
+			values.push(updates.username);
+		}
+		if (updates.bio !== undefined) {
+			fields.push('bio = ?');
+			values.push(updates.bio);
+		}
+		if (fields.length === 0) {
+			return this.getProfile(user_id);
+		}
+		values.push(user_id);
+		const query = `
+			UPDATE profiles
+			SET ${fields.join(', ')}
+			WHERE user_id = ?
+		`;
+		await this.db.runAsync(query, values);
+		return this.getProfile(user_id);
+	}
 
-    if (fields.length === 0) {
-      // Nothing to update
-      return this.getProfile(user_id);
-    }
+	async getProfile(user_id) {
+		return await this.db.getAsync(`SELECT * FROM profiles WHERE user_id = ?`, [user_id]);
+	}
 
-    values.push(user_id); // For WHERE clause
+	async listProfiles() {
+		return await this.db.allAsync(`SELECT * FROM profiles`);
+	}
 
-    const query = `
-      UPDATE profiles
-      SET ${fields.join(', ')}
-      WHERE user_id = ?
-    `;
+	async addOrUpdatePhoto({ user_id, filename, path }) {
+		try {
+			const existingPhoto = await this.getPhoto(user_id);
+			if (existingPhoto) {
+			const query = `
+				UPDATE photos 
+				SET filename = ?, path = ?, uploaded_at = CURRENT_TIMESTAMP
+				WHERE user_id = ?
+			`;
+			await this.db.runAsync(query, [filename, path, user_id]);
+			} else {
+				const query = `
+					INSERT INTO photos (user_id, filename, path)
+					VALUES (?, ?, ?)
+				`;
+				await this.db.runAsync(query, [user_id, filename, path]);
+			}
+			
+			return this.getPhoto(user_id);
+		} catch (error) {
+			console.error('Error in addOrUpdatePhoto:', error);
+			throw error;
+		}
+	}
 
-    await this.db.runAsync(query, values);
-    return this.getProfile(user_id);
-  }
+	async getPhoto(user_id) {
+		return await this.db.getAsync(`SELECT * FROM photos WHERE user_id = ?`, [user_id]);
+	}
 
-  async getProfile(user_id) {
-    return await this.db.getAsync(`SELECT * FROM profiles WHERE user_id = ?`, [user_id]);
-  }
+	async deletePhoto(user_id) {
+		const query = `DELETE FROM photos WHERE user_id = ?`;
+		await this.db.runAsync(query, [user_id]);
+	}
 
-  async getProfileWithPhoto(user_id) {
-    const query = `
-      SELECT p.*, ph.filename, ph.path, ph.uploaded_at
-      FROM profiles p
-      LEFT JOIN photos ph ON p.user_id = ph.user_id
-      WHERE p.user_id = ?
-    `;
-    return await this.db.getAsync(query, [user_id]);
-  }
+	async deleteProfile(user_id) {
+		const query = `DELETE FROM profiles WHERE user_id = ?`;
+		await this.db.runAsync(query, [user_id]);
+	}
 
-  async listProfiles() {
-    return await this.db.allAsync(`SELECT * FROM profiles`);
-  }
+	/** Search users by username (case-insensitive) */
+	async searchUsers(query, limit = 20) {
+		try {
+			const searchQuery = `%${query}%`;
+			const sqlQuery = `
+				SELECT 
+					p.user_id,
+					p.username,
+					p.bio,
+					p.created_at,
+					ph.filename,
+					ph.path
+				FROM profiles p
+				LEFT JOIN photos ph ON p.user_id = ph.user_id
+				WHERE LOWER(p.username) LIKE LOWER(?)
+				ORDER BY p.username ASC
+				LIMIT ?
+			`;
+			const result = await this.db.allAsync(sqlQuery, [searchQuery, limit]);
+			return result.map(row => ({
+				user_id: row.user_id,
+				username: row.username,
+				bio: row.bio,
+				created_at: row.created_at,
+				photo: row.filename ? {
+					filename: row.filename,
+					path: row.path
+				} : null
+			}));
+		} catch (error) {
+			console.error('Error searching users:', error);
+			throw new Error('Failed to search users');
+		}
+	}
 
-  // Photos - FIXED: Updated to handle the new schema properly
+	/** Get user profile with photo by user_id */
+	async getProfileWithPhoto(userId) {
+		try {
+			const result = await this.db.getAsync(`
+			SELECT 
+				p.user_id,
+				p.username,
+				p.bio,
+				p.created_at,
+				ph.filename,
+				ph.path,
+				ph.uploaded_at
+			FROM profiles p
+			LEFT JOIN photos ph ON p.user_id = ph.user_id
+			WHERE p.user_id = ?
+			`, [userId]);
+			if (!result) {
+				return null;
+			}
+			return {
+				user_id: result.user_id,
+				username: result.username,
+				bio: result.bio,
+				created_at: result.created_at,
+				photo: result.filename ? {
+					filename: result.filename,
+					path: result.path,
+					uploaded_at: result.uploaded_at
+				} : null
+			};
+		} catch (error) {
+			console.error('Error getting profile with photo:', error);
+			throw new Error('Failed to get user profile');
+		}
+	}
 
-  async addOrUpdatePhoto({ user_id, filename, path }) {
-    try {
-      // First, try to get existing photo
-      const existingPhoto = await this.getPhoto(user_id);
-      
-      if (existingPhoto) {
-        // Update existing photo
-        const query = `
-          UPDATE photos 
-          SET filename = ?, path = ?, uploaded_at = CURRENT_TIMESTAMP
-          WHERE user_id = ?
-        `;
-        await this.db.runAsync(query, [filename, path, user_id]);
-      } else {
-        // Insert new photo
-        const query = `
-          INSERT INTO photos (user_id, filename, path)
-          VALUES (?, ?, ?)
-        `;
-        await this.db.runAsync(query, [user_id, filename, path]);
-      }
-      
-      return this.getPhoto(user_id);
-    } catch (error) {
-      console.error('Error in addOrUpdatePhoto:', error);
-      throw error;
-    }
-  }
+	/** Batch get user profiles with photos */
+	async getProfilesWithPhotos(userIds) {
+		try {
+			if (!userIds || userIds.length === 0) {
+				return [];
+			}
+			/** Create placeholders for SQLite (?, ?, ?) */
+			const placeholders = userIds.map(() => '?').join(',');
+			const result = await this.db.allAsync(`
+			SELECT 
+				p.user_id,
+				p.username,
+				p.bio,
+				p.created_at,
+				ph.filename,
+				ph.path,
+				ph.uploaded_at
+			FROM profiles p
+			LEFT JOIN photos ph ON p.user_id = ph.user_id
+			WHERE p.user_id IN (${placeholders})
+			ORDER BY p.username ASC
+			`, userIds);
 
-  async getPhoto(user_id) {
-    return await this.db.getAsync(`SELECT * FROM photos WHERE user_id = ?`, [user_id]);
-  }
-
-  async deletePhoto(user_id) {
-    const query = `DELETE FROM photos WHERE user_id = ?`;
-    await this.db.runAsync(query, [user_id]);
-  }
-
-  async deleteProfile(user_id) {
-    const query = `DELETE FROM profiles WHERE user_id = ?`;
-    await this.db.runAsync(query, [user_id]);
-  }
+			return result.map(row => ({
+				user_id: row.user_id,
+				username: row.username,
+				bio: row.bio,
+				created_at: row.created_at,
+				photo: row.filename ? {
+					filename: row.filename,
+					path: row.path,
+					uploaded_at: row.uploaded_at
+				} : null
+			}));
+		} catch (error) {
+			console.error('Error getting profiles with photos:', error);
+			throw new Error('Failed to get user profiles');
+		}
+	}
 
   async close() {
     if (this.db) {

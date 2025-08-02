@@ -11,6 +11,9 @@ RUN apk add --no-cache build-base python3 && \
     npm ci --omit=dev && \
     apk del build-base python3
 
+#Install sqlite
+RUN apk update && apk add --no-cache sqlite
+
 # Copy source code
 COPY src/ ./src/
 
@@ -26,16 +29,6 @@ USER nodeuser
 
 # Expose port
 EXPOSE 3003
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "\
-    const http = require('http'); \
-    const req = http.request('http://localhost:3003/health', res => { \
-      process.exit(res.statusCode === 200 ? 0 : 1); \
-    }); \
-    req.on('error', () => process.exit(1)); \
-    req.end();"
 
 # Start the application
 CMD ["node", "src/app.js"]

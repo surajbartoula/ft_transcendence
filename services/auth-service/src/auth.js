@@ -464,9 +464,6 @@ export default async function authRoutes(fastify, options) {
 					bio: user.bio || null
 				})
 			});
-			if (!response.ok && response.status !== 409) { /** 409 means profile already exists */
-				fastify.log.error('Failed to create user profile:', await response.text());
-			}
 		} catch (error) {
 			fastify.log.error('Error creating user profile:', error);
 		}

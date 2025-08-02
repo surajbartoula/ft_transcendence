@@ -116,4 +116,112 @@ export default async function userRoutes(fastify, options) {
 			}
 		}
 	});
+
+	/** Updated search route with blocking functionality */
+	fastify.get('/search', {
+		preHandler: fastify.authenticate,
+		handler: async (req, reply) => {
+			try {
+				const { q: query, limit = 20 } = req.query;
+				const currentUserId = req.user.sub || req.user.user_id || req.user.id;
+				if (!query || !query.trim()) {
+					return reply.code(400).send({ 
+						error: 'Query parameter "q" is required'
+					});
+				}
+				if (!currentUserId) {
+					return reply.code(401).send({ 
+						error: 'User not authenticated' 
+					});
+				}
+				/** Search users with blocking functionality */
+				const searchResults = await dbService.searchUsers(
+					query.trim(), 
+					parseInt(limit), 
+					currentUserId
+				);
+				return reply.send({
+					success: true,
+					users: searchResults,
+					count: searchResults.length
+				});
+			} catch (error) {
+				req.log.error(error);
+				return reply.code(500).send({ 
+					error: 'Search failed',
+					message: 'Internal server error during search'
+				});
+			}
+		}
+	});
+
+	fastify.get('/profile/:userId', {
+		preHandler: fastify.authenticate,
+		handler: async (req, reply) => {
+			try {
+				const { userId } = req.params;
+				if (!userId) {
+					return reply.code(400).send({ 
+						error: 'User ID is required' 
+					});
+				}
+				const profile = await dbService.getProfileWithPhoto(userId);
+				if (!profile) {
+					return reply.code(404).send({ 
+						error: 'Profile not found' 
+					});
+				}
+				return reply.send({
+					success: true,
+					...profile
+				});
+			} catch (error) {
+				req.log.error(error);
+				return reply.code(500).send({ 
+					error: 'Failed to fetch user profile',
+					message: error.message 
+				});
+			}
+		}
+	});
+
+	/** Get multiple user profiles by IDs (batch request for efficiency) */
+	fastify.post('/profiles/batch', {
+		preHandler: fastify.authenticate,
+		handler: async (req, reply) => {
+			try {
+				const { userIds } = req.body;
+				
+				if (!userIds || !Array.isArray(userIds)) {
+					return reply.code(400).send({ 
+						error: 'userIds array is required' 
+					});
+				}
+				if (userIds.length === 0) {
+					return reply.send({
+						success: true,
+						profiles: []
+					});
+				}
+				if (userIds.length > 50) {
+					return reply.code(400).send({ 
+						error: 'Maximum 50 user IDs allowed per request' 
+					});
+				}
+				const profiles = await dbService.getProfilesWithPhotos(userIds);
+				return reply.send({
+					success: true,
+					profiles: profiles,
+					count: profiles.length
+				});
+			} catch (error) {
+				req.log.error(error);
+				return reply.code(500).send({ 
+					error: 'Failed to fetch user profiles',
+					message: error.message 
+				});
+			}
+		}
+	});
+
 }

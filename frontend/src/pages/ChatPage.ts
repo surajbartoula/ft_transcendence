@@ -1,221 +1,218 @@
-// pages/ChatPage.ts - Chat page with Socket.io integration
 import { Page } from '../router/Router';
-import { User } from '../utils/auth';
-import { showNotification, showError } from '../utils/ui';
-import { API_CONFIG } from '../config';
+import { showError, hideError, showNotification, formatDate, generateAvatarUrl, escapeHtml } from '../utils/ui';
+import { getStoredToken, getStoredUser } from '../utils/auth';
 import { io, Socket } from 'socket.io-client';
 
-interface ChatMessage {
-    id: string;
-    sender_id: string;  // Match the backend field names
-    recipient_id: string;
+interface User {
+    user_id: string;
+    username: string;
+    display_name: string;
+    bio?: string;
+    photo?: string;
+    created_at: string;
+}
+
+interface Friend extends User {
+    friendship_date?: string;
+    is_online?: boolean;
+    last_seen?: string;
+}
+
+interface Message {
+    id: number;
+    sender_id: string;
+    receiver_id: string;
     content: string;
+    message_type: string;
     created_at: string;
     read_at?: string;
-    type?: string;
+    sender_profile?: User;
 }
 
-interface ChatUser {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-    isOnline: boolean;
-    lastSeen?: Date;
+interface Chat {
+    friend: User;
+    last_message: string;
+    last_message_time: string;
+    last_message_sender: string;
+    unread_count: number;
+    is_last_message_mine: boolean;
 }
 
-interface GameInvite {
-    id: string;
-    senderId: string;
-    senderUsername: string;
-    expiresAt: string;
-    status?: string;
+interface FriendRequest {
+    user_id: string;
+    username: string;
+    display_name: string;
+    photo?: string;
+    request_date: string;
 }
 
 export class ChatPage implements Page {
-    public title = 'Chat';
-    public requiresAuth = true;
+    title = 'Chat';
+    requiresAuth = true;
     
-    private currentUser: User | null = null;
-    private selectedChatUser: ChatUser | null = null;
-    private chatUsers: Map<string, ChatUser> = new Map();
-    private messages: ChatMessage[] = [];
     private socket: Socket | null = null;
-    
-    // DOM elements
-    private searchInput: HTMLInputElement | null = null;
-    private messageInput: HTMLInputElement | null = null;
-    private sendButton: HTMLButtonElement | null = null;
-    private messagesContainer: HTMLElement | null = null;
-    private chatsList: HTMLElement | null = null;
-    private onlineList: HTMLElement | null = null;
-    private invitesList: HTMLElement | null = null;
-    
-    // State
-    private activeTab: 'chats' | 'online' | 'invites' = 'chats';
-    private isTyping: boolean = false;
-    private typingTimeout: number | null = null;
-    private typingUsers: Set<string> = new Set();
+    private currentUser: any = null;
+    private currentChatFriend: User | null = null;
+    private messages: Message[] = [];
+    private friends: Friend[] = [];
+    private chats: Chat[] = [];
+    private friendRequests: FriendRequest[] = [];
+    private isTyping: { [userId: string]: boolean } = {};
+    private typingTimeout: { [userId: string]: NodeJS.Timeout } = {};
 
-    private boundHandleSearch: ((event: Event) => void) | null = null;
-    private boundHandleMessageKeyPress: ((e: KeyboardEvent) => void) | null = null;
-    private boundHandleTyping: (() => void) | null = null;
-    private boundSendMessage: (() => Promise<void>) | null = null;
-    private boundSendGameInvite: (() => Promise<void>) | null = null;
-    private boundBlockUser: (() => Promise<void>) | null = null;
-    private boundSwitchToChats: (() => void) | null = null;
-    private boundSwitchToOnline: (() => void) | null = null;
-    private boundSwitchToInvites: (() => void) | null = null;
-
-    public render(): string {
+    render(): string {
         return `
-            <div class="min-h-screen flex bg-slate-900">
+            <div class="h-screen bg-gray-900 flex overflow-hidden">
                 <!-- Sidebar -->
                 <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
                     <!-- Header -->
                     <div class="p-4 border-b border-gray-700">
                         <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                                    <span id="userInitial" class="font-bold text-white"></span>
-                                </div>
-                                <div>
-                                    <h2 id="currentUsername" class="font-semibold text-white"></h2>
-                                    <span id="connectionStatus" class="text-xs text-green-400">Connecting...</span>
-                                </div>
-                            </div>
-                            <button data-route="/dashboard" class="text-gray-400 hover:text-white transition-colors">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            <h1 class="text-xl font-semibold text-white">Messages</h1>
+                            <button id="addFriendBtn" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                 </svg>
                             </button>
                         </div>
-                        <!-- Search Bar -->
+                        
+                        <!-- Tabs -->
+                        <div class="flex space-x-1 bg-gray-700 rounded-lg p-1">
+                            <button id="chatsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-white bg-gray-600 transition-colors">
+                                Chats
+                                <span id="unreadBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+                            </button>
+                            <button id="friendsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                                Friends
+                            </button>
+                            <button id="requestsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                                Requests
+                                <span id="requestsBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="p-4 border-b border-gray-700">
                         <div class="relative">
-                            <input type="text" id="searchInput" placeholder="Search users..."
-                                class="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400">
-                            <svg class="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <input id="searchInput" type="text" placeholder="Search users..." 
+                                   class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                         </div>
+                        <div id="searchResults" class="mt-2 space-y-2 hidden"></div>
                     </div>
 
-                    <!-- Tabs -->
-                    <div class="flex border-b border-gray-700">
-                        <button id="chatsTab" class="flex-1 py-3 px-4 text-center text-purple-400 border-b-2 border-purple-400 font-medium">
-                            Chats
-                        </button>
-                        <button id="onlineTab" class="flex-1 py-3 px-4 text-center text-gray-400 hover:text-white font-medium">
-                            Online
-                        </button>
-                        <button id="invitesTab" class="flex-1 py-3 px-4 text-center text-gray-400 hover:text-white font-medium relative">
-                            Invites
-                            <span id="invitesBadge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
-                        </button>
-                    </div>
-
-                    <!-- Content Area -->
+                    <!-- Content Lists -->
                     <div class="flex-1 overflow-y-auto">
-                        <!-- Recent Chats -->
-                        <div id="chatsList" class="p-2">
-                            <div class="text-center py-8">
-                                <div class="text-4xl mb-4">💬</div>
-                                <p class="text-gray-400">No conversations yet</p>
-                                <p class="text-sm text-gray-500 mt-2">Start a conversation to see it here</p>
+                        <!-- Chats List -->
+                        <div id="chatsList" class="p-4 space-y-2">
+                            <div class="text-center text-gray-400 py-8">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+                                </svg>
+                                <p>No chats yet</p>
+                                <p class="text-sm">Start a conversation with a friend!</p>
                             </div>
                         </div>
 
-                        <!-- Online Users -->
-                        <div id="onlineList" class="hidden p-2">
-                            <div class="text-center py-8">
-                                <div class="text-4xl mb-4">👥</div>
-                                <p class="text-gray-400">Loading online users...</p>
+                        <!-- Friends List -->
+                        <div id="friendsList" class="p-4 space-y-2 hidden">
+                            <div class="text-center text-gray-400 py-8">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                <p>No friends yet</p>
+                                <p class="text-sm">Add friends to start chatting!</p>
                             </div>
                         </div>
 
-                        <!-- Game Invites -->
-                        <div id="invitesList" class="hidden p-2">
-                            <div class="text-center py-8">
-                                <div class="text-4xl mb-4">🎮</div>
-                                <p class="text-gray-400">No game invites</p>
-                                <p class="text-sm text-gray-500 mt-2">Game invitations will appear here</p>
+                        <!-- Requests List -->
+                        <div id="requestsList" class="p-4 space-y-2 hidden">
+                            <div class="text-center text-gray-400 py-8">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                                </svg>
+                                <p>No friend requests</p>
                             </div>
-                        </div>
-
-                        <!-- Search Results -->
-                        <div id="searchResults" class="hidden p-2">
-                            <!-- Search results will be populated here -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Main Chat Area -->
+                <!-- Chat Area -->
                 <div class="flex-1 flex flex-col">
                     <!-- Chat Header -->
-                    <div id="chatHeader" class="hidden p-4 border-b border-gray-700 bg-gray-800">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-3">
-                                <div id="chatUserAvatar" class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                                    <span class="font-bold text-white"></span>
-                                </div>
-                                <div>
-                                    <h3 id="chatUsername" class="font-semibold text-white"></h3>
-                                    <p id="chatUserStatus" class="text-sm text-gray-400"></p>
-                                </div>
+                    <div id="chatHeader" class="bg-gray-800 border-b border-gray-700 p-4 hidden">
+                        <div class="flex items-center">
+                            <img id="chatAvatar" class="w-10 h-10 rounded-full mr-3" src="" alt="">
+                            <div class="flex-1">
+                                <h2 id="chatName" class="text-white font-semibold"></h2>
+                                <p id="chatStatus" class="text-sm text-gray-400"></p>
                             </div>
-                            <div class="flex items-center space-x-2">
-                                <button id="gameInviteBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                                    🎮 Invite to Game
-                                </button>
-                                <button id="blockUserBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-                                    Block
-                                </button>
-                            </div>
+                            <button id="closeChatBtn" class="text-gray-400 hover:text-white p-2">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
 
                     <!-- Welcome Screen -->
                     <div id="welcomeScreen" class="flex-1 flex items-center justify-center bg-gray-900">
                         <div class="text-center">
-                            <div class="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                                </svg>
-                            </div>
-                            <h2 class="text-2xl font-bold text-white mb-2">Welcome to Chat</h2>
-                            <p class="text-gray-400">Select a conversation to start messaging</p>
+                            <svg class="w-20 h-20 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+                            </svg>
+                            <h2 class="text-2xl font-semibold text-white mb-2">Welcome to Chat</h2>
+                            <p class="text-gray-400">Select a conversation or start a new one</p>
                         </div>
                     </div>
 
                     <!-- Messages Area -->
-                    <div id="messagesArea" class="hidden flex-1 flex flex-col">
-                        <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4">
-                            <!-- Messages will be populated here -->
+                    <div id="messagesArea" class="flex-1 flex flex-col hidden">
+                        <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
+                            <!-- Messages will be inserted here -->
                         </div>
 
                         <!-- Typing Indicator -->
-                        <div id="typingIndicator" class="hidden px-4 py-2">
-                            <div class="flex items-center space-x-2 text-gray-400">
-                                <span id="typingText" class="text-sm">Someone is typing</span>
-                                <div class="flex space-x-1">
-                                    <div class="typing-indicator"></div>
-                                    <div class="typing-indicator"></div>
-                                    <div class="typing-indicator"></div>
+                        <div id="typingIndicator" class="px-4 pb-2 hidden">
+                            <div class="flex items-center text-gray-400 text-sm">
+                                <div class="flex space-x-1 mr-2">
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                                 </div>
+                                <span id="typingText">Someone is typing...</span>
                             </div>
                         </div>
 
                         <!-- Message Input -->
-                        <div class="p-4 border-t border-gray-700">
-                            <div class="flex items-center space-x-2">
-                                <input type="text" id="messageInput" placeholder="Type a message..."
-                                    class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white placeholder-gray-400">
-                                <button id="sendBtn" class="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                    </svg>
-                                </button>
+                        <div class="border-t border-gray-700 p-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="flex-1 relative">
+                                    <input id="messageInput" type="text" placeholder="Type a message..." 
+                                           class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button id="sendBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-400 disabled:text-gray-500 disabled:cursor-not-allowed">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Friend Modal -->
+                <div id="addFriendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 class="text-lg font-semibold text-white mb-4">Add Friend</h3>
+                        <input id="friendSearchInput" type="text" placeholder="Search by username..." 
+                               class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div id="friendSearchResults" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+                        <div class="flex justify-end space-x-3">
+                            <button id="cancelAddFriend" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -223,1172 +220,699 @@ export class ChatPage implements Page {
         `;
     }
 
-    public async initialize(): Promise<void> {
-        this.bindElements();
-        this.loadUserData();
-        this.attachEventListeners();
-        this.populateUserInfo();
-        this.initializeSocketIO();
+    async initialize(): Promise<void> {
+        hideError();
+        this.currentUser = getStoredUser();
+        if (!this.currentUser) {
+            showError('Please log in to access chat');
+            return;
+        }
+        await this.initializeSocket();
+        this.setupEventListeners();
         await this.loadInitialData();
     }
 
-    public cleanup(): void {
-        // Close Socket.io connection
+    cleanup(): void {
         if (this.socket) {
-			this.socket.removeAllListeners();
             this.socket.disconnect();
             this.socket = null;
         }
-
-        // Clear typing timeout
-        if (this.typingTimeout) {
-            clearTimeout(this.typingTimeout);
-        }
-
-        // Remove event listeners
-        this.removeEventListeners();
+        /** Clear typing timeouts */
+        Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
+        this.typingTimeout = {};
     }
 
-    private bindElements(): void {
-        this.searchInput = document.getElementById('searchInput') as HTMLInputElement;
-        this.messageInput = document.getElementById('messageInput') as HTMLInputElement;
-        this.sendButton = document.getElementById('sendBtn') as HTMLButtonElement;
-        this.messagesContainer = document.getElementById('messagesContainer') as HTMLElement;
-        this.chatsList = document.getElementById('chatsList') as HTMLElement;
-        this.onlineList = document.getElementById('onlineList') as HTMLElement;
-        this.invitesList = document.getElementById('invitesList') as HTMLElement;
-    }
-
-    private loadUserData(): void {
-        const userDataStr = localStorage.getItem('userData');
-        if (userDataStr) {
-            this.currentUser = JSON.parse(userDataStr);
-        }
-    }
-
-    private attachEventListeners(): void {
-        // Tab switching - store bound functions
-        this.boundSwitchToChats = () => this.switchTab('chats');
-        this.boundSwitchToOnline = () => this.switchTab('online');
-        this.boundSwitchToInvites = () => this.switchTab('invites');
-
-        const chatsTab = document.getElementById('chatsTab');
-        const onlineTab = document.getElementById('onlineTab');
-        const invitesTab = document.getElementById('invitesTab');
-
-        chatsTab?.addEventListener('click', this.boundSwitchToChats);
-        onlineTab?.addEventListener('click', this.boundSwitchToOnline);
-        invitesTab?.addEventListener('click', this.boundSwitchToInvites);
-
-        // Search functionality
-        if (this.searchInput) {
-            this.boundHandleSearch = this.debounce((event: Event) => {
-                const target = event.target as HTMLInputElement;
-                this.handleSearch(target.value);
-            }, 300) as (event: Event) => void;
-            
-            this.searchInput.addEventListener('input', this.boundHandleSearch);
-        }
-
-        // Message sending
-        if (this.messageInput) {
-            this.boundHandleMessageKeyPress = this.handleMessageKeyPress.bind(this);
-            this.boundHandleTyping = this.handleTyping.bind(this);
-            
-            this.messageInput.addEventListener('keypress', this.boundHandleMessageKeyPress);
-            this.messageInput.addEventListener('input', this.boundHandleTyping);
-        }
-
-        if (this.sendButton) {
-            this.boundSendMessage = this.sendMessage.bind(this);
-            this.sendButton.addEventListener('click', this.boundSendMessage);
-        }
-
-        // Game invite and block buttons
-        const gameInviteBtn = document.getElementById('gameInviteBtn');
-        const blockUserBtn = document.getElementById('blockUserBtn');
-
-        if (gameInviteBtn) {
-            this.boundSendGameInvite = this.sendGameInvite.bind(this);
-            gameInviteBtn.addEventListener('click', this.boundSendGameInvite);
-        }
-
-        if (blockUserBtn) {
-            this.boundBlockUser = this.blockUser.bind(this);
-            blockUserBtn.addEventListener('click', this.boundBlockUser);
-        }
-    }
-
-    private removeEventListeners(): void {
-        // Remove tab event listeners
-        const chatsTab = document.getElementById('chatsTab');
-        const onlineTab = document.getElementById('onlineTab');
-        const invitesTab = document.getElementById('invitesTab');
-
-        if (chatsTab && this.boundSwitchToChats) {
-            chatsTab.removeEventListener('click', this.boundSwitchToChats);
-        }
-        if (onlineTab && this.boundSwitchToOnline) {
-            onlineTab.removeEventListener('click', this.boundSwitchToOnline);
-        }
-        if (invitesTab && this.boundSwitchToInvites) {
-            invitesTab.removeEventListener('click', this.boundSwitchToInvites);
-        }
-
-        // Remove search event listener
-        if (this.searchInput && this.boundHandleSearch) {
-            this.searchInput.removeEventListener('input', this.boundHandleSearch);
-        }
-
-        // Remove message input event listeners
-        if (this.messageInput) {
-            if (this.boundHandleMessageKeyPress) {
-                this.messageInput.removeEventListener('keypress', this.boundHandleMessageKeyPress);
-            }
-            if (this.boundHandleTyping) {
-                this.messageInput.removeEventListener('input', this.boundHandleTyping);
-            }
-        }
-
-        // Remove send button event listener
-        if (this.sendButton && this.boundSendMessage) {
-            this.sendButton.removeEventListener('click', this.boundSendMessage);
-        }
-
-        // Remove game invite and block button event listeners
-        const gameInviteBtn = document.getElementById('gameInviteBtn');
-        const blockUserBtn = document.getElementById('blockUserBtn');
-
-        if (gameInviteBtn && this.boundSendGameInvite) {
-            gameInviteBtn.removeEventListener('click', this.boundSendGameInvite);
-        }
-
-        if (blockUserBtn && this.boundBlockUser) {
-            blockUserBtn.removeEventListener('click', this.boundBlockUser);
-        }
-
-        // Clear references
-        this.boundHandleSearch = null;
-        this.boundHandleMessageKeyPress = null;
-        this.boundHandleTyping = null;
-        this.boundSendMessage = null;
-        this.boundSendGameInvite = null;
-        this.boundBlockUser = null;
-        this.boundSwitchToChats = null;
-        this.boundSwitchToOnline = null;
-        this.boundSwitchToInvites = null;
-    }
-
-    private populateUserInfo(): void {
-        if (!this.currentUser) return;
-
-        const userInitial = document.getElementById('userInitial');
-        const currentUsername = document.getElementById('currentUsername');
-
-        if (userInitial) {
-            userInitial.textContent = this.currentUser.name[0].toUpperCase();
-        }
-
-        if (currentUsername) {
-            currentUsername.textContent = this.currentUser.name;
-        }
-    }
-
-    private initializeSocketIO(): void {
-        const token = localStorage.getItem('token');
+    private async initializeSocket(): Promise<void> {
+        const token = getStoredToken();
         if (!token) return;
 
-        // Connect to the gateway
-        this.socket = io(API_CONFIG.GATEWAY_URL, {
-            path: '/socket.io/',
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000
+        this.socket = io('http://localhost:3003', {
+            auth: { token }
         });
 
-        // Connection events
         this.socket.on('connect', () => {
-            console.log('Connected to gateway');
-            this.updateConnectionStatus('Authenticating...');
-            // Send auth event with token
-            this.socket?.emit('auth', { token: token });
-        });
-
-        this.socket.on('auth:success', () => {
-            console.log('Chat authentication successful');
-            this.updateConnectionStatus('Connected');
-			/** Rejoin current chat room if any */
-			if (this.selectedChatUser) {
-				this.socket?.emit('chat:join', {userId: this.selectedChatUser.id});
-			}
-        });
-
-        this.socket.on('auth:error', (error) => {
-            console.error('Authentication failed:', error);
-            this.updateConnectionStatus('Auth Failed');
+            console.log('Connected to chat service');
+            /** Send heartbeat every 30 seconds */
+            setInterval(() => {
+                this.socket?.emit('heartbeat');
+            }, 30000);
         });
 
         this.socket.on('disconnect', () => {
-            console.log('Disconnected from chat server');
-            this.updateConnectionStatus('Disconnected');
+            console.log('Disconnected from chat service');
         });
 
-		this.socket.on('reconnect', () => {
-			if (this.selectedChatUser) {
-				this.loadChatMessages(this.selectedChatUser.id);
-			}
-		})
-
-        this.socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
-            this.updateConnectionStatus('Error');
+        this.socket.on('new_message', (data: Message & { sender_profile: User }) => {
+            this.handleNewMessage(data);
         });
 
-        // Chat events
-        this.socket.on('message:receive', (message) => {
-            this.handleIncomingMessage(message);
+        this.socket.on('friend_request', (data: { from_user: User; message: string }) => {
+            showNotification(data.message, 'info');
+            this.loadFriendRequests();
         });
 
-        this.socket.on('message:sent', (message) => {
-            // Confirmation that message was sent
-            console.log('Message sent:', message);
+        this.socket.on('friend_request_accepted', (data: { from_user: User; message: string }) => {
+            showNotification(data.message, 'success');
+            this.loadFriends();
         });
 
-        this.socket.on('message:typing', ({ senderId, isTyping }) => {
-            this.handleTypingIndicator({ senderId, isTyping });
+        this.socket.on('user_typing', (data: { user_id: string }) => {
+            this.handleTypingStart(data.user_id);
         });
 
-        this.socket.on('message:read', ({ messageId }) => {
-            this.handleMessageRead(messageId);
+        this.socket.on('user_stopped_typing', (data: { user_id: string }) => {
+            this.handleTypingStop(data.user_id);
         });
 
-        // Game invite events
-        this.socket.on('game:invite:received', (invite) => {
-            this.handleGameInvite(invite);
+        this.socket.on('error', (data: { message: string }) => {
+            showError(data.message);
         });
-
-        this.socket.on('game:invite:sent', ({ inviteId }) => {
-            showNotification('Game invite sent!', 'success');
-        });
-
-        this.socket.on('game:invite:accepted', ({ inviteId, gameRoomId }) => {
-            showNotification('Game invite accepted! Joining game...', 'success');
-            // Navigate to game with room ID
-            setTimeout(() => {
-                const event = new CustomEvent('navigate', {
-                    detail: { path: `/game?room=${gameRoomId}` }
-                });
-                window.dispatchEvent(event);
-            }, 1000);
-        });
-
-        this.socket.on('game:invite:declined', ({ inviteId }) => {
-            showNotification('Game invite was declined', 'info');
-        });
-
-        // User status events
-        this.socket.on('user:online', ({ userId }) => {
-            this.handleUserOnline(userId);
-        });
-
-        this.socket.on('user:offline', ({ userId }) => {
-            this.handleUserOffline(userId);
-        });
-
-        this.socket.on('user:blocked', ({ by }) => {
-            showNotification('You have been blocked', 'error');
-            if (this.selectedChatUser && this.selectedChatUser.id === by) {
-                this.selectedChatUser = null;
-                this.showWelcomeScreen();
-            }
-        });
-
-        // Error handling
-        this.socket.on('error', (error) => {
-            console.error('Socket error:', error);
-            showError(error.message || 'Connection error');
-        });
-		// Add token refresh handling
-		this.socket.on('auth:token-expired', () => {
-			// Handle token refresh or redirect to login
-			this.handleTokenExpired();
-		});
     }
 
-	private handleTokenExpired(): void {
-		localStorage.removeItem('token');
-		localStorage.removeItem('userData');
-		const event = new CustomEvent('navigate', {
-			detail: { path: '/login' }
-		});
-		window.dispatchEvent(event);
-	}
+    private setupEventListeners(): void {
+        /** Tab switching */
+        document.getElementById('chatsTab')?.addEventListener('click', () => this.switchTab('chats'));
+        document.getElementById('friendsTab')?.addEventListener('click', () => this.switchTab('friends'));
+        document.getElementById('requestsTab')?.addEventListener('click', () => this.switchTab('requests'));
+        /** Search */
+        const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+        searchInput?.addEventListener('input', this.debounce(() => this.handleSearch(searchInput.value), 300));
+        /** Message input */
+        const messageInput = document.getElementById('messageInput') as HTMLInputElement;
+        messageInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.sendMessage();
+            }
+        });
+        messageInput?.addEventListener('input', () => {
+            this.handleTyping();
+        });
+        /** Send button */
+        document.getElementById('sendBtn')?.addEventListener('click', () => this.sendMessage());
+        /** Close chat */
+        document.getElementById('closeChatBtn')?.addEventListener('click', () => this.closeChat());
+        /** Add friend modal */
+        document.getElementById('addFriendBtn')?.addEventListener('click', () => this.showAddFriendModal());
+        document.getElementById('cancelAddFriend')?.addEventListener('click', () => this.hideAddFriendModal());
+        /** Friend search in modal */
+        const friendSearchInput = document.getElementById('friendSearchInput') as HTMLInputElement;
+        friendSearchInput?.addEventListener('input', this.debounce(() => this.searchUsersForFriend(friendSearchInput.value), 300));
+    }
 
     private async loadInitialData(): Promise<void> {
         try {
             await Promise.all([
-                this.loadRecentChats(),
-                this.loadOnlineUsers(),
-                this.loadGameInvites()
+                this.loadChats(),
+                this.loadFriends(),
+                this.loadFriendRequests()
             ]);
         } catch (error) {
             console.error('Failed to load initial data:', error);
+            showError('Failed to load chat data');
         }
     }
 
-    private async loadRecentChats(): Promise<void> {
-        // For now, we'll just show an empty state
-        // In a real implementation, you'd load recent conversations
-        this.renderChatUsers([]);
-    }
-
-    private async loadOnlineUsers(): Promise<void> {
+    private async loadChats(): Promise<void> {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/online`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/chats/recent', {
+                headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.renderOnlineUsers(data.users || []);
-            }
+            if (!response.ok) throw new Error('Failed to load chats');
+            this.chats = await response.json();
+            this.renderChats();
+            this.updateUnreadBadge();
         } catch (error) {
-            console.error('Failed to load online users:', error);
+            console.error('Failed to load chats:', error);
         }
     }
 
-    private async loadGameInvites(): Promise<void> {
+    private async loadFriends(): Promise<void> {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/game/invites`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/friends/details', {
+                headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.renderGameInvites(data.invites || []);
-            }
+            if (!response.ok) throw new Error('Failed to load friends');
+            this.friends = await response.json();
+            this.renderFriends();
         } catch (error) {
-            console.error('Failed to load game invites:', error);
+            console.error('Failed to load friends:', error);
         }
     }
 
-    private switchTab(tab: 'chats' | 'online' | 'invites'): void {
-        this.activeTab = tab;
+    private async loadFriendRequests(): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/friends/requests/details', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to load friend requests');
+            this.friendRequests = await response.json();
+            this.renderFriendRequests();
+            this.updateRequestsBadge();
+        } catch (error) {
+            console.error('Failed to load friend requests:', error);
+        }
+    }
 
-        // Update tab styles
-        const tabs = ['chatsTab', 'onlineTab', 'invitesTab'];
-        const lists = ['chatsList', 'onlineList', 'invitesList'];
-
-        tabs.forEach((tabId, index) => {
-            const tabElement = document.getElementById(tabId);
-            const listElement = document.getElementById(lists[index]);
-
-            if (tabElement) {
-                if (index === ['chats', 'online', 'invites'].indexOf(tab)) {
-                    tabElement.className = 'flex-1 py-3 px-4 text-center text-purple-400 border-b-2 border-purple-400 font-medium';
-                    listElement?.classList.remove('hidden');
-                } else {
-                    tabElement.className = 'flex-1 py-3 px-4 text-center text-gray-400 hover:text-white font-medium';
-                    listElement?.classList.add('hidden');
-                }
-            }
+    private switchTab(tab: 'chats' | 'friends' | 'requests'): void {
+        /** Update tab buttons */
+        document.querySelectorAll('[id$="Tab"]').forEach(btn => {
+            btn.classList.remove('bg-gray-600', 'text-white');
+            btn.classList.add('text-gray-300');
         });
-
-        // Hide search results when switching tabs
-        document.getElementById('searchResults')?.classList.add('hidden');
+        const activeTab = document.getElementById(`${tab}Tab`);
+        activeTab?.classList.add('bg-gray-600', 'text-white');
+        activeTab?.classList.remove('text-gray-300');
+        /** Show/hide content */
+        document.getElementById('chatsList')?.classList.add('hidden');
+        document.getElementById('friendsList')?.classList.add('hidden');
+        document.getElementById('requestsList')?.classList.add('hidden');
+        document.getElementById(`${tab}List`)?.classList.remove('hidden');
     }
 
-    private async handleSearch(query: string): Promise<void> {
-        if (!query.trim()) {
-            document.getElementById('searchResults')?.classList.add('hidden');
-            // Show the current tab content
-            document.getElementById(this.activeTab === 'chats' ? 'chatsList' : 
-                                  this.activeTab === 'online' ? 'onlineList' : 'invitesList')?.classList.remove('hidden');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/search?q=${encodeURIComponent(query)}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.renderSearchResults(data.users || []);
-            }
-        } catch (error) {
-            console.error('Search failed:', error);
-        }
-    }
-
-    private handleMessageKeyPress(e: KeyboardEvent): void {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            this.sendMessage();
-        }
-    }
-
-    private handleTyping(): void {
-        if (!this.selectedChatUser || !this.socket) return;
-
-        if (!this.isTyping) {
-            this.isTyping = true;
-            this.socket.emit('message:typing', {
-                recipientId: this.selectedChatUser.id,
-                isTyping: true
-            });
-        }
-
-        // Clear existing timeout
-        if (this.typingTimeout) {
-            clearTimeout(this.typingTimeout);
-        }
-
-        // Set new timeout
-        this.typingTimeout = window.setTimeout(() => {
-            this.isTyping = false;
-            if (this.socket && this.selectedChatUser) {
-                this.socket.emit('message:typing', {
-                    recipientId: this.selectedChatUser.id,
-                    isTyping: false
-                });
-            }
-        }, 1000);
-    }
-
-	private async sendMessage(): Promise<void> {
-		if (!this.messageInput || !this.selectedChatUser || !this.socket) return;
-
-		const content = this.messageInput.value.trim();
-		if (!content) return;
-
-		const tempMessage: ChatMessage = {
-			id: `temp-${Date.now()}`,
-			sender_id: this.currentUser?.id || '',
-			recipient_id: this.selectedChatUser.id,
-			content,
-			created_at: new Date().toISOString(),
-			type: 'text'
-		};
-
-		// Add to UI optimistically
-		this.addMessageToChat(tempMessage);
-		this.messageInput.value = '';
-
-		// Send with error handling
-		this.socket.emit('message:send', {
-			recipientId: this.selectedChatUser.id,
-			content,
-			type: 'text'
-		}, (response: unknown) => {
-			if (typeof response === 'object' && response !== null && 'error' in response) {
-				// Remove failed message and show error
-				this.messages = this.messages.filter(m => m.id !== tempMessage.id);
-				this.renderMessages();
-				showError('Failed to send message');
-				
-				// Restore message in input
-				if (this.messageInput) {
-					this.messageInput.value = content;
-				}
-			}
-		});
-	}
-
-    private async sendGameInvite(): Promise<void> {
-        if (!this.selectedChatUser || !this.socket) return;
-
-        // Send game invite via Socket.io
-        this.socket.emit('game:invite', {
-            recipientId: parseInt(this.selectedChatUser.id)
-        });
-    }
-
-    private async blockUser(): Promise<void> {
-        if (!this.selectedChatUser) return;
-
-        const confirmed = confirm(`Are you sure you want to block ${this.selectedChatUser.name}?`);
-        if (!confirmed) return;
-
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/block/${this.selectedChatUser.id}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                showNotification('User blocked successfully', 'success');
-                this.selectedChatUser = null;
-                this.showWelcomeScreen();
-                this.loadRecentChats();
-            }
-        } catch (error) {
-            console.error('Failed to block user:', error);
-            showError('Failed to block user');
-        }
-    }
-
-    private renderChatUsers(conversations: any[]): void {
-        if (!this.chatsList) return;
-
-        if (conversations.length === 0) {
-            this.chatsList.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl mb-4">💬</div>
-                    <p class="text-gray-400">No conversations yet</p>
-                    <p class="text-sm text-gray-500 mt-2">Start a conversation to see it here</p>
+    private renderChats(): void {
+        const container = document.getElementById('chatsList');
+        if (!container) return;
+        if (this.chats.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+                    </svg>
+                    <p>No chats yet</p>
+                    <p class="text-sm">Start a conversation with a friend!</p>
                 </div>
             `;
             return;
         }
+        container.innerHTML = this.chats.map(chat => `
+            <div class="chat-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
+                 data-friend-id="${chat.friend.user_id}">
+                <div class="flex items-center">
+                    <img class="w-12 h-12 rounded-full mr-3" 
+                         src="${chat.friend.photo || generateAvatarUrl(chat.friend.display_name)}" 
+                         alt="${chat.friend.display_name}">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <p class="font-medium text-white truncate">${escapeHtml(chat.friend.display_name)}</p>
+                            <span class="text-xs text-gray-400">${formatDate(chat.last_message_time)}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-gray-400 truncate">
+                                ${chat.is_last_message_mine ? 'You: ' : ''}${escapeHtml(chat.last_message)}
+                            </p>
+                            ${chat.unread_count > 0 ? `
+                                <span class="bg-blue-500 text-white text-xs rounded-full px-2 py-1 ml-2">
+                                    ${chat.unread_count}
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        /** Add click listeners */
+        container.querySelectorAll('.chat-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const friendId = item.getAttribute('data-friend-id');
+                const friend = this.chats.find(c => c.friend.user_id === friendId)?.friend;
+                if (friend) this.openChat(friend);
+            });
+        });
+    }
 
-        this.chatsList.innerHTML = conversations.map(conv => `
-            <div class="p-3 hover:bg-gray-700 rounded-lg cursor-pointer transition-colors chat-user" data-user-id="${conv.user.id}">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <span class="font-bold text-white">${conv.user.name[0].toUpperCase()}</span>
+    private renderFriends(): void {
+        const container = document.getElementById('friendsList');
+        if (!container) return;
+        if (this.friends.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <p>No friends yet</p>
+                    <p class="text-sm">Add friends to start chatting!</p>
+                </div>
+            `;
+            return;
+        }
+        container.innerHTML = this.friends.map(friend => `
+            <div class="friend-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
+                 data-friend-id="${friend.user_id}">
+                <div class="flex items-center">
+                    <div class="relative">
+                        <img class="w-12 h-12 rounded-full mr-3" 
+                             src="${friend.photo || generateAvatarUrl(friend.display_name)}" 
+                             alt="${friend.display_name}">
+                        ${friend.is_online ? `
+                            <div class="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-700"></div>
+                        ` : ''}
                     </div>
                     <div class="flex-1">
-                        <div class="flex justify-between items-center">
-                            <h3 class="font-medium text-white">${conv.user.name}</h3>
-                            <span class="text-xs text-gray-400">${this.formatTime(conv.lastMessage.created_at)}</span>
-                        </div>
-                        <p class="text-sm text-gray-400 truncate">${conv.lastMessage.content}</p>
+                        <p class="font-medium text-white">${escapeHtml(friend.display_name)}</p>
+                        <p class="text-sm text-gray-400">
+                            ${friend.is_online ? 'Online' : `Last seen ${formatDate(friend.last_seen || friend.created_at)}`}
+                        </p>
                     </div>
-                    ${conv.unreadCount > 0 ? `<span class="bg-purple-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">${conv.unreadCount}</span>` : ''}
                 </div>
             </div>
         `).join('');
-
-        // Add click listeners
-        this.chatsList.querySelectorAll('.chat-user').forEach(element => {
-            element.addEventListener('click', (e) => {
-                const userId = (e.currentTarget as HTMLElement).dataset.userId;
-                const user = conversations.find(c => c.user.id === userId)?.user;
-                if (user) {
-                    this.selectChatUser(user);
-                }
+        container.querySelectorAll('.friend-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const friendId = item.getAttribute('data-friend-id');
+                const friend = this.friends.find(f => f.user_id === friendId);
+                if (friend) this.openChat(friend);
             });
         });
     }
 
-    private renderOnlineUsers(users: ChatUser[]): void {
-        if (!this.onlineList) return;
-
-        if (users.length === 0) {
-            this.onlineList.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl mb-4">👥</div>
-                    <p class="text-gray-400">No users online</p>
+    private renderFriendRequests(): void {
+        const container = document.getElementById('requestsList');
+        if (!container) return;
+        if (this.friendRequests.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    <p>No friend requests</p>
                 </div>
             `;
             return;
         }
-
-        this.onlineList.innerHTML = users.map(user => `
-            <div class="p-3 hover:bg-gray-700 rounded-lg cursor-pointer transition-colors online-user" data-user-id="${user.id}">
-                <div class="flex items-center space-x-3">
-                    <div class="relative">
-                        <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-                            <span class="font-bold text-white">${user.name[0].toUpperCase()}</span>
-                        </div>
-                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-800 rounded-full"></div>
+        container.innerHTML = this.friendRequests.map(request => `
+            <div class="p-3 rounded-lg bg-gray-700">
+                <div class="flex items-center mb-3">
+                    <img class="w-10 h-10 rounded-full mr-3" 
+                         src="${request.photo || generateAvatarUrl(request.display_name)}" 
+                         alt="${request.display_name}">
+                    <div class="flex-1">
+                        <p class="font-medium text-white">${escapeHtml(request.display_name)}</p>
+                        <p class="text-xs text-gray-400">${formatDate(request.request_date)}</p>
                     </div>
-                    <div>
-                        <h3 class="font-medium text-white">${user.name}</h3>
-                        <p class="text-sm text-green-400">Online</p>
-                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="accept-request flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded transition-colors" 
+                            data-user-id="${request.user_id}">
+                        Accept
+                    </button>
+                    <button class="decline-request flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2 px-3 rounded transition-colors" 
+                            data-user-id="${request.user_id}">
+                        Decline
+                    </button>
                 </div>
             </div>
         `).join('');
-
-        // Add click listeners
-        this.onlineList.querySelectorAll('.online-user').forEach(element => {
-            element.addEventListener('click', (e) => {
-                const userId = (e.currentTarget as HTMLElement).dataset.userId;
-                const user = users.find(u => u.id === userId);
-                if (user) {
-                    this.selectChatUser(user);
-                }
+        /** Add click listeners for accept/decline */
+        container.querySelectorAll('.accept-request').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const userId = btn.getAttribute('data-user-id');
+                if (userId) await this.acceptFriendRequest(userId);
+            });
+        });
+        container.querySelectorAll('.decline-request').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const userId = btn.getAttribute('data-user-id');
+                if (userId) await this.declineFriendRequest(userId);
             });
         });
     }
 
-    private renderGameInvites(invites: GameInvite[]): void {
-        if (!this.invitesList) return;
-
-        const invitesBadge = document.getElementById('invitesBadge');
-        if (invitesBadge) {
-            if (invites.length > 0) {
-                invitesBadge.textContent = invites.length.toString();
-                invitesBadge.classList.remove('hidden');
-            } else {
-                invitesBadge.classList.add('hidden');
-            }
-        }
-
-        if (invites.length === 0) {
-            this.invitesList.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl mb-4">🎮</div>
-                    <p class="text-gray-400">No game invites</p>
-                    <p class="text-sm text-gray-500 mt-2">Game invitations will appear here</p>
-                </div>
-            `;
-            return;
-        }
-
-        this.invitesList.innerHTML = invites.map(invite => `
-            <div class="p-3 bg-gray-700 rounded-lg mb-2">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h3 class="font-medium text-white">${invite.senderUsername}</h3>
-                        <p class="text-sm text-gray-400">Invited you to play Pong</p>
-                        <p class="text-xs text-gray-500">${this.formatTime(invite.expiresAt)}</p>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button class="accept-invite bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm" data-invite-id="${invite.id}">
-                            Accept
-                        </button>
-                        <button class="decline-invite bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm" data-invite-id="${invite.id}">
-                            Decline
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        // Add event listeners for invite actions
-        this.invitesList.querySelectorAll('.accept-invite').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const inviteId = (e.currentTarget as HTMLElement).dataset.inviteId;
-                if (inviteId && this.socket) {
-                    this.socket.emit('game:invite:accept', { inviteId: parseInt(inviteId) });
-                    this.loadGameInvites(); // Refresh the list
-                }
-            });
-        });
-
-        this.invitesList.querySelectorAll('.decline-invite').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const inviteId = (e.currentTarget as HTMLElement).dataset.inviteId;
-                if (inviteId && this.socket) {
-                    this.socket.emit('game:invite:decline', { inviteId: parseInt(inviteId) });
-                    this.loadGameInvites(); // Refresh the list
-                }
-            });
-        });
-    }
-
-	private renderSearchResults(users: ChatUser[]): void {
-        const searchResults = document.getElementById('searchResults');
-        if (!searchResults) return;
-
-        // Hide all other lists
-        document.getElementById('chatsList')?.classList.add('hidden');
-        document.getElementById('onlineList')?.classList.add('hidden');
-        document.getElementById('invitesList')?.classList.add('hidden');
-
-        // Show search results
-        searchResults.classList.remove('hidden');
-
-        if (users.length === 0) {
-            searchResults.innerHTML = `
-                <div class="text-center py-8">
-                    <div class="text-4xl mb-4">🔍</div>
-                    <p class="text-gray-400">No users found</p>
-                    <p class="text-sm text-gray-500 mt-2">Try a different search term</p>
-                </div>
-            `;
-            return;
-        }
-
-        searchResults.innerHTML = users.map(user => `
-            <div class="p-3 hover:bg-gray-700 rounded-lg cursor-pointer transition-colors search-user" data-user-id="${user.id}">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span class="font-bold text-white">${user.name[0].toUpperCase()}</span>
-                    </div>
-                    <div>
-                        <h3 class="font-medium text-white">${user.name}</h3>
-                        <p class="text-sm text-gray-400">${user.email}</p>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        // Add click listeners
-        searchResults.querySelectorAll('.search-user').forEach(element => {
-            element.addEventListener('click', (e) => {
-                const userId = (e.currentTarget as HTMLElement).dataset.userId;
-                const user = users.find(u => u.id === userId);
-                if (user) {
-                    this.selectChatUser(user);
-                }
-            });
-        });
-    }
-
-    private selectChatUser(user: ChatUser): void {
-        this.selectedChatUser = user;
-        this.chatUsers.set(user.id, user);
-        this.showChatInterface();
-        this.updateChatHeader(user);
-        this.loadChatMessages(user.id);
-        
-        if (this.searchInput) {
-            this.searchInput.value = '';
-        }
-        this.switchTab('chats');
-    }
-
-    private showChatInterface(): void {
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        const messagesArea = document.getElementById('messagesArea');
-        const chatHeader = document.getElementById('chatHeader');
-        
-        welcomeScreen?.classList.add('hidden');
-        messagesArea?.classList.remove('hidden');
-        chatHeader?.classList.remove('hidden');
-    }
-
-    private showWelcomeScreen(): void {
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        const messagesArea = document.getElementById('messagesArea');
-        const chatHeader = document.getElementById('chatHeader');
-        
-        welcomeScreen?.classList.remove('hidden');
-        messagesArea?.classList.add('hidden');
-        chatHeader?.classList.add('hidden');
-        
+    private async openChat(friend: User): Promise<void> {
+        this.currentChatFriend = friend;
         this.messages = [];
-        if (this.messagesContainer) {
-            this.messagesContainer.innerHTML = '';
-        }
+        /** Update UI */
+        document.getElementById('welcomeScreen')?.classList.add('hidden');
+        document.getElementById('chatHeader')?.classList.remove('hidden');
+        document.getElementById('messagesArea')?.classList.remove('hidden');
+        /** Update chat header */
+        const chatAvatar = document.getElementById('chatAvatar') as HTMLImageElement;
+        const chatName = document.getElementById('chatName');
+        const chatStatus = document.getElementById('chatStatus');
+        if (chatAvatar) chatAvatar.src = friend.photo || generateAvatarUrl(friend.display_name);
+        if (chatName) chatName.textContent = friend.display_name;
+        if (chatStatus) chatStatus.textContent = 'Online'; // TODO: Get real status
+        /** Load messages */
+        await this.loadMessages(friend.user_id);
+        this.scrollToBottom();
     }
 
-    private updateChatHeader(user: ChatUser): void {
-        const chatUserAvatar = document.getElementById('chatUserAvatar')?.querySelector('span');
-        const chatUsername = document.getElementById('chatUsername');
-        const chatUserStatus = document.getElementById('chatUserStatus');
-
-        if (chatUserAvatar) {
-            chatUserAvatar.textContent = user.name[0].toUpperCase();
-        }
-
-        if (chatUsername) {
-            chatUsername.textContent = user.name;
-        }
-
-        if (chatUserStatus) {
-            chatUserStatus.textContent = user.isOnline ? 'Online' : 
-                (user.lastSeen ? `Last seen ${this.formatTime(user.lastSeen.toISOString())}` : 'Offline');
-        }
+    private closeChat(): void {
+        this.currentChatFriend = null;
+        this.messages = [];
+        document.getElementById('welcomeScreen')?.classList.remove('hidden');
+        document.getElementById('chatHeader')?.classList.add('hidden');
+        document.getElementById('messagesArea')?.classList.add('hidden');
     }
 
-    private async loadChatMessages(userId: string): Promise<void> {
+    private async loadMessages(friendId: string): Promise<void> {
         try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.CHAT}/messages/${userId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const token = getStoredToken();
+            const response = await fetch(`http://localhost:3003/api/messages/${friendId}`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.messages = data.messages || [];
-                this.renderMessages();
-            }
+            if (!response.ok) throw new Error('Failed to load messages');
+            this.messages = await response.json();
+            this.renderMessages();
         } catch (error) {
             console.error('Failed to load messages:', error);
+            showError('Failed to load messages');
         }
     }
 
     private renderMessages(): void {
-        if (!this.messagesContainer) return;
-
-        this.messagesContainer.innerHTML = this.messages.map(message => {
-            const isOwn = message.sender_id === this.currentUser?.id;
+        const container = document.getElementById('messagesContainer');
+        if (!container) return;
+        container.innerHTML = this.messages.map(message => {
+            const isOwn = message.sender_id === this.currentUser.user_id;
             return `
                 <div class="flex ${isOwn ? 'justify-end' : 'justify-start'}">
                     <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        isOwn ? 'bg-purple-600 text-white' : 'bg-gray-700 text-white'
+                        isOwn 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-700 text-white'
                     }">
-                        <p class="text-sm">${message.content}</p>
-                        <p class="text-xs ${isOwn ? 'text-purple-200' : 'text-gray-400'} mt-1">
-                            ${this.formatTime(message.created_at)}
+                        <p class="text-sm">${escapeHtml(message.content)}</p>
+                        <p class="text-xs ${isOwn ? 'text-blue-200' : 'text-gray-400'} mt-1">
+                            ${formatDate(message.created_at)}
                         </p>
                     </div>
                 </div>
             `;
         }).join('');
-
-        // Scroll to bottom
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
     }
 
-    private addMessageToChat(message: ChatMessage): void {
-		/** Prevent duplicate message */
-		if (this.messages.some(m => m.id === message.id)) return;
-        this.messages.push(message);
+    private async sendMessage(): Promise<void> {
+        const input = document.getElementById('messageInput') as HTMLInputElement;
+        const content = input.value.trim();
+        if (!content || !this.currentChatFriend || !this.socket) return;
+        /** Clear input */
+        input.value = '';
+        /** Send via socket */
+        this.socket.emit('send_message', {
+            receiver_id: this.currentChatFriend.user_id,
+            content,
+            message_type: 'text'
+        });
+        const tempMessage: Message = {
+            id: Date.now(),
+            sender_id: this.currentUser.user_id,
+            receiver_id: this.currentChatFriend.user_id,
+            content,
+            message_type: 'text',
+            created_at: new Date().toISOString()
+        };
+        this.messages.push(tempMessage);
         this.renderMessages();
+        this.scrollToBottom();
+        this.stopTyping();
     }
 
-    private handleIncomingMessage(message: ChatMessage): void {
-		//null check
-		if (!message || !this.currentUser) return;
-        // Only add if it's for the current chat
-        if (this.selectedChatUser && 
-            (message.sender_id === this.selectedChatUser.id || message.recipient_id === this.selectedChatUser.id)) {
-            this.addMessageToChat(message);
+    private handleNewMessage(messageData: Message & { sender_profile: User }): void {
+        /** If chat is open with this user, add message */
+        if (this.currentChatFriend && messageData.sender_id === this.currentChatFriend.user_id) {
+            this.messages.push(messageData);
+            this.renderMessages();
+            this.scrollToBottom();
         }
-
-        // Mark as read if chat is open
-        if (this.selectedChatUser && message.sender_id === this.selectedChatUser.id && this.socket) {
-            this.socket.emit('message:markRead', { messageId: message.id });
+        /** Update chats list */
+        this.loadChats();
+        /** Show notification if chat is not open or window is not focused */
+        if (!this.currentChatFriend || messageData.sender_id !== this.currentChatFriend.user_id || !document.hasFocus()) {
+            showNotification(
+                `${messageData.sender_profile.display_name}: ${messageData.content}`,
+                'info',
+                5000
+            );
         }
     }
 
-    private handleTypingIndicator({ senderId, isTyping }: { senderId: string; isTyping: boolean }): void {
-        if (this.selectedChatUser && senderId === this.selectedChatUser.id) {
-            if (isTyping) {
-                this.typingUsers.add(senderId);
-            } else {
-                this.typingUsers.delete(senderId);
-            }
+    private handleTyping(): void {
+        if (!this.currentChatFriend || !this.socket) return;
+        this.socket.emit('typing_start', {
+            receiver_id: this.currentChatFriend.user_id
+        });
+        /** Clear existing timeout */
+        if (this.typingTimeout[this.currentChatFriend.user_id]) {
+            clearTimeout(this.typingTimeout[this.currentChatFriend.user_id]);
+        }
+        /** Set new timeout to stop typing */
+        this.typingTimeout[this.currentChatFriend.user_id] = setTimeout(() => {
+            this.stopTyping();
+        }, 2000);
+    }
+
+    private stopTyping(): void {
+        if (!this.currentChatFriend || !this.socket) return;
+        this.socket.emit('typing_stop', {
+            receiver_id: this.currentChatFriend.user_id
+        });
+        if (this.typingTimeout[this.currentChatFriend.user_id]) {
+            clearTimeout(this.typingTimeout[this.currentChatFriend.user_id]);
+            delete this.typingTimeout[this.currentChatFriend.user_id];
+        }
+    }
+
+    private handleTypingStart(userId: string): void {
+        if (this.currentChatFriend && userId === this.currentChatFriend.user_id) {
+            this.isTyping[userId] = true;
             this.updateTypingIndicator();
         }
     }
 
+    private handleTypingStop(userId: string): void {
+        delete this.isTyping[userId];
+        this.updateTypingIndicator();
+    }
+
     private updateTypingIndicator(): void {
-        const typingIndicator = document.getElementById('typingIndicator');
+        const indicator = document.getElementById('typingIndicator');
         const typingText = document.getElementById('typingText');
-        
-        if (!typingIndicator || !typingText) return;
-
-        if (this.typingUsers.size > 0) {
-            typingIndicator.classList.remove('hidden');
-            typingText.textContent = `${this.selectedChatUser?.name || 'Someone'} is typing...`;
+        if (!indicator || !typingText) return;
+        const typingUsers = Object.keys(this.isTyping);
+        if (typingUsers.length > 0) {
+            typingText.textContent = `${this.currentChatFriend?.display_name} is typing...`;
+            indicator.classList.remove('hidden');
         } else {
-            typingIndicator.classList.add('hidden');
+            indicator.classList.add('hidden');
         }
     }
 
-    private handleMessageRead(messageId: string): void {
-        const message = this.messages.find(m => m.id === messageId);
-        if (message) {
-            message.read_at = new Date().toISOString();
-            // Optionally update UI to show read status
+    private async handleSearch(query: string): Promise<void> {
+        const resultsContainer = document.getElementById('searchResults');
+        if (!resultsContainer) return;
+        if (query.length < 2) {
+            resultsContainer.classList.add('hidden');
+            resultsContainer.innerHTML = '';
+            return;
         }
-    }
-
-    private handleGameInvite(invite: GameInvite): void {
-        showNotification(`${invite.senderUsername} invited you to play Pong!`, 'info');
-        this.loadGameInvites(); // Refresh invites list
-    }
-
-    private handleUserOnline(userId: string): void {
-        const user = this.chatUsers.get(userId);
-        if (user) {
-            user.isOnline = true;
-            // Update UI if this user is currently selected
-            if (this.selectedChatUser && this.selectedChatUser.id === userId) {
-                this.updateChatHeader(user);
+        try {
+            const token = getStoredToken();
+            const response = await fetch(`http://localhost:3003/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Search failed');
+            const users = await response.json();
+            if (users.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-gray-400 text-sm p-2">No users found</p>';
+            } else {
+                resultsContainer.innerHTML = users.map((user: User) => `
+                    <div class="search-result p-2 rounded bg-gray-600 hover:bg-gray-500 cursor-pointer transition-colors" 
+                         data-user-id="${user.user_id}">
+                        <div class="flex items-center">
+                            <img class="w-8 h-8 rounded-full mr-2" 
+                                 src="${user.photo || generateAvatarUrl(user.display_name)}" 
+                                 alt="${user.display_name}">
+                            <div>
+                                <p class="text-white text-sm font-medium">${escapeHtml(user.display_name)}</p>
+                                <p class="text-gray-400 text-xs">@${escapeHtml(user.username)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                resultsContainer.querySelectorAll('.search-result').forEach(item => {
+                    item.addEventListener('click', async () => {
+                        const userId = item.getAttribute('data-user-id');
+                        if (userId) await this.sendFriendRequest(userId);
+                    });
+                });
             }
+            resultsContainer.classList.remove('hidden');
+        } catch (error) {
+            console.error('Search failed:', error);
+            resultsContainer.innerHTML = '<p class="text-red-400 text-sm p-2">Search failed</p>';
+            resultsContainer.classList.remove('hidden');
         }
     }
 
-    private handleUserOffline(userId: string): void {
-        const user = this.chatUsers.get(userId);
-        if (user) {
-            user.isOnline = false;
-            user.lastSeen = new Date();
-            // Update UI if this user is currently selected
-            if (this.selectedChatUser && this.selectedChatUser.id === userId) {
-                this.updateChatHeader(user);
+    private async sendFriendRequest(userId: string): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/friends/request', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target_user_id: userId })
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to send friend request');
             }
+            showNotification('Friend request sent!', 'success');
+            const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+            if (searchInput) searchInput.value = '';
+            document.getElementById('searchResults')?.classList.add('hidden');
+        } catch (error) {
+            console.error('Failed to send friend request:', error);
+            showError(error instanceof Error ? error.message : 'Failed to send friend request');
         }
     }
 
-    private updateConnectionStatus(status: string): void {
-        const connectionStatus = document.getElementById('connectionStatus');
-        if (connectionStatus) {
-            connectionStatus.textContent = status;
-            connectionStatus.className = `text-xs ${
-                status === 'Connected' ? 'text-green-400' : 
-                status === 'Disconnected' ? 'text-red-400' : 
-                'text-yellow-400'
-            }`;
+    private async acceptFriendRequest(userId: string): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/friends/accept', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ requester_id: userId })
+            });
+            if (!response.ok) throw new Error('Failed to accept friend request');
+            showNotification('Friend request accepted!', 'success');
+            await this.loadFriendRequests();
+            await this.loadFriends();
+        } catch (error) {
+            console.error('Failed to accept friend request:', error);
+            showError('Failed to accept friend request');
         }
     }
 
-    private formatTime(timestamp: string): string {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
+    private async declineFriendRequest(userId: string): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('http://localhost:3003/api/friends/decline', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ requester_id: userId })
+            });
+            if (!response.ok) throw new Error('Failed to decline friend request');
+            showNotification('Friend request declined', 'info');
+            await this.loadFriendRequests();
+        } catch (error) {
+            console.error('Failed to decline friend request:', error);
+            showError('Failed to decline friend request');
+        }
+    }
 
-        if (diff < 60000) { // Less than 1 minute
-            return 'Just now';
-        } else if (diff < 3600000) { // Less than 1 hour
-            return `${Math.floor(diff / 60000)}m ago`;
-        } else if (diff < 86400000) { // Less than 1 day
-            return `${Math.floor(diff / 3600000)}h ago`;
+    private showAddFriendModal(): void {
+        document.getElementById('addFriendModal')?.classList.remove('hidden');
+    }
+
+    private hideAddFriendModal(): void {
+        document.getElementById('addFriendModal')?.classList.add('hidden');
+        /** Clear search */
+        const input = document.getElementById('friendSearchInput') as HTMLInputElement;
+        if (input) input.value = '';
+        document.getElementById('friendSearchResults')!.innerHTML = '';
+    }
+
+    private async searchUsersForFriend(query: string): Promise<void> {
+        const resultsContainer = document.getElementById('friendSearchResults');
+        if (!resultsContainer) return;
+        if (query.length < 2) {
+            resultsContainer.innerHTML = '';
+            return;
+        }
+        try {
+            const token = getStoredToken();
+            const response = await fetch(`http://localhost:3003/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Search failed');
+            const users = await response.json();
+            if (users.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-gray-400 text-sm p-2">No users found</p>';
+            } else {
+                resultsContainer.innerHTML = users.map((user: User) => `
+                    <div class="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
+                        <div class="flex items-center">
+                            <img class="w-10 h-10 rounded-full mr-3" 
+                                 src="${user.photo || generateAvatarUrl(user.display_name)}" 
+                                 alt="${user.display_name}">
+                            <div>
+                                <p class="text-white font-medium">${escapeHtml(user.display_name)}</p>
+                                <p class="text-gray-400 text-sm">@${escapeHtml(user.username)}</p>
+                            </div>
+                        </div>
+                        <button class="send-request bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors" 
+                                data-user-id="${user.user_id}">
+                            Add Friend
+                        </button>
+                    </div>
+                `).join('');
+                resultsContainer.querySelectorAll('.send-request').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const userId = btn.getAttribute('data-user-id');
+                        if (userId) {
+                            await this.sendFriendRequest(userId);
+                            this.hideAddFriendModal();
+                        }
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Search failed:', error);
+            resultsContainer.innerHTML = '<p class="text-red-400 text-sm p-2">Search failed</p>';
+        }
+    }
+
+    private updateUnreadBadge(): void {
+        const badge = document.getElementById('unreadBadge');
+        if (!badge) return;
+        const totalUnread = this.chats.reduce((sum, chat) => sum + chat.unread_count, 0);
+        if (totalUnread > 0) {
+            badge.textContent = totalUnread.toString();
+            badge.classList.remove('hidden');
         } else {
-            return date.toLocaleDateString();
+            badge.classList.add('hidden');
         }
     }
 
-    private debounce(func: Function, wait: number): Function {
-        let timeout: number;
-        return function executedFunction(...args: any[]) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = window.setTimeout(later, wait);
+    private updateRequestsBadge(): void {
+        const badge = document.getElementById('requestsBadge');
+        if (!badge) return;
+        if (this.friendRequests.length > 0) {
+            badge.textContent = this.friendRequests.length.toString();
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    private scrollToBottom(): void {
+        const container = document.getElementById('messagesContainer');
+        if (container) {
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+    }
+
+    private debounce<T extends (...args: any[]) => any>(func: T, delay: number): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
         };
     }
-	private initializeSocketIOWithDebug(): void {
-		const token = localStorage.getItem('token');
-		console.log('🔐 Token exists:', !!token);
-		console.log('🌐 Gateway URL:', API_CONFIG.GATEWAY_URL);
-		
-		if (!token) {
-			console.error('❌ No token found');
-			return;
-		}
-
-		this.socket = io(API_CONFIG.GATEWAY_URL, {
-			path: '/socket.io/',
-			reconnection: true,
-			reconnectionAttempts: 5,
-			reconnectionDelay: 1000,
-			timeout: 10000, // Add timeout
-			forceNew: true // Force new connection
-		});
-
-		// Enhanced connection debugging
-		this.socket.on('connect', () => {
-			console.log('✅ Connected to gateway, socket ID:', this.socket?.id);
-			this.updateConnectionStatus('Authenticating...');
-			
-			// Add timeout for auth
-			const authTimeout = setTimeout(() => {
-				console.error('❌ Auth timeout');
-				this.updateConnectionStatus('Auth Timeout');
-			}, 5000);
-			
-			this.socket?.emit('auth', { token: token }, (response: any) => {
-				clearTimeout(authTimeout);
-				console.log('🔐 Auth response:', response);
-			});
-		});
-
-		this.socket.on('auth:success', (data: any) => {
-			console.log('✅ Authentication successful:', data);
-			this.updateConnectionStatus('Connected');
-			
-			// Join current chat room if any
-			if (this.selectedChatUser) {
-				console.log('🏠 Rejoining chat room for user:', this.selectedChatUser.id);
-				this.socket?.emit('chat:join', {userId: this.selectedChatUser.id});
-			}
-		});
-
-		this.socket.on('auth:error', (error: any) => {
-			console.error('❌ Authentication failed:', error);
-			this.updateConnectionStatus('Auth Failed');
-			// Redirect to login if auth fails
-			setTimeout(() => {
-				window.dispatchEvent(new CustomEvent('navigate', { detail: { path: '/login' } }));
-			}, 2000);
-		});
-
-		// Debug all socket events
-		this.socket.onAny((event: string, ...args: any[]) => {
-			console.log(`📡 Socket event: ${event}`, args);
-		});
-
-		// Debug connection errors
-		this.socket.on('connect_error', (error: any) => {
-			console.error('❌ Connection error:', error);
-			console.log('Error details:', {
-				message: error.message,
-				description: error.description,
-				context: error.context,
-				type: error.type
-			});
-		});
-
-		this.socket.on('disconnect', (reason: string) => {
-			console.log('🔌 Disconnected:', reason);
-			this.updateConnectionStatus('Disconnected');
-		});
-	}
-
-	// 2. Enhanced Message Sending with Debug
-	private async sendMessageWithDebug(): Promise<void> {
-		if (!this.messageInput || !this.selectedChatUser || !this.socket) {
-			console.error('❌ Send message failed - missing dependencies:', {
-				messageInput: !!this.messageInput,
-				selectedChatUser: !!this.selectedChatUser,
-				socket: !!this.socket
-			});
-			return;
-		}
-
-		const content = this.messageInput.value.trim();
-		if (!content) {
-			console.log('⚠️ Empty message content');
-			return;
-		}
-
-		console.log('📤 Sending message:', {
-			to: this.selectedChatUser.id,
-			content: content.substring(0, 50) + '...',
-			socketConnected: this.socket.connected
-		});
-
-		if (!this.socket.connected) {
-			console.error('❌ Socket not connected');
-			showError('Connection lost. Please refresh and try again.');
-			return;
-		}
-
-		const tempMessage: ChatMessage = {
-			id: `temp-${Date.now()}`,
-			sender_id: this.currentUser?.id || '',
-			recipient_id: this.selectedChatUser.id,
-			content,
-			created_at: new Date().toISOString(),
-			type: 'text'
-		};
-
-		// Add to UI optimistically
-		this.addMessageToChat(tempMessage);
-		this.messageInput.value = '';
-
-		// Send with enhanced error handling
-		const sendPromise = new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				reject(new Error('Message send timeout'));
-			}, 10000);
-
-			this.socket?.emit('message:send', {
-				recipientId: parseInt(this.selectedChatUser!.id), // Ensure it's a number
-				content,
-				type: 'text'
-			}, (response: any) => {
-				clearTimeout(timeout);
-				console.log('📤 Message send response:', response);
-				
-				if (response && response.error) {
-					reject(new Error(response.error));
-				} else {
-					resolve(response);
-				}
-			});
-		});
-
-		try {
-			await sendPromise;
-			console.log('✅ Message sent successfully');
-		} catch (error) {
-			console.error('❌ Message send failed:', error);
-			
-			// Remove failed message and show error
-			this.messages = this.messages.filter(m => m.id !== tempMessage.id);
-			this.renderMessages();
-			showError('Failed to send message: ' + (error as Error).message);
-			
-			// Restore message in input
-			if (this.messageInput) {
-				this.messageInput.value = content;
-			}
-		}
-	}
-
-	// 3. Enhanced User Selection with Room Joining
-	private selectChatUserWithDebug(user: ChatUser): void {
-		console.log('👤 Selecting chat user:', user);
-		
-		this.selectedChatUser = user;
-		this.chatUsers.set(user.id, user);
-		this.showChatInterface();
-		this.updateChatHeader(user);
-		
-		// Join chat room
-		if (this.socket?.connected) {
-			console.log('🏠 Joining chat room for user:', user.id);
-			this.socket.emit('chat:join', { userId: user.id }, (response: any) => {
-				console.log('🏠 Chat room join response:', response);
-			});
-		} else {
-			console.error('❌ Cannot join chat room - socket not connected');
-		}
-		
-		this.loadChatMessages(user.id);
-		
-		if (this.searchInput) {
-			this.searchInput.value = '';
-		}
-		this.switchTab('chats');
-	}
-
-	// 4. Message Reception Debug
-	private handleIncomingMessageWithDebug(message: ChatMessage): void {
-		console.log('📥 Incoming message:', {
-			id: message.id,
-			from: message.sender_id,
-			to: message.recipient_id,
-			content: message.content.substring(0, 50) + '...',
-			selectedUser: this.selectedChatUser?.id
-		});
-
-		if (!message || !this.currentUser) {
-			console.error('❌ Invalid message or current user');
-			return;
-		}
-
-		// Only add if it's for the current chat
-		if (this.selectedChatUser && 
-			(message.sender_id === this.selectedChatUser.id || message.recipient_id === this.selectedChatUser.id)) {
-			console.log('✅ Message is for current chat, adding to UI');
-			this.addMessageToChat(message);
-		} else {
-			console.log('ℹ️ Message not for current chat, ignoring');
-		}
-
-		// Mark as read if chat is open
-		if (this.selectedChatUser && message.sender_id === this.selectedChatUser.id && this.socket) {
-			console.log('👁️ Marking message as read');
-			this.socket.emit('message:markRead', { messageId: message.id });
-		}
-	}
-
-	// 5. API Configuration Check
-	private debugAPIConfiguration(): void {
-		console.log('🔧 API Configuration:', {
-			gateway: API_CONFIG.GATEWAY_URL,
-			chatEndpoint: API_CONFIG.ENDPOINTS?.CHAT,
-			userEndpoint: API_CONFIG.ENDPOINTS?.USER,
-			token: localStorage.getItem('token')?.substring(0, 20) + '...'
-		});
-	}
 }
