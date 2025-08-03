@@ -59,172 +59,174 @@ export class ChatPage implements Page {
     private friendRequests: FriendRequest[] = [];
     private isTyping: { [userId: string]: boolean } = {};
     private typingTimeout: { [userId: string]: NodeJS.Timeout } = {};
+	private isCurrentUserTyping = false;
+	private currentUserTypingTimeout: NodeJS.Timeout | null = null;
 
-    render(): string {
-        return `
-            <div class="h-screen bg-gray-900 flex overflow-hidden">
-                <!-- Sidebar -->
-                <div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
-                    <!-- Header -->
+	render(): string {
+		return `
+			<div class="h-screen bg-gray-900 flex overflow-hidden">
+				<!-- Sidebar -->
+				<div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+					<!-- Header -->
 					<button data-route="/dashboard" class="text-gray-400 hover:text-white transition-colors items-center justify-center h-18 p-4">
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
 						</svg>
 					</button>
-                    <div class="p-4 border-b border-gray-700">
-                        <div class="flex items-center justify-between mb-4">
-                            <h1 class="text-xl font-semibold text-white">Messages</h1>
-                            <button id="addFriendBtn" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        
-                        <!-- Tabs -->
-                        <div class="flex space-x-1 bg-gray-700 rounded-lg p-1">
-                            <button id="chatsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-white bg-gray-600 transition-colors">
-                                Chats
-                                <span id="unreadBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
-                            </button>
-                            <button id="friendsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
-                                Friends
-                            </button>
-                            <button id="requestsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
-                                Requests
-                                <span id="requestsBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
-                            </button>
-                        </div>
-                    </div>
+					<div class="p-4 border-b border-gray-700">
+						<div class="flex items-center justify-between mb-4">
+							<h1 class="text-xl font-semibold text-white">Messages</h1>
+							<button id="addFriendBtn" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors">
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+								</svg>
+							</button>
+						</div>
+						
+						<!-- Tabs -->
+						<div class="flex space-x-1 bg-gray-700 rounded-lg p-1">
+							<button id="chatsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-white bg-gray-600 transition-colors">
+								Chats
+								<span id="unreadBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+							</button>
+							<button id="friendsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+								Friends
+							</button>
+							<button id="requestsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+								Requests
+								<span id="requestsBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+							</button>
+						</div>
+					</div>
 
-                    <!-- Search -->
-                    <div class="p-4 border-b border-gray-700">
-                        <div class="relative">
-                            <input id="searchInput" type="text" placeholder="Search users..." 
-                                   class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                        <div id="searchResults" class="mt-2 space-y-2 hidden"></div>
-                    </div>
+					<!-- Search -->
+					<div class="p-4 border-b border-gray-700">
+						<div class="relative">
+							<input id="searchInput" type="text" placeholder="Search users..." 
+								class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+							<svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+							</svg>
+						</div>
+						<div id="searchResults" class="mt-2 space-y-2 hidden"></div>
+					</div>
 
-                    <!-- Content Lists -->
-                    <div class="flex-1 overflow-y-auto">
-                        <!-- Chats List -->
-                        <div id="chatsList" class="p-4 space-y-2">
-                            <div class="text-center text-gray-400 py-8">
-                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
-                                </svg>
-                                <p>No chats yet</p>
-                                <p class="text-sm">Start a conversation with a friend!</p>
-                            </div>
-                        </div>
+					<!-- Content Lists -->
+					<div class="flex-1 overflow-y-auto">
+						<!-- Chats List -->
+						<div id="chatsList" class="p-4 space-y-2">
+							<div class="text-center text-gray-400 py-8">
+								<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+								</svg>
+								<p>No chats yet</p>
+								<p class="text-sm">Start a conversation with a friend!</p>
+							</div>
+						</div>
 
-                        <!-- Friends List -->
-                        <div id="friendsList" class="p-4 space-y-2 hidden">
-                            <div class="text-center text-gray-400 py-8">
-                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                </svg>
-                                <p>No friends yet</p>
-                                <p class="text-sm">Add friends to start chatting!</p>
-                            </div>
-                        </div>
+						<!-- Friends List -->
+						<div id="friendsList" class="p-4 space-y-2 hidden">
+							<div class="text-center text-gray-400 py-8">
+								<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+								</svg>
+								<p>No friends yet</p>
+								<p class="text-sm">Add friends to start chatting!</p>
+							</div>
+						</div>
 
-                        <!-- Requests List -->
-                        <div id="requestsList" class="p-4 space-y-2 hidden">
-                            <div class="text-center text-gray-400 py-8">
-                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                                </svg>
-                                <p>No friend requests</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+						<!-- Requests List -->
+						<div id="requestsList" class="p-4 space-y-2 hidden">
+							<div class="text-center text-gray-400 py-8">
+								<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+								</svg>
+								<p>No friend requests</p>
+							</div>
+						</div>
+					</div>
+				</div>
 
-                <!-- Chat Area -->
-                <div class="flex-1 flex flex-col">
-                    <!-- Chat Header -->
-                    <div id="chatHeader" class="bg-gray-800 border-b border-gray-700 p-4 hidden">
-                        <div class="flex items-center">
-                            <img id="chatAvatar" class="w-10 h-10 rounded-full mr-3" src="" alt="">
-                            <div class="flex-1">
-                                <h2 id="chatName" class="text-white font-semibold"></h2>
-                                <p id="chatStatus" class="text-sm text-gray-400"></p>
-                            </div>
-                            <button id="closeChatBtn" class="text-gray-400 hover:text-white p-2">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+				<!-- Chat Area -->
+				<div class="flex-1 flex flex-col">
+					<!-- Chat Header -->
+					<div id="chatHeader" class="bg-gray-800 border-b border-gray-700 p-4 hidden">
+						<div class="flex items-center">
+							<img id="chatAvatar" class="w-10 h-10 rounded-full mr-3" src="" alt="">
+							<div class="flex-1">
+								<h2 id="chatName" class="text-white font-semibold"></h2>
+								<p id="chatStatus" class="text-sm text-gray-400"></p>
+							</div>
+							<button id="closeChatBtn" class="text-gray-400 hover:text-white p-2">
+								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+								</svg>
+							</button>
+						</div>
+					</div>
 
-                    <!-- Welcome Screen -->
-                    <div id="welcomeScreen" class="flex-1 flex items-center justify-center bg-gray-900">
-                        <div class="text-center">
-                            <svg class="w-20 h-20 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
-                            </svg>
-                            <h2 class="text-2xl font-semibold text-white mb-2">Welcome to Chat</h2>
-                            <p class="text-gray-400">Select a conversation or start a new one</p>
-                        </div>
-                    </div>
+					<!-- Welcome Screen -->
+					<div id="welcomeScreen" class="flex-1 flex items-center justify-center bg-gray-900">
+						<div class="text-center">
+							<svg class="w-20 h-20 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+							</svg>
+							<h2 class="text-2xl font-semibold text-white mb-2">Welcome to Chat</h2>
+							<p class="text-gray-400">Select a conversation or start a new one</p>
+						</div>
+					</div>
 
-                    <!-- Messages Area -->
-                    <div id="messagesArea" class="flex-1 flex flex-col hidden">
-                        <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
-                            <!-- Messages will be inserted here -->
-                        </div>
+					<!-- Messages Area - FIXED STRUCTURE -->
+					<div id="messagesArea" class="flex-1 flex flex-col hidden min-h-0">
+						<!-- Messages Container - Takes available space and scrolls -->
+						<div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+							<!-- Messages will be inserted here -->
+						</div>
 
-                        <!-- Typing Indicator -->
-                        <div id="typingIndicator" class="px-4 pb-2 hidden">
-                            <div class="flex items-center text-gray-400 text-sm">
-                                <div class="flex space-x-1 mr-2">
-                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                                </div>
-                                <span id="typingText">Someone is typing...</span>
-                            </div>
-                        </div>
+						<!-- Typing Indicator - Fixed outside scrollable area -->
+						<div id="typingIndicator" class="px-4 pb-2 border-b border-gray-700 bg-gray-900 hidden">
+							<div class="flex items-center text-gray-400 text-sm">
+								<div class="flex space-x-1 mr-2">
+									<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+									<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+									<div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+								</div>
+								<span id="typingText">Someone is typing...</span>
+							</div>
+						</div>
 
-                        <!-- Message Input -->
-                        <div class="border-t border-gray-700 p-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="flex-1 relative">
-                                    <input id="messageInput" type="text" placeholder="Type a message..." 
-                                           class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <button id="sendBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-400 disabled:text-gray-500 disabled:cursor-not-allowed">
-                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+						<!-- Message Input - Always at bottom -->
+						<div class="border-t border-gray-700 p-4 bg-gray-900">
+							<div class="flex items-center space-x-3">
+								<div class="flex-1 relative">
+									<input id="messageInput" type="text" placeholder="Type a message..." 
+										class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500">
+									<button id="sendBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-400 disabled:text-gray-500 disabled:cursor-not-allowed">
+										<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+										</svg>
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
 
-                <!-- Add Friend Modal -->
-                <div id="addFriendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-                    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 class="text-lg font-semibold text-white mb-4">Add Friend</h3>
-                        <input id="friendSearchInput" type="text" placeholder="Search by username..." 
-                               class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <div id="friendSearchResults" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
-                        <div class="flex justify-end space-x-3">
-                            <button id="cancelAddFriend" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
+				<!-- Add Friend Modal -->
+				<div id="addFriendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+					<div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+						<h3 class="text-lg font-semibold text-white mb-4">Add Friend</h3>
+						<input id="friendSearchInput" type="text" placeholder="Search by username..." 
+							class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+						<div id="friendSearchResults" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+						<div class="flex justify-end space-x-3">
+							<button id="cancelAddFriend" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		`;
+	}
     async initialize(): Promise<void> {
         hideError();
         this.currentUser = getStoredUser();
@@ -242,15 +244,22 @@ export class ChatPage implements Page {
             this.socket.disconnect();
             this.socket = null;
         }
-        /** Clear typing timeouts */
+        /** Clear all typing timeouts */
         Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
         this.typingTimeout = {};
+        
+        /** Clear current user typing timeout */
+        if (this.currentUserTypingTimeout) {
+            clearTimeout(this.currentUserTypingTimeout);
+            this.currentUserTypingTimeout = null;
+        }
+        this.isCurrentUserTyping = false;
+        this.isTyping = {};
     }
 
     private async initializeSocket(): Promise<void> {
         const token = getStoredToken();
         if (!token) return;
-
         this.socket = io('http://localhost:3003', {
             auth: { token }
         });
@@ -294,6 +303,38 @@ export class ChatPage implements Page {
         });
     }
 
+    private setupMessageInputListeners(): void {
+        const messageInput = document.getElementById('messageInput') as HTMLInputElement;
+        
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+
+            messageInput.addEventListener('input', () => {
+                this.handleTyping();
+            });
+
+            /** Stop typing when input loses focus */
+            messageInput.addEventListener('blur', () => {
+                this.stopTyping();
+            });
+
+            /** Stop typing when input is empty */
+            messageInput.addEventListener('input', (e) => {
+                const target = e.target as HTMLInputElement;
+                if (target.value.trim() === '') {
+                    this.stopTyping();
+                } else {
+                    this.handleTyping();
+                }
+            });
+        }
+    }
+
     private setupEventListeners(): void {
         /** Tab switching */
         document.getElementById('chatsTab')?.addEventListener('click', () => this.switchTab('chats'));
@@ -302,17 +343,7 @@ export class ChatPage implements Page {
         /** Search */
         const searchInput = document.getElementById('searchInput') as HTMLInputElement;
         searchInput?.addEventListener('input', this.debounce(() => this.handleSearch(searchInput.value), 300));
-        /** Message input */
-        const messageInput = document.getElementById('messageInput') as HTMLInputElement;
-        messageInput?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-        messageInput?.addEventListener('input', () => {
-            this.handleTyping();
-        });
+        this.setupMessageInputListeners();
         /** Send button */
         document.getElementById('sendBtn')?.addEventListener('click', () => this.sendMessage());
         /** Close chat */
@@ -547,6 +578,10 @@ export class ChatPage implements Page {
     }
 
     private async openChat(friend: User): Promise<void> {
+        // Reset typing state when switching chats
+        this.stopTyping();
+        this.isTyping = {};
+        
         this.currentChatFriend = friend;
         this.messages = [];
         /** Update UI */
@@ -560,12 +595,13 @@ export class ChatPage implements Page {
         if (chatAvatar) chatAvatar.src = friend.photo || generateAvatarUrl(friend.display_name);
         if (chatName) chatName.textContent = friend.display_name;
         if (chatStatus) chatStatus.textContent = 'Online'; // TODO: Get real status
-        /** Load messages */
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
     }
 
     private closeChat(): void {
+        this.stopTyping();
+        this.isTyping = {};
         this.currentChatFriend = null;
         this.messages = [];
         document.getElementById('welcomeScreen')?.classList.remove('hidden');
@@ -592,7 +628,7 @@ export class ChatPage implements Page {
         const container = document.getElementById('messagesContainer');
         if (!container) return;
         container.innerHTML = this.messages.map(message => {
-            const isOwn = message.sender_id === this.currentUser.user_id;
+            const isOwn = String(message.sender_id) === String(this.currentUser.id);
             return `
                 <div class="flex ${isOwn ? 'justify-end' : 'justify-start'}">
                     <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
@@ -624,7 +660,7 @@ export class ChatPage implements Page {
         });
         const tempMessage: Message = {
             id: Date.now(),
-            sender_id: this.currentUser.user_id,
+            sender_id: this.currentUser.id,
             receiver_id: this.currentChatFriend.user_id,
             content,
             message_type: 'text',
@@ -638,7 +674,7 @@ export class ChatPage implements Page {
 
     private handleNewMessage(messageData: Message & { sender_profile: User }): void {
         /** If chat is open with this user, add message */
-        if (this.currentChatFriend && messageData.sender_id === this.currentChatFriend.user_id) {
+        if (this.currentChatFriend && String(messageData.sender_id) === this.currentChatFriend.user_id) {
             this.messages.push(messageData);
             this.renderMessages();
             this.scrollToBottom();
@@ -656,33 +692,41 @@ export class ChatPage implements Page {
     }
 
     private handleTyping(): void {
-        if (!this.currentChatFriend || !this.socket) return;
-        this.socket.emit('typing_start', {
-            receiver_id: this.currentChatFriend.user_id
-        });
-        /** Clear existing timeout */
-        if (this.typingTimeout[this.currentChatFriend.user_id]) {
-            clearTimeout(this.typingTimeout[this.currentChatFriend.user_id]);
+        if (!this.currentChatFriend || !this.socket) {
+            console.log('Cannot send typing: no chat friend or socket');
+            return;
         }
-        /** Set new timeout to stop typing */
-        this.typingTimeout[this.currentChatFriend.user_id] = setTimeout(() => {
+        if (!this.isCurrentUserTyping) {
+            this.isCurrentUserTyping = true;
+            console.log('Sending typing_start to:', this.currentChatFriend.user_id);
+            this.socket.emit('typing_start', {
+                receiver_id: this.currentChatFriend.user_id
+            });
+        }
+        if (this.currentUserTypingTimeout) {
+            clearTimeout(this.currentUserTypingTimeout);
+        }
+        /** Set new timeout to stop typing after 2 seconds of inactivity */
+        this.currentUserTypingTimeout = setTimeout(() => {
             this.stopTyping();
         }, 2000);
     }
 
     private stopTyping(): void {
-        if (!this.currentChatFriend || !this.socket) return;
+        if (!this.currentChatFriend || !this.socket || !this.isCurrentUserTyping) return;
+        console.log('Sending typing_stop to:', this.currentChatFriend.user_id);
         this.socket.emit('typing_stop', {
             receiver_id: this.currentChatFriend.user_id
         });
-        if (this.typingTimeout[this.currentChatFriend.user_id]) {
-            clearTimeout(this.typingTimeout[this.currentChatFriend.user_id]);
-            delete this.typingTimeout[this.currentChatFriend.user_id];
+        this.isCurrentUserTyping = false;
+        if (this.currentUserTypingTimeout) {
+            clearTimeout(this.currentUserTypingTimeout);
+            this.currentUserTypingTimeout = null;
         }
     }
 
     private handleTypingStart(userId: string): void {
-        if (this.currentChatFriend && userId === this.currentChatFriend.user_id) {
+        if (this.currentChatFriend && String(userId) === this.currentChatFriend.user_id) {
             this.isTyping[userId] = true;
             this.updateTypingIndicator();
         }
