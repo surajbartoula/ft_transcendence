@@ -84,6 +84,24 @@ export function initDatabase() {
 	`);
 }
 
+export function closeDatabase() {
+  return new Promise((resolve, reject) => {
+    if (db) {
+      db.close((err) => {
+        if (err) {
+          console.error('Error closing database:', err);
+          reject(err);
+        } else {
+          console.log('Database connection closed');
+          resolve();
+        }
+      });
+    } else {
+      resolve();
+    }
+  });
+}
+
 /** Helper function to extract token from request */
 function getTokenFromRequest(req) {
   return req.headers.authorization?.replace('Bearer ', '');
@@ -279,7 +297,6 @@ export const dbService = {
   },
 
   async getRecentChats(userId, limit = 20, token = null) {
-    // First get the basic chat info with friend_id and last message time
     const basicChats = await db.allAsync(`
       SELECT 
         CASE 
