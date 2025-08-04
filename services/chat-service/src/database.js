@@ -257,6 +257,18 @@ export const dbService = {
     );
   },
 
+ async getUserFriends(userId) {
+    return await db.allAsync(`
+      SELECT DISTINCT 
+        CASE 
+          WHEN requester_id = ? THEN addressee_id 
+          ELSE requester_id 
+        END as user_id
+      FROM friends 
+      WHERE (requester_id = ? OR addressee_id = ?) AND status = 'accepted'
+    `, [userId, userId, userId]);
+  },
+
   async getFriendRequests(userId) {
     return await db.allAsync(
       'SELECT * FROM friends WHERE addressee_id = ? AND status = ?',

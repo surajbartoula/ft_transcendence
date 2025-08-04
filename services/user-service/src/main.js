@@ -67,7 +67,6 @@ await fastify.register(fastifyStatic, {
     prefix: '/uploads/'
 });
 await fastify.register(userRoutes, { prefix: '/api/user'} );
-console.log(fastify.printRoutes());
 
 /** Gracefully shutdown */
 const gracefulShutdown = async () => {

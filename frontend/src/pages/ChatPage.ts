@@ -68,6 +68,7 @@ export class ChatPage implements Page {
     private typingTimeout: { [userId: string]: NodeJS.Timeout } = {};
 	private isCurrentUserTyping = false;
 	private currentUserTypingTimeout: NodeJS.Timeout | null = null;
+	private onlineUsers: Set<string> = new Set();
 
 	render(): string {
 		return `
@@ -241,9 +242,9 @@ export class ChatPage implements Page {
             showError('Please log in to access chat');
             return;
         }
+        await this.loadInitialData();
         await this.initializeSocket();
         this.setupEventListeners();
-        await this.loadInitialData();
     }
 
     cleanup(): void {
@@ -264,51 +265,128 @@ export class ChatPage implements Page {
         this.isTyping = {};
     }
 
-    private async initializeSocket(): Promise<void> {
-        const token = getStoredToken();
-        if (!token) return;
-        this.socket = io('http://localhost:3003', {
-            auth: { token }
-        });
+	private updateUserOnlineStatus(userId: string, isOnline: boolean): void {
+		const userIdStr = String(userId);
+		/** Update ALL elements with this user ID (both in chats and friends) */
+		const allUserElements = document.querySelectorAll(`[data-friend-id="${userIdStr}"]`);
+		allUserElements.forEach((element, index) => {
+			const statusIndicator = element.querySelector('.online-status');
+			if (statusIndicator) {
+				/** Determine the correct classes based on parent container */
+				const isInFriendsList = element.closest('#friendsList') !== null;
+				const baseClasses = isInFriendsList 
+					? 'online-status absolute bottom-0 right-2 w-3 h-3 rounded-full border-2 border-gray-700'
+					: 'online-status absolute -bottom-0 -right-0 w-3 h-3 rounded-full border-2 border-gray-800';
+				
+				statusIndicator.className = `${baseClasses} ${isOnline ? 'bg-green-500' : 'bg-gray-500'}`;
+			}
+			/** Update status text if it exists (for friends list) */
+			const statusText = element.querySelector('.status-text');
+			if (statusText) {
+				const friend = this.friends.find(f => String(f.user_id) === userIdStr);
+				statusText.textContent = isOnline ? 'Online' : `Last seen ${formatDate(friend?.last_seen || friend?.created_at || '')}`;
+			}
+		});
+		/** Update currently open chat status */
+		if (this.currentChatFriend && String(this.currentChatFriend.user_id) === userIdStr) {
+			const chatStatus = document.getElementById('chatStatus');
+			if (chatStatus) {
+				chatStatus.textContent = isOnline ? 'Online' : 'Offline';
+				chatStatus.className = `text-sm ${isOnline ? 'text-green-400' : 'text-gray-400'}`;
+			}
+		}
+	}
 
-        this.socket.on('connect', () => {
-            console.log('Connected to chat service');
-            /** Send heartbeat every 30 seconds */
-            setInterval(() => {
-                this.socket?.emit('heartbeat');
-            }, 30000);
-        });
+	private requestOnlineUsers(): void {
+		let attempts = 0;
+		const maxAttempts = 3;
+		
+		const tryRequest = () => {
+			attempts++;
+			if (this.socket && this.socket.connected) {
+				this.socket.emit('get_online_users');
+				
+				setTimeout(() => {
+					if (this.onlineUsers.size === 0 && attempts < maxAttempts) {
+						tryRequest();
+					}
+				}, 3000);
+			}
+		};
+		setTimeout(tryRequest, 1000);
+	}
 
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from chat service');
-        });
+	private async initializeSocket(): Promise<void> {
+		const token = getStoredToken();
+		if (!token) return;
+		
+		this.socket = io('http://localhost:3003', {
+			auth: { token },
+			timeout: 10000
+		});
 
-        this.socket.on('new_message', (data: Message & { sender_profile: User }) => {
-            this.handleNewMessage(data);
-        });
+		this.socket.on('connect', () => {
+			setInterval(() => {
+				this.socket?.emit('heartbeat');
+			}, 30000);
+			this.requestOnlineUsers();
+		});
 
-        this.socket.on('friend_request', (data: { from_user: User; message: string }) => {
-            showNotification(data.message, 'info');
-            this.loadFriendRequests();
-        });
+		this.socket.on('disconnect', () => {
+			this.onlineUsers.clear();
+			this.renderChats();
+			this.renderFriends();
+		});
 
-        this.socket.on('friend_request_accepted', (data: { from_user: User; message: string }) => {
-            showNotification(data.message, 'success');
-            this.loadFriends();
-        });
+		this.socket.on('new_message', (data: Message & { sender_profile: User }) => {
+			this.handleNewMessage(data);
+		});
 
-        this.socket.on('user_typing', (data: { user_id: string }) => {
-            this.handleTypingStart(data.user_id);
-        });
+		this.socket.on('friend_request', (data: { from_user: User; message: string }) => {
+			showNotification(data.message, 'info');
+			this.loadFriendRequests();
+		});
 
-        this.socket.on('user_stopped_typing', (data: { user_id: string }) => {
-            this.handleTypingStop(data.user_id);
-        });
+		this.socket.on('friend_request_accepted', (data: { from_user: User; message: string }) => {
+			showNotification(data.message, 'success');
+			this.loadFriends();
+		});
 
-        this.socket.on('error', (data: { message: string }) => {
-            showError(data.message);
-        });
-    }
+		this.socket.on('user_typing', (data: { user_id: string }) => {
+			this.handleTypingStart(data.user_id);
+		});
+
+		this.socket.on('user_stopped_typing', (data: { user_id: string }) => {
+			this.handleTypingStop(data.user_id);
+		});
+
+		this.socket.on('user_online', (data: { user_id: string }) => {
+			this.onlineUsers.add(data.user_id);
+			this.updateUserOnlineStatus(data.user_id, true);
+		});
+
+		this.socket.on('user_offline', (data: { user_id: string }) => {
+			this.onlineUsers.delete(data.user_id);
+			this.updateUserOnlineStatus(data.user_id, false);
+		});
+
+		this.socket.on('online_users_list', (data: { user_ids: string[] }) => {
+			this.onlineUsers = new Set(data.user_ids.map(id => String(id))); // Ensure string IDs
+			setTimeout(() => {
+				this.renderChats();
+				this.renderFriends();
+			}, 100);
+		});
+
+		this.socket.on('error', (data: { message: string }) => {
+			console.error('Socket error:', data.message);
+			showError(data.message);
+		});
+
+		this.socket.on('connect_error', (error) => {
+			console.error('Socket connection error:', error);
+		});
+	}
 
     private setupMessageInputListeners(): void {
         const messageInput = document.getElementById('messageInput') as HTMLInputElement;
@@ -436,101 +514,122 @@ export class ChatPage implements Page {
         document.getElementById(`${tab}List`)?.classList.remove('hidden');
     }
 
-    private renderChats(): void {
-        const container = document.getElementById('chatsList');
-        if (!container) return;
-        if (this.chats.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-8">
-                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
-                    </svg>
-                    <p>No chats yet</p>
-                    <p class="text-sm">Start a conversation with a friend!</p>
-                </div>
-            `;
-            return;
-        }
-        container.innerHTML = this.chats.map(chat => `
-            <div class="chat-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
-                 data-friend-id="${chat.friend.user_id}">
-                <div class="flex items-center">
-                    <img class="w-12 h-12 rounded-full mr-3" 
-                         src="${chat.friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${chat.friend.photo.path}` : generateAvatarUrl()}"
-                         alt="${chat.friend.display_name}">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                            <p class="font-medium text-white truncate">${escapeHtml(chat.friend.display_name)}</p>
-                            <span class="text-xs text-gray-400">${formatDate(chat.last_message_time)}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <p class="text-sm text-gray-400 truncate">
-                                ${chat.is_last_message_mine ? 'You: ' : ''}${escapeHtml(chat.last_message)}
-                            </p>
-                            ${chat.unread_count > 0 ? `
-                                <span class="bg-blue-500 text-white text-xs rounded-full px-2 py-1 ml-2">
-                                    ${chat.unread_count}
-                                </span>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        /** Add click listeners */
-        container.querySelectorAll('.chat-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const friendId = item.getAttribute('data-friend-id');
-                const friend = this.chats.find(c => c.friend.user_id === friendId)?.friend;
-                if (friend) this.openChat(friend);
-            });
-        });
-    }
+	private isUserOnline(userId: string): boolean {
+		const userIdStr = String(userId);
+		const isOnline = this.onlineUsers.has(userIdStr);
+		return isOnline;
+	}
 
-    private renderFriends(): void {
-        const container = document.getElementById('friendsList');
-        if (!container) return;
-        if (this.friends.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-8">
-                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                    <p>No friends yet</p>
-                    <p class="text-sm">Add friends to start chatting!</p>
-                </div>
-            `;
-            return;
-        }
-        container.innerHTML = this.friends.map(friend => `
-            <div class="friend-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
-                 data-friend-id="${friend.user_id}">
-                <div class="flex items-center">
-                    <div class="relative">
-                        <img class="w-12 h-12 rounded-full mr-3" 
-                             src="${friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${friend.photo.path}` : generateAvatarUrl()}" 
-                             alt="${friend.display_name}">
-                        ${friend.is_online ? `
-                            <div class="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-700"></div>
-                        ` : ''}
-                    </div>
-                    <div class="flex-1">
-                        <p class="font-medium text-white">${escapeHtml(friend.display_name)}</p>
-                        <p class="text-sm text-gray-400">
-                            ${friend.is_online ? 'Online' : `Last seen ${formatDate(friend.last_seen || friend.created_at)}`}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        container.querySelectorAll('.friend-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const friendId = item.getAttribute('data-friend-id');
-                const friend = this.friends.find(f => f.user_id === friendId);
-                if (friend) this.openChat(friend);
-            });
-        });
-    }
+	private renderChats(): void {
+		const container = document.getElementById('chatsList');
+		if (!container) return;
+		
+		if (this.chats.length === 0) {
+			container.innerHTML = `
+				<div class="text-center text-gray-400 py-8">
+					<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.998-.508c-.738-.187-1.462-.375-2.175-.555a3 3 0 00-3.08.652L2 22l1.56-2.747a3 3 0 00.652-3.08c-.18-.713-.368-1.437-.555-2.175A8.955 8.955 0 014 12c0-4.418 3.582-8 8-8s8 3.582 8 8z"></path>
+					</svg>
+					<p>No chats yet</p>
+					<p class="text-sm">Start a conversation with a friend!</p>
+				</div>
+			`;
+			return;
+		}
+		container.innerHTML = this.chats.map(chat => {
+			const userIdStr = String(chat.friend.user_id);
+			const isOnline = this.isUserOnline(userIdStr);
+			return `
+				<div class="chat-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
+					data-friend-id="${userIdStr}">
+					<div class="flex items-center">
+						<div class="relative mr-3">
+							<img class="w-12 h-12 rounded-full" 
+								src="${chat.friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${chat.friend.photo.path}` : generateAvatarUrl()}"
+								alt="${chat.friend.display_name}">
+							<!-- Online status indicator -->
+							<div class="online-status absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-700 ${
+								isOnline ? 'bg-green-500' : 'bg-gray-500'
+							}"></div>
+						</div>
+						<div class="flex-1 min-w-0">
+							<div class="flex items-center justify-between">
+								<p class="font-medium text-white truncate">${escapeHtml(chat.friend.display_name)}</p>
+								<span class="text-xs text-gray-400">${formatDate(chat.last_message_time)}</span>
+							</div>
+							<div class="flex items-center justify-between">
+								<p class="text-sm text-gray-400 truncate">
+									${chat.is_last_message_mine ? 'You: ' : ''}${escapeHtml(chat.last_message)}
+								</p>
+								${chat.unread_count > 0 ? `
+									<span class="bg-blue-500 text-white text-xs rounded-full px-2 py-1 ml-2">
+										${chat.unread_count}
+									</span>
+								` : ''}
+							</div>
+						</div>
+					</div>
+				</div>
+			`;
+		}).join('');
+		container.querySelectorAll('.chat-item').forEach(item => {
+			item.addEventListener('click', () => {
+				const friendId = item.getAttribute('data-friend-id');
+				const friend = this.chats.find(c => String(c.friend.user_id) === friendId)?.friend;
+				if (friend) this.openChat(friend);
+			});
+		});
+	}
+
+	private renderFriends(): void {
+		const container = document.getElementById('friendsList');
+		if (!container) return;
+		
+		if (this.friends.length === 0) {
+			container.innerHTML = `
+				<div class="text-center text-gray-400 py-8">
+					<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+					</svg>
+					<p>No friends yet</p>
+					<p class="text-sm">Add friends to start chatting!</p>
+				</div>
+			`;
+			return;
+		}
+		container.innerHTML = this.friends.map(friend => {
+			const userIdStr = String(friend.user_id);
+			const isOnline = this.isUserOnline(userIdStr);
+			return `
+				<div class="friend-item p-3 rounded-lg bg-gray-700 hover:bg-gray-600 cursor-pointer transition-colors" 
+					data-friend-id="${userIdStr}">
+					<div class="flex items-center">
+						<div class="relative mr-3">
+							<img class="w-12 h-12 rounded-full" 
+								src="${friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${friend.photo.path}` : generateAvatarUrl()}" 
+								alt="${friend.display_name}">
+							<div class="online-status absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gray-700 ${
+								isOnline ? 'bg-green-500' : 'bg-gray-500'
+							}"></div>
+						</div>
+						<div class="flex-1">
+							<p class="font-medium text-white">${escapeHtml(friend.display_name)}</p>
+							<p class="status-text text-sm text-gray-400">
+								${isOnline ? 'Online' : `Last seen ${formatDate(friend.last_seen || friend.created_at)}`}
+							</p>
+						</div>
+					</div>
+				</div>
+			`;
+		}).join('');
+		container.querySelectorAll('.friend-item').forEach(item => {
+			item.addEventListener('click', () => {
+				const friendId = item.getAttribute('data-friend-id');
+				const friend = this.friends.find(f => String(f.user_id) === friendId);
+				if (friend) this.openChat(friend);
+			});
+		});
+	}
 
     private renderFriendRequests(): void {
         const container = document.getElementById('requestsList');
@@ -585,10 +684,8 @@ export class ChatPage implements Page {
     }
 
     private async openChat(friend: User): Promise<void> {
-        // Reset typing state when switching chats
         this.stopTyping();
         this.isTyping = {};
-        
         this.currentChatFriend = friend;
         this.messages = [];
         /** Update UI */
@@ -599,9 +696,13 @@ export class ChatPage implements Page {
         const chatAvatar = document.getElementById('chatAvatar') as HTMLImageElement;
         const chatName = document.getElementById('chatName');
         const chatStatus = document.getElementById('chatStatus');
-        if (chatAvatar) chatAvatar.src = API_CONFIG.GATEWAY_URL + friend.photo?.path || generateAvatarUrl();
+        if (chatAvatar) chatAvatar.src = (friend.photo?.path ? API_CONFIG.GATEWAY_URL + friend.photo.path : generateAvatarUrl());
         if (chatName) chatName.textContent = friend.display_name;
-        if (chatStatus) chatStatus.textContent = 'Online'; // TODO: Get real status
+		const isOnline = this.isUserOnline(friend.user_id);
+		if (chatStatus) {
+			chatStatus.textContent = isOnline ? 'Online' : 'offline';
+			chatStatus.className = `text-sm ${isOnline ? 'text-green-400': 'text-gray-400'}`;
+		}
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
     }
@@ -615,6 +716,21 @@ export class ChatPage implements Page {
         document.getElementById('chatHeader')?.classList.add('hidden');
         document.getElementById('messagesArea')?.classList.add('hidden');
     }
+
+	private async checkFriendOnlineStatus(friendId: string): Promise<boolean> {
+		try {
+			const token = getStoredToken();
+			const response = await fetch(`http://localhost:3003/api/friends/online`, {
+				headers: { Authorization: `Bearer ${token}` }
+			});
+			if (!response.ok) throw new Error('Failed to fetch online friends');
+			const onlineFriends = await response.json();
+			return onlineFriends.some((friend: any) => friend.user_id === friendId);
+		} catch (error) {
+			console.error('Error checking friend online status:', error);
+			return false;
+		}
+	}
 
     private async loadMessages(friendId: string): Promise<void> {
         try {
@@ -705,7 +821,6 @@ export class ChatPage implements Page {
         }
         if (!this.isCurrentUserTyping) {
             this.isCurrentUserTyping = true;
-            console.log('Sending typing_start to:', this.currentChatFriend.user_id);
             this.socket.emit('typing_start', {
                 receiver_id: this.currentChatFriend.user_id
             });
@@ -721,7 +836,6 @@ export class ChatPage implements Page {
 
     private stopTyping(): void {
         if (!this.currentChatFriend || !this.socket || !this.isCurrentUserTyping) return;
-        console.log('Sending typing_stop to:', this.currentChatFriend.user_id);
         this.socket.emit('typing_stop', {
             receiver_id: this.currentChatFriend.user_id
         });

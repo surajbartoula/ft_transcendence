@@ -29,6 +29,35 @@ export function setupSocketHandlers(fastify) {
     await dbService.updateUserSession(user_id, socket.id);
     /** Join user to their personal room */
     socket.join(`user_${user_id}`);
+	try {
+		const friends = await dbService.getUserFriends(user_id);
+		const friendIds = friends.map(friend => friend.user_id);
+		/** Notify each online friend that the user came online */
+		for (const friendId of friendIds) {
+			const friendSession = await dbService.getUserSession(friendId);
+			if (friendSession) {
+				fastify.io.to(friendSession.socket_id).emit('user_online', { user_id });
+			}
+		}
+	} catch (err) {
+		console.error('Error broadcasting user online status:', err);
+	}
+
+	/** Handle request for online users list */
+	socket.on('get_online_users', async () => {
+		try {
+			const friends = await dbService.getUserFriends(user_id);
+			const onlineUserIds = [];
+			for (const friend of friends) {
+				const friendSession = await dbService.getUserSession(friend.user_id);
+				if (friendSession) onlineUserIds.push(friend.user_id);
+			}
+			socket.emit('online_users_list', { user_ids: onlineUserIds });
+		} catch (err) {
+			console.error('Error getting online users:', err);
+		}
+	});
+
     /** Handle sending messages */
     socket.on('send_message', async (data) => {
       try {
@@ -119,6 +148,18 @@ export function setupSocketHandlers(fastify) {
     socket.on('disconnect', async () => {
       console.log(`User ${user_id} disconnected`);
       await dbService.removeUserSession(user_id);
+	  try {
+		const friends = await dbService.getUserFriends(user_id);
+		const friendIds = friends.map(friend => friend.user_id);
+		for (const friendId of friendIds) {
+			const friendSession = await dbService.getUserSession(friendId);
+			if (friendSession) {
+				fastify.io.to(friendSession.socket_id).emit('user_offline', {user_id});
+			}
+		}
+	  } catch (err) {
+		console.error('Error broadcasting user offline status:', err);
+	  }
     });
   });
 }
