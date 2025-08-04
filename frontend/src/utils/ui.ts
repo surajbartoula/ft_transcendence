@@ -275,11 +275,8 @@ export function copyToClipboard(text: string): Promise<boolean> {
     }
 }
 
-export function generateAvatarUrl(name: string, size: number = 40): string {
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    const backgroundColor = generateColorFromString(name);
-    
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=${backgroundColor}&color=ffffff&size=${size}`;
+export function generateAvatarUrl(): string {
+    return `../avatar.jpg`;
 }
 
 function generateColorFromString(str: string): string {

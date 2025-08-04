@@ -1,6 +1,7 @@
 import { Page } from '../router/Router';
 import { showError, hideError, showNotification, formatDate, generateAvatarUrl, escapeHtml } from '../utils/ui';
 import { getStoredToken, getStoredUser } from '../utils/auth';
+import { API_CONFIG } from '../config';
 import { io, Socket } from 'socket.io-client';
 
 interface User {
@@ -8,8 +9,14 @@ interface User {
     username: string;
     display_name: string;
     bio?: string;
-    photo?: string;
+    photo?: PhotoInfo | null;
     created_at: string;
+}
+
+interface PhotoInfo {
+    filename: string;
+    path: string;
+    uploaded_at: string;
 }
 
 interface Friend extends User {
@@ -42,7 +49,7 @@ interface FriendRequest {
     user_id: string;
     username: string;
     display_name: string;
-    photo?: string;
+    photo?: PhotoInfo | null;
     request_date: string;
 }
 
@@ -449,7 +456,7 @@ export class ChatPage implements Page {
                  data-friend-id="${chat.friend.user_id}">
                 <div class="flex items-center">
                     <img class="w-12 h-12 rounded-full mr-3" 
-                         src="${chat.friend.photo || generateAvatarUrl(chat.friend.display_name)}" 
+                         src="${chat.friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${chat.friend.photo.path}` : generateAvatarUrl()}"
                          alt="${chat.friend.display_name}">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between">
@@ -501,7 +508,7 @@ export class ChatPage implements Page {
                 <div class="flex items-center">
                     <div class="relative">
                         <img class="w-12 h-12 rounded-full mr-3" 
-                             src="${friend.photo || generateAvatarUrl(friend.display_name)}" 
+                             src="${friend.photo?.path ? `${API_CONFIG.GATEWAY_URL}${friend.photo.path}` : generateAvatarUrl()}" 
                              alt="${friend.display_name}">
                         ${friend.is_online ? `
                             <div class="absolute bottom-0 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-700"></div>
@@ -542,9 +549,9 @@ export class ChatPage implements Page {
         container.innerHTML = this.friendRequests.map(request => `
             <div class="p-3 rounded-lg bg-gray-700">
                 <div class="flex items-center mb-3">
-                    <img class="w-10 h-10 rounded-full mr-3" 
-                         src="${request.photo || generateAvatarUrl(request.display_name)}" 
-                         alt="${request.display_name}">
+                    <img class="w-10 h-10 rounded-full mr-3"
+						src="${request.photo?.path ? `${API_CONFIG.GATEWAY_URL}${request.photo.path}` : generateAvatarUrl()}"
+                        alt="${request.display_name}">
                     <div class="flex-1">
                         <p class="font-medium text-white">${escapeHtml(request.display_name)}</p>
                         <p class="text-xs text-gray-400">${formatDate(request.request_date)}</p>
@@ -592,7 +599,7 @@ export class ChatPage implements Page {
         const chatAvatar = document.getElementById('chatAvatar') as HTMLImageElement;
         const chatName = document.getElementById('chatName');
         const chatStatus = document.getElementById('chatStatus');
-        if (chatAvatar) chatAvatar.src = friend.photo || generateAvatarUrl(friend.display_name);
+        if (chatAvatar) chatAvatar.src = API_CONFIG.GATEWAY_URL + friend.photo?.path || generateAvatarUrl();
         if (chatName) chatName.textContent = friend.display_name;
         if (chatStatus) chatStatus.textContent = 'Online'; // TODO: Get real status
         await this.loadMessages(friend.user_id);
@@ -772,8 +779,8 @@ export class ChatPage implements Page {
                     <div class="search-result p-2 rounded bg-gray-600 hover:bg-gray-500 cursor-pointer transition-colors" 
                          data-user-id="${user.user_id}">
                         <div class="flex items-center">
-                            <img class="w-8 h-8 rounded-full mr-2" 
-                                 src="${user.photo || generateAvatarUrl(user.display_name)}" 
+                            <img class="w-8 h-8 rounded-full mr-2"
+                                 src="${user.photo?.path ? `${API_CONFIG.GATEWAY_URL}${user.photo.path}` : generateAvatarUrl()}"
                                  alt="${user.display_name}">
                             <div>
                                 <p class="text-white text-sm font-medium">${escapeHtml(user.display_name)}</p>
@@ -895,9 +902,9 @@ export class ChatPage implements Page {
                 resultsContainer.innerHTML = users.map((user: User) => `
                     <div class="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                         <div class="flex items-center">
-                            <img class="w-10 h-10 rounded-full mr-3" 
-                                 src="${user.photo || generateAvatarUrl(user.display_name)}" 
-                                 alt="${user.display_name}">
+                            <img class="w-10 h-10 rounded-full mr-3"
+								src="${user.photo?.path ? `${API_CONFIG.GATEWAY_URL}${user.photo.path}` : generateAvatarUrl()}"
+                                alt="${user.display_name}">
                             <div>
                                 <p class="text-white font-medium">${escapeHtml(user.display_name)}</p>
                                 <p class="text-gray-400 text-sm">@${escapeHtml(user.username)}</p>
