@@ -41,10 +41,6 @@ export class DashboardPage implements Page {
                             <span>🏆</span>
                             <span>Leaderboard</span>
                         </a>
-                        <a href="#" data-route="/dashboard/friends" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
-                            <span>👥</span>
-                            <span>Friends</span>
-                        </a>
                         <a href="#" data-route="/dashboard/settings" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
                             <span>⚙️</span>
                             <span>Settings</span>

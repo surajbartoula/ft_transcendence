@@ -3,7 +3,6 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
-import { FriendsPage } from './pages/FriendsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
 import { GamePage } from './pages/GamePage';
@@ -43,7 +42,6 @@ class App {
 			{ path: '/dashboard', page: () => new DashboardPage(), requiresAuth: true },
 			{ path: '/dashboard/profile', page: () => new ProfilePage(), requiresAuth: true },
 			{ path: '/dashboard/leaderboard', page: () => new LeaderboardPage(), requiresAuth: true },
-			{ path: '/dashboard/friends', page: () => new FriendsPage(), requiresAuth: true },
 			{ path: '/dashboard/settings', page: () => new SettingsPage(), requiresAuth: true },
 			{ path: '/chat', page: () => new ChatPage(), requiresAuth: true },
 			{ path: '/game', page: () => new GamePage(), requiresAuth: true },

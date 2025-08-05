@@ -48,7 +48,6 @@ export class LeaderboardPage implements Page {
             { route: '/dashboard', icon: '🎮', label: 'Dashboard' },
             { route: '/dashboard/profile', icon: '👤', label: 'Profile' },
             { route: '/dashboard/leaderboard', icon: '🏆', label: 'Leaderboard', active: true },
-            { route: '/dashboard/friends', icon: '👥', label: 'Friends' },
             { route: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
             { route: '/chat', icon: '💬', label: 'Chat' }
         ];

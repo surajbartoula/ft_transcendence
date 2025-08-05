@@ -12,47 +12,43 @@ export class SettingsPage implements Page {
 
     public render(): string {
         return `
-            <div class="min-h-screen bg-slate-900">
+            <div class="fixed inset-0 flex h-screen bg-slate-900">
                 ${this.renderSidebar()}
-                <div class="ml-64 p-8">
-                    <h1 class="text-3xl font-bold text-white mb-6">Settings</h1>
-                    
-                    <!-- Security Settings Section -->
-                    <div class="bg-slate-800 p-6 rounded-lg mb-6">
-                        <h2 class="text-xl font-semibold text-white mb-4">Security</h2>
+                <div class="flex-1 p-8 overflow-y-auto">
+                    <div class="fade-in">
+                        <h1 class="text-3xl font-bold text-white mb-6">Settings</h1>
                         
-                        <!-- 2FA Toggle -->
-                        <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
-                            <div class="flex-1">
-                                <h3 class="text-lg font-medium text-white">Two-Factor Authentication</h3>
-                                <p class="text-sm text-gray-400 mt-1">
-                                    Add an extra layer of security to your account with 2FA
-                                </p>
+                        <!-- Security Settings Section -->
+                        <div class="bg-slate-800 p-6 rounded-lg mb-6">
+                            <h2 class="text-xl font-semibold text-white mb-4">Security</h2>
+                            
+                            <!-- 2FA Toggle -->
+                            <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-medium text-white">Two-Factor Authentication</h3>
+                                    <p class="text-sm text-gray-400 mt-1">
+                                        Add an extra layer of security to your account with 2FA
+                                    </p>
+                                </div>
+                                <div class="ml-4">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            id="2fa-toggle" 
+                                            class="sr-only peer" 
+                                            ${this.is2FAEnabled ? 'checked' : ''}
+                                            ${this.isSetupInProgress ? 'disabled' : ''}
+                                        >
+                                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${this.isSetupInProgress ? 'opacity-50 cursor-not-allowed' : ''}"></div>
+                                    </label>
+                                </div>
                             </div>
-                            <div class="ml-4">
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        id="2fa-toggle" 
-                                        class="sr-only peer" 
-                                        ${this.is2FAEnabled ? 'checked' : ''}
-                                        ${this.isSetupInProgress ? 'disabled' : ''}
-                                    >
-                                    <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${this.isSetupInProgress ? 'opacity-50 cursor-not-allowed' : ''}"></div>
-                                </label>
-                            </div>
+                            
+                            ${this.is2FAEnabled ? this.render2FAStatus() : ''}
                         </div>
                         
-                        ${this.is2FAEnabled ? this.render2FAStatus() : ''}
-                    </div>
-                    
-                    <!-- Other Settings Section -->
-                    <div class="bg-slate-800 p-6 rounded-lg">
-                        <h2 class="text-xl font-semibold text-white mb-4">General</h2>
-                        <p class="text-gray-300">Other settings content goes here...</p>
                     </div>
                 </div>
-
                 ${this.renderModals()}
             </div>
         `;
@@ -240,17 +236,14 @@ export class SettingsPage implements Page {
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/status`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
-
             if (response.ok) {
                 const data = await response.json();
-                // Updated to match backend response: two_factor_enabled instead of enabled
                 this.is2FAEnabled = data.two_factor_enabled;
                 this.updatePageContent();
             }
@@ -267,47 +260,39 @@ export class SettingsPage implements Page {
                 this.handle2FAToggle(isEnabled);
             });
         }
-
-        // Add logout button event listener
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', this.handleLogout.bind(this));
         }
-
-        // Modal event listeners
+        /** Modal event listeners */
         this.setupModalEventListeners();
     }
 
     private handleLogout(): void {
-        // Clear authentication data
         localStorage.removeItem('token');
         localStorage.removeItem('userData');
         sessionStorage.clear();
-        
-        // Redirect to login page
+        /** Redirect to login page */
         window.location.href = '/login';
     }
 
     private setupModalEventListeners(): void {
-        // Enable 2FA modal
+        /** Enable 2FA modal */
         const confirmEnable = document.getElementById('confirmEnable2FA');
         const cancelEnable = document.getElementById('cancelEnable2FA');
-        
         if (confirmEnable) {
             confirmEnable.addEventListener('click', () => {
                 hideModal('enable2FAModal');
                 this.startSetup2FA();
             });
         }
-        
         if (cancelEnable) {
             cancelEnable.addEventListener('click', () => {
                 hideModal('enable2FAModal');
                 this.resetToggle();
             });
         }
-
-        // Setup 2FA modal
+        /** Setup 2FA modal */
         const verify2FASetup = document.getElementById('verify2FASetup');
         const cancelSetup2FA = document.getElementById('cancelSetup2FA');
         const showManualEntry = document.getElementById('showManualEntry');
@@ -315,7 +300,6 @@ export class SettingsPage implements Page {
         if (verify2FASetup) {
             verify2FASetup.addEventListener('click', this.verify2FASetup.bind(this));
         }
-        
         if (cancelSetup2FA) {
             cancelSetup2FA.addEventListener('click', () => {
                 hideModal('setup2FAModal');
@@ -323,7 +307,6 @@ export class SettingsPage implements Page {
                 this.isSetupInProgress = false;
             });
         }
-
         if (showManualEntry) {
             showManualEntry.addEventListener('click', () => {
                 const section = document.getElementById('manualEntrySection');
@@ -332,23 +315,19 @@ export class SettingsPage implements Page {
                 }
             });
         }
-
-        // Disable 2FA modal
+        /** Disable 2FA modal */
         const confirmDisable = document.getElementById('confirmDisable2FA');
         const cancelDisable = document.getElementById('cancelDisable2FA');
-        
         if (confirmDisable) {
             confirmDisable.addEventListener('click', this.disable2FA.bind(this));
         }
-        
         if (cancelDisable) {
             cancelDisable.addEventListener('click', () => {
                 hideModal('disable2FAModal');
                 this.resetToggle();
             });
         }
-
-        // Input formatting for verification codes
+        /** Input formatting for verification codes */
         const verificationInput = document.getElementById('verificationCode') as HTMLInputElement;
         if (verificationInput) {
             verificationInput.addEventListener('input', (e) => {
@@ -356,7 +335,6 @@ export class SettingsPage implements Page {
                 input.value = input.value.replace(/\D/g, '');
             });
         }
-
         const disableInput = document.getElementById('disable2FACode') as HTMLInputElement;
         if (disableInput) {
             disableInput.addEventListener('input', (e) => {
@@ -383,12 +361,8 @@ export class SettingsPage implements Page {
         try {
             this.isSetupInProgress = true;
             showModal('setup2FAModal');
-            
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token');
-
-            console.log('Starting 2FA setup with token:', token ? 'Present' : 'Missing');
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/setup`, {
                 method: 'POST',
                 headers: {
@@ -397,10 +371,6 @@ export class SettingsPage implements Page {
                 },
                 body: JSON.stringify({})
             });
-
-            console.log('2FA setup response status:', response.status);
-            console.log('2FA setup response headers:', Object.fromEntries(response.headers.entries()));
-
             if (!response.ok) {
                 let errorMessage = 'Failed to setup 2FA';
                 try {
@@ -413,26 +383,19 @@ export class SettingsPage implements Page {
                 }
                 throw new Error(errorMessage);
             }
-
             const data = await response.json();
             console.log('2FA setup success data:', data);
-            
-            // Updated to match backend response structure
             this.qrCodeData = data.qrCode;
             this.manualEntryKey = data.manualEntryKey;
-
-            // Display QR code
+            /** Display QR code */
             const qrContainer = document.getElementById('qrCodeContainer');
             if (qrContainer && this.qrCodeData) {
                 qrContainer.innerHTML = `<img src="${this.qrCodeData}" alt="2FA QR Code" class="w-48 h-48">`;
             }
-
-            // Set manual entry key
             const manualKey = document.getElementById('manualKey');
             if (manualKey && this.manualEntryKey) {
                 manualKey.textContent = this.manualEntryKey;
             }
-            
         } catch (error) {
             console.error('Failed to start 2FA setup:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to initialize 2FA setup. Please try again.';
@@ -446,25 +409,20 @@ export class SettingsPage implements Page {
     private async verify2FASetup(): Promise<void> {
         try {
             const verificationCode = (document.getElementById('verificationCode') as HTMLInputElement)?.value;
-            
             if (!verificationCode || verificationCode.length !== 6) {
                 showNotification('Please enter a valid 6-digit verification code.', 'error');
                 return;
             }
-
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token');
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/verify`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                // Updated to match backend expected field: token instead of code
                 body: JSON.stringify({ token: verificationCode })
             });
-
             if (!response.ok) {
                 let errorMessage = 'Invalid verification code';
                 try {
@@ -476,15 +434,12 @@ export class SettingsPage implements Page {
                 }
                 throw new Error(errorMessage);
             }
-
             const data = await response.json();
             this.is2FAEnabled = true;
             this.isSetupInProgress = false;
             hideModal('setup2FAModal');
             this.updatePageContent();
-            
             showNotification(data.message || 'Two-Factor Authentication has been enabled successfully!', 'success');
-            
         } catch (error) {
             console.error('Failed to verify 2FA setup:', error);
             const errorMessage = error instanceof Error ? error.message : 'Invalid verification code. Please try again.';
@@ -496,33 +451,27 @@ export class SettingsPage implements Page {
         try {
             const disableCode = (document.getElementById('disable2FACode') as HTMLInputElement)?.value;
             const password = (document.getElementById('disable2FAPassword') as HTMLInputElement)?.value;
-            
             if (!disableCode || disableCode.length !== 6) {
                 showNotification('Please enter a valid 6-digit code.', 'error');
                 return;
             }
-
             if (!password) {
                 showNotification('Please enter your password.', 'error');
                 return;
             }
-
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token');
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/disable`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                // Updated to match backend expected fields: token and password
                 body: JSON.stringify({ 
                     token: disableCode,
                     password: password 
                 })
             });
-
             if (!response.ok) {
                 let errorMessage = 'Failed to disable 2FA';
                 try {
@@ -534,14 +483,11 @@ export class SettingsPage implements Page {
                 }
                 throw new Error(errorMessage);
             }
-
             const data = await response.json();
             this.is2FAEnabled = false;
             hideModal('disable2FAModal');
             this.updatePageContent();
-            
             showNotification(data.message || 'Two-Factor Authentication has been disabled.', 'info');
-            
         } catch (error) {
             console.error('Failed to disable 2FA:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to disable 2FA. Please try again.';
@@ -555,7 +501,6 @@ export class SettingsPage implements Page {
     }
 
     private updatePageContent(): void {
-        // Re-render just the main content area
         const mainContent = document.querySelector('.ml-64');
         if (mainContent) {
             mainContent.innerHTML = `
@@ -590,41 +535,60 @@ export class SettingsPage implements Page {
                         
                         ${this.is2FAEnabled ? this.render2FAStatus() : ''}
                     </div>
-                    
-                    <!-- Other Settings Section -->
-                    <div class="bg-slate-800 p-6 rounded-lg">
-                        <h2 class="text-xl font-semibold text-white mb-4">General</h2>
-                        <p class="text-gray-300">Other settings content goes here...</p>
-                    </div>
                 </div>
 
                 ${this.renderModals()}
             `;
-            
-            // Re-setup event listeners
+            /** Re-setup event listeners */
             this.setupEventListeners();
         }
     }
 
     public cleanup(): void {
         console.log('Settings page cleaned up');
-        // Remove any event listeners if needed
+        /** Remove any event listeners if needed later */
     }
 
     private renderSidebar(): string {
+        return this.getSidebar('/dashboard/settings');
+    }
+
+    private getSidebar(activeRoute: string): string {
+        const navItems = [
+            { route: '/dashboard', icon: '🎮', label: 'Dashboard' },
+            { route: '/dashboard/profile', icon: '👤', label: 'Profile' },
+            { route: '/dashboard/leaderboard', icon: '🏆', label: 'Leaderboard', active: true },
+            { route: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
+            { route: '/chat', icon: '💬', label: 'Chat' }
+        ];
+
         return `
-            <div class="fixed left-0 top-0 h-full w-64 bg-slate-800 border-r border-slate-700">
+            <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
                 <div class="p-6 border-b border-slate-700">
-                    <h2 class="text-xl font-bold text-white">ft_transcendence</h2>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">G</span>
+                        </div>
+                        <h1 class="text-xl font-bold text-blue-400">GameHub</h1>
+                    </div>
                 </div>
-                <nav class="p-4 space-y-2">
-                    <a href="#" data-route="/dashboard" class="block p-3 rounded text-gray-300 hover:bg-slate-700">Dashboard</a>
-                    <a href="#" data-route="/dashboard/profile" class="block p-3 rounded text-gray-300 hover:bg-slate-700">Profile</a>
-                    <a href="#" data-route="/dashboard/leaderboard" class="block p-3 rounded text-gray-300 hover:bg-slate-700">Leaderboard</a>
-                    <a href="#" data-route="/dashboard/friends" class="block p-3 rounded text-gray-300 hover:bg-slate-700">Friends</a>
-                    <a href="#" data-route="/dashboard/settings" class="block p-3 rounded bg-blue-600 text-white">Settings</a>
-                    <a href="#" data-route="/chat" class="block p-3 rounded text-gray-300 hover:bg-slate-700">Chat</a>
-                    <a href="#" id="logoutBtn" class="block p-3 rounded text-red-400 hover:bg-red-900/20">Logout</a>
+                
+                <nav class="p-4 space-y-2 flex-1">
+                    ${navItems.map(item => {
+                        const isActive = item.route === activeRoute;
+                        const activeClasses = isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700';
+                        return `
+                            <a href="#" data-route="${item.route}" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg ${activeClasses} transition-colors">
+                                <span>${item.icon}</span>
+                                <span>${item.label}</span>
+                            </a>
+                        `;
+                    }).join('')}
+                    
+                    <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
+                        <span>🚪</span>
+                        <span>Logout</span>
+                    </a>
                 </nav>
             </div>
         `;

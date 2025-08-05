@@ -13,7 +13,6 @@ export const ROUTES = {
     DASHBOARD: '/dashboard',
     PROFILE: '/dashboard/profile',
     LEADERBOARD: '/dashboard/leaderboard',
-    FRIENDS: '/dashboard/friends',
     SETTINGS: '/dashboard/settings',
     CHAT: '/chat',
     GAME: '/game'
@@ -27,7 +26,6 @@ export const APP_CONFIG = {
         '/dashboard',
         '/dashboard/profile',
         '/dashboard/leaderboard', 
-        '/dashboard/friends',
         '/dashboard/settings',
         '/chat',
         '/game'

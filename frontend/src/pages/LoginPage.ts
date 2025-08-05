@@ -188,8 +188,7 @@ export class LoginPage implements Page {
         if (this.googleButton) {
             this.googleButton.removeEventListener('click', this.handleGoogleSignIn);
         }
-        
-        // Clean up 2FA listeners
+        /** Clean up 2FA listeners */
         this.cleanup2FAListeners();
     }
 
@@ -223,15 +222,12 @@ export class LoginPage implements Page {
         if (cancel2FABtn) {
             cancel2FABtn.addEventListener('click', this.cancel2FA.bind(this));
         }
-
-        // Format 2FA code input (numbers only)
         if (twoFactorCodeInput) {
             twoFactorCodeInput.addEventListener('input', (e) => {
                 const input = e.target as HTMLInputElement;
                 input.value = input.value.replace(/\D/g, '');
             });
-
-            // Auto-submit when 6 digits are entered
+            /** Auto-submit when 6 digits are entered */
             twoFactorCodeInput.addEventListener('input', (e) => {
                 const input = e.target as HTMLInputElement;
                 if (input.value.length === 6) {
@@ -244,25 +240,17 @@ export class LoginPage implements Page {
     private cleanup2FAListeners(): void {
         const verify2FABtn = document.getElementById('verify2FABtn');
         const cancel2FABtn = document.getElementById('cancel2FABtn');
-
-        // Remove event listeners to prevent memory leaks
-        // Note: Since we're using bind(), we can't easily remove these specific listeners
-        // In a production app, you'd want to store the bound functions as class properties
+		/** need to come back and remove event listener */
     }
 
     private async handleSubmit(e: Event): Promise<void> {
         e.preventDefault();
-        
-        // Hide any previous messages
+        /** Hide any previous messages */
         this.hideMessages();
-        
-        // Client-side validation
         if (!this.validateForm()) {
             return;
         }
-        
         this.setLoadingState(true);
-        
         try {
             const formData = new FormData(this.form!);
             const email = (formData.get('email') as string).trim();
@@ -277,8 +265,7 @@ export class LoginPage implements Page {
                 if (!name) throw new Error('Name is required');
                 response = await register(name, email, password);
             }
-            
-            // Handle different response types based on backend behavior
+            /** Handle different response types based on backend behavior */
             this.handleAuthResponse(response, email, password);
             
         } catch (err: any) {
@@ -290,18 +277,15 @@ export class LoginPage implements Page {
 
 	private handleAuthResponse(response: LoginResponse, email?: string, password?: string): void {
 		if (response.requires2FA) {
-			// Store login data for 2FA verification (don't store token yet)
+			/** Store login data for 2FA verification */
 			this.pendingLoginData = { email: email!, password: password! };
 			this.show2FAModal();
 		} else if (response.requiresVerification) {
-			// Registration successful or login requires verification
 			this.showSuccess(response.message);
 			this.redirectToVerification(response.email!);
 		} else if (response.token && response.user) {
-			// Login successful without 2FA
 			this.handleSuccessfulAuth(response);
 		} else if (response.message) {
-			// Show success message (like registration confirmation)
 			this.showSuccess(response.message);
 			if (response.email) {
 				this.redirectToVerification(response.email);
@@ -311,7 +295,6 @@ export class LoginPage implements Page {
 
     private show2FAModal(): void {
         showModal('twoFactorModal');
-        // Focus on the 2FA input
         const twoFactorInput = document.getElementById('twoFactorCode') as HTMLInputElement;
         if (twoFactorInput) {
             setTimeout(() => twoFactorInput.focus(), 100);
@@ -320,20 +303,16 @@ export class LoginPage implements Page {
 
 	private async handle2FAVerification(): Promise<void> {
 		const twoFactorCode = (document.getElementById('twoFactorCode') as HTMLInputElement)?.value;
-		
 		if (!twoFactorCode || twoFactorCode.length !== 6) {
 			showNotification('Please enter a valid 6-digit verification code.', 'error');
 			return;
 		}
-
 		if (!this.pendingLoginData) {
 			showNotification('Session expired. Please try logging in again.', 'error');
 			this.cancel2FA();
 			return;
 		}
-
 		this.set2FALoadingState(true);
-
 		try {
 			const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/verify-login`, {
 				method: 'POST',
@@ -346,7 +325,6 @@ export class LoginPage implements Page {
 					token: twoFactorCode
 				})
 			});
-
 			if (!response.ok) {
 				let errorMessage = 'Invalid verification code';
 				try {
@@ -358,14 +336,10 @@ export class LoginPage implements Page {
 				}
 				throw new Error(errorMessage);
 			}
-
 			const data = await response.json();
-			
-			// 2FA verification successful
+			/** 2FA verification successful */
 			hideModal('twoFactorModal');
 			this.pendingLoginData = null;
-			
-			// Handle successful authentication
 			this.handleSuccessfulAuth({
 				token: data.token,
 				user: data.user,
@@ -410,25 +384,20 @@ export class LoginPage implements Page {
         const password = (document.getElementById('password') as HTMLInputElement).value;
         const name = (document.getElementById('name') as HTMLInputElement)?.value?.trim();
 
-        // Email validation
         if (!email) {
             this.showError('Email is required');
             return false;
         }
-
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             this.showError('Please enter a valid email address');
             return false;
         }
-
-        // Password validation
         if (!password) {
             this.showError('Password is required');
             return false;
         }
-
-        // Registration-specific validation
+        /** Registration-specific validation */
         if (!this.isLoginMode) {
             if (!name) {
                 this.showError('Name is required');
@@ -439,17 +408,15 @@ export class LoginPage implements Page {
                 return false;
             }
         }
-
         return true;
     }
 
     private redirectToVerification(email: string): void {
-        // Store email for verification page
+        /** Store email for verification page */
         sessionStorage.setItem('verificationEmail', email);
-        
-        // Small delay to show success message before redirect
+        /** Small delay to show success message before redirect */
         setTimeout(() => {
-            // Dispatch custom event to navigate to verification page
+            /** Dispatch custom event to navigate to verification page */
             const event = new CustomEvent('navigateToVerification', {
                 detail: { email }
             });
@@ -458,15 +425,15 @@ export class LoginPage implements Page {
     }
 
     private handleSuccessfulAuth(response: LoginResponse): void {
-        // Store authentication data
+        /** Store authentication data */
         localStorage.setItem('token', response.token!);
         localStorage.setItem('userData', JSON.stringify(response.user));
         
         this.showSuccess(response.message || 'Login successful!');
         
-        // Small delay before redirect
+        /** Small delay before redirect */
         setTimeout(() => {
-            // Trigger authentication success event
+            /** Trigger authentication success event */
             const event = new CustomEvent('authSuccess', {
                 detail: response
             });
@@ -491,13 +458,12 @@ export class LoginPage implements Page {
         const switchMode = document.getElementById('switchMode');
         const subtitle = document.querySelector('p.text-gray-600') as HTMLElement;
         
-        // Toggle name field visibility and required attribute
+        /** Toggle name field visibility and required attribute */
         nameField?.classList.toggle('hidden', this.isLoginMode);
         if (nameInput) {
             nameInput.required = !this.isLoginMode;
         }
-        
-        // Update password field attributes
+        /** Update password field attributes */
         if (passwordInput) {
             passwordInput.placeholder = this.isLoginMode ? 'Enter your password' : 'Minimum 6 characters';
             if (this.isLoginMode) {
@@ -506,8 +472,7 @@ export class LoginPage implements Page {
                 passwordInput.setAttribute('minlength', '6');
             }
         }
-        
-        // Update text content
+        /** Update text content */
         if (submitText) submitText.textContent = this.isLoginMode ? 'Sign In' : 'Sign Up';
         if (loadingText) loadingText.textContent = this.isLoginMode ? 'Signing In...' : 'Creating Account...';
         if (switchText) switchText.textContent = this.isLoginMode ? "Don't have an account?" : 'Already have an account?';
@@ -537,12 +502,10 @@ export class LoginPage implements Page {
             window.history.replaceState({}, document.title, window.location.pathname);
             return;
         }
-        
         if (googleToken) {
             localStorage.setItem('token', googleToken);
             window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Trigger authentication success with token
+            /** Trigger authentication success with token */
             this.handleSuccessfulAuth({ 
                 token: googleToken, 
                 user: null as any,

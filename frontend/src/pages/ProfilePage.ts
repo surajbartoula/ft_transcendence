@@ -138,22 +138,18 @@ export class ProfilePage implements Page {
         if (this.saveButton) {
             this.saveButton.removeEventListener('click', this.handleSave);
         }
-
         const avatarButton = document.getElementById('avatarButton');
         if (avatarButton) {
             avatarButton.removeEventListener('click', this.handleAvatarClick);
         }
-
         const editBtn = document.getElementById('editProfileBtn');
         if (editBtn) {
             editBtn.removeEventListener('click', this.handleEditClick);
         }
-
         const cancelBtn = document.getElementById('cancelBtn');
         if (cancelBtn) {
             cancelBtn.removeEventListener('click', this.handleCancelClick);
         }
-
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.removeEventListener('click', this.handleLogout);
@@ -181,23 +177,18 @@ export class ProfilePage implements Page {
         if (this.avatarUpload) {
             this.avatarUpload.addEventListener('change', this.handleAvatarChange.bind(this));
         }
-        
         const avatarButton = document.getElementById('avatarButton');
         if (avatarButton) {
             avatarButton.addEventListener('click', this.handleAvatarClick.bind(this));
         }
-
         const editBtn = document.getElementById('editProfileBtn');
         if (editBtn) {
             editBtn.addEventListener('click', this.handleEditClick.bind(this));
         }
-
         const cancelBtn = document.getElementById('cancelBtn');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', this.handleCancelClick.bind(this));
         }
-
-        // Add logout button event listener
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', this.handleLogout.bind(this));
@@ -232,7 +223,6 @@ export class ProfilePage implements Page {
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
-
             const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
                 method: 'GET',
                 headers: {
@@ -240,20 +230,18 @@ export class ProfilePage implements Page {
                     'Content-Type': 'application/json'
                 }
             });
-
             if (response.ok) {
                 const profile = await response.json();
                 this.currentProfile = profile;
                 this.updateProfileDisplay(profile);
                 this.showProfileDisplay();
             } else if (response.status === 404) {
-                // Profile doesn't exist, show form to create one
+                /** Profile doesn't exist, show form to create one */
                 this.showProfileForm();
             } else {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to load profile');
             }
-
         } catch (error: any) {
             console.error('Error loading profile:', error);
             if (error.message.includes('not found')) {
@@ -282,7 +270,6 @@ export class ProfilePage implements Page {
                 this.updatePhotoDisplay(photo);
             }
         } catch (error) {
-            // Photo not found is okay, keep placeholder
             console.log('No photo found, using placeholder');
         }
     }
@@ -290,18 +277,14 @@ export class ProfilePage implements Page {
     private updateProfileDisplay(profile: ProfileData): void {
         const displayUsername = document.getElementById('displayUsername');
         const displayBio = document.getElementById('displayBio');
-
         if (displayUsername) {
             displayUsername.textContent = profile.username;
         }
         if (displayBio) {
             displayBio.textContent = profile.bio || 'No bio provided';
         }
-
-        // Also update form fields
         const usernameInput = document.getElementById('username') as HTMLInputElement;
         const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
-
         if (usernameInput) {
             usernameInput.value = profile.username;
         }
@@ -338,7 +321,6 @@ export class ProfilePage implements Page {
         const profileDisplay = document.getElementById('profileDisplay');
         const profileFormContainer = document.getElementById('profileFormContainer');
         const cancelBtn = document.getElementById('cancelBtn');
-
         if (profileDisplay) {
             profileDisplay.style.display = 'none';
         }
@@ -349,8 +331,7 @@ export class ProfilePage implements Page {
             cancelBtn.style.display = this.currentProfile ? 'inline-block' : 'none';
         }
         this.isEditing = true;
-
-        // Update save button text
+        /** Update save button text */
         if (this.saveButton) {
             this.saveButton.textContent = this.currentProfile ? 'Update Profile' : 'Create Profile';
         }
@@ -374,20 +355,16 @@ export class ProfilePage implements Page {
 
     private async handleSave(): Promise<void> {
         if (!this.profileForm || !this.saveButton) return;
-
         const formData = new FormData(this.profileForm);
         const profileData: ProfileData = {
             username: formData.get('username') as string,
             bio: formData.get('bio') as string
         };
-
         if (!profileData.username.trim()) {
             showError('Username is required');
             return;
         }
-
         this.setLoadingState(true);
-
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
@@ -401,12 +378,10 @@ export class ProfilePage implements Page {
                 },
                 body: JSON.stringify(profileData)
             });
-
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.message || 'Failed to save profile');
             }
-
             const updatedProfile = await response.json();
             this.currentProfile = updatedProfile;
             this.updateProfileDisplay(updatedProfile);
@@ -414,7 +389,6 @@ export class ProfilePage implements Page {
             
             const message = this.currentProfile ? 'Profile updated successfully!' : 'Profile created successfully!';
             showNotification(message, 'success');
-
         } catch (error: any) {
             showError(error.message || 'Failed to save profile');
         } finally {
@@ -465,7 +439,6 @@ export class ProfilePage implements Page {
 
     private setLoadingState(isLoading: boolean): void {
         if (!this.saveButton) return;
-
         if (isLoading) {
             this.saveButton.disabled = true;
             this.saveButton.innerHTML = `
@@ -482,12 +455,9 @@ export class ProfilePage implements Page {
     }
 
     private handleLogout(): void {
-        // Clear authentication data
         localStorage.removeItem('token');
         localStorage.removeItem('userData');
         sessionStorage.clear();
-        
-        // Redirect to login page
         window.location.href = '/login';
     }
 
@@ -496,7 +466,6 @@ export class ProfilePage implements Page {
             { route: '/dashboard', icon: '🎮', label: 'Dashboard' },
             { route: '/dashboard/profile', icon: '👤', label: 'Profile', active: true },
             { route: '/dashboard/leaderboard', icon: '🏆', label: 'Leaderboard' },
-            { route: '/dashboard/friends', icon: '👥', label: 'Friends' },
             { route: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
             { route: '/chat', icon: '💬', label: 'Chat' }
         ];
