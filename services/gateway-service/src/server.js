@@ -1,7 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import httpProxy from '@fastify/http-proxy';
-import websocket from '@fastify/websocket';
+import { Server } from 'socket.io';
+import { io as ioClient } from 'socket.io-client';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -20,22 +21,23 @@ const fastify = Fastify({
                 colorize: true
             }
         } : undefined
-    },
-    trustProxy: process.env.TRUST_PROXY === 'true'
+    }
 });
 
 const PORT = process.env.PORT || 3005;
 
-// Register CORS plugin
+/** Register CORS plugin */
 await fastify.register(cors, {
     origin: [
         process.env.FRONTEND_URL || 'http://localhost:3000',
         process.env.FRONTEND_DOCKER_URL || 'http://frontend:3000'
     ],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 });
 
-// Service endpoints configuration
+/** Service endpoints configuration */
 const services = {
     auth: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
     user: process.env.USER_SERVICE_URL || 'http://localhost:3002',
@@ -43,7 +45,44 @@ const services = {
     game: process.env.GAME_SERVICE_URL || 'http://localhost:3004'
 };
 
-// Health check endpoint
+/** Helper function to fetch user profile from user service */
+async function fetchUserProfile(userId, authToken = null) {
+    try {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        
+        const response = await fetch(`${services.user}/api/user/profile?user_id=${userId}`, {
+            method: 'GET',
+            headers,
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        
+        if (response.ok) {
+            return await response.json();
+        }
+        return null;
+    } catch (error) {
+        fastify.log.error(`Failed to fetch profile for user ${userId}:`, error);
+        return null;
+    }
+}
+
+/** Static file serving for uploads */
+await fastify.register(async function (fastify) {
+    await fastify.register(httpProxy, {
+        upstream: services.user,
+        prefix: '/uploads',
+        rewritePrefix: '/uploads',
+        http2: false
+    });
+});
+
+/** Health check endpoint */
 fastify.get('/health', async (request, reply) => {
     return {
         status: 'healthy',
@@ -53,7 +92,7 @@ fastify.get('/health', async (request, reply) => {
     };
 });
 
-// Service health check endpoint
+/** Service health check endpoint */
 fastify.get('/health/services', async (request, reply) => {
     const healthChecks = await Promise.allSettled(
         Object.entries(services).map(async ([name, url]) => {
@@ -89,7 +128,7 @@ fastify.get('/health/services', async (request, reply) => {
     return { services: results };
 });
 
-// Auth service proxy
+/** Auth service proxy */
 await fastify.register(async function (fastify) {
     await fastify.register(httpProxy, {
         upstream: services.auth,
@@ -99,42 +138,43 @@ await fastify.register(async function (fastify) {
     });
 });
 
-// User service proxy
+/** User service proxy */
 await fastify.register(async function (fastify) {
     await fastify.register(httpProxy, {
         upstream: services.user,
         prefix: '/api/user',
         rewritePrefix: '/api/user',
-        http2: false
+        http2: false,
+        // Increase timeout for file uploads
+        http: {
+            requestOptions: {
+                timeout: 30000 // 30 seconds
+            }
+        }
     });
 });
 
-// Chat service proxy
+/** Chat service proxy */
 await fastify.register(async function (fastify) {
     await fastify.register(httpProxy, {
         upstream: services.chat,
         prefix: '/api/chat',
         rewritePrefix: '/api/chat',
-        http2: false,
-        websocket: true // Enable WebSocket proxying for chat
+        http2: false
     });
 });
 
-// Game service proxy
+/** Game service proxy */
 await fastify.register(async function (fastify) {
     await fastify.register(httpProxy, {
         upstream: services.game,
         prefix: '/api/game',
         rewritePrefix: '/api/game',
         http2: false,
-        websocket: true // Enable WebSocket proxying for game
     });
 });
 
-// Register websocket plugin for proxy support
-await fastify.register(websocket);
-
-// Error handler
+/** Custom Error handler */
 fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);
     reply.status(500).send({
@@ -143,7 +183,7 @@ fastify.setErrorHandler((error, request, reply) => {
     });
 });
 
-// Not found handler
+/** Custom handler for requests that don't match any route */
 fastify.setNotFoundHandler((request, reply) => {
     reply.status(404).send({
         error: 'Route not found',
@@ -154,12 +194,12 @@ fastify.setNotFoundHandler((request, reply) => {
             '/api/auth/*',
             '/api/user/*',
             '/api/chat/*',
-            '/api/game/*'
+            '/api/game/*',
+            '/uploads/*'
         ]
     });
 });
 
-// Start server
 const start = async () => {
     try {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
@@ -168,13 +208,14 @@ const start = async () => {
         Object.entries(services).forEach(([name, url]) => {
             fastify.log.info(`   - ${name}: ${url}`);
         });
+		fastify.log.info(`🔌 Socket.io gateway active on /socket.io/`);
+		fastify.log.info(`💚 Health checks available at /health and /health/services`);
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);
     }
 };
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
     fastify.log.info('Received SIGTERM, shutting down gracefully');
     await fastify.close();

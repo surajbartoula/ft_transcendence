@@ -49,11 +49,25 @@ export const initDB = () => {
 				two_factor_enabled INTEGER DEFAULT 0,
 				two_factor_secret TEXT NULL,
 				two_factor_temp_secret TEXT NULL,
+				email_verified INTEGER DEFAULT 0,
 				created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)
+		`);
+		db.run(`
+			CREATE TABLE IF NOT EXISTS email_verification_codes (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				email TEXT NOT NULL,
+				code TEXT NOT NULL,
+				expires_at DATETIME NOT NULL,
+				used INTEGER DEFAULT 0,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (email) REFERENCES users(email)
 			)
 		`);
 		db.run(`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`);
 		db.run(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+		db.run(`CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON email_verification_codes(email)`);
+		db.run(`CREATE INDEX IF NOT EXISTS idx_verification_codes_code ON email_verification_codes(code)`);
 		console.log('Database schema initialized successfully');
 	});
 };
