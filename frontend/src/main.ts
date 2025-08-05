@@ -8,8 +8,9 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
 import { GamePage } from './pages/GamePage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
-import { getCurrentUser, User } from './utils/auth';
+import { getCurrentUser, User, getStoredUser } from './utils/auth';
 import { showNotification, showError } from './utils/ui';
+import globalSocket from './utils/globalSocket';
 
 declare global {
 	interface WindowEventMap {
@@ -18,6 +19,8 @@ declare global {
 		navigate: CustomEvent<{ path: string }>;
 		navigateToVerification: CustomEvent<{ email?: string }>;
 		navigateToLogin: CustomEvent;
+		userLoggedIn: CustomEvent;
+		userLoggedOut: CustomEvent;
 	}
 }
 
@@ -29,6 +32,7 @@ class App {
 	constructor() {
 		this.setupRoutes();
 		this.bindEvents();
+		this.initializeApp();
 	}
 
 	private setupRoutes(): void {
@@ -53,6 +57,48 @@ class App {
 		});
 	}
 
+	private initializeApp(): void {
+		/** Request notification permission when app loads */
+		this.requestNotificationPermission();
+		/** Initialize global socket if user is already logged in */
+		this.initializeGlobalSocket();
+		/** Setup visibility change handler for socket reconnection */
+		this.setupVisibilityChangeHandler();
+	}
+
+	private requestNotificationPermission(): void {
+		if ('Notification' in window && Notification.permission === 'default') {
+			Notification.requestPermission().then(permission => {
+				if (permission === 'granted') {
+					console.log('Notification permission granted');
+				} else if (permission === 'denied') {
+					console.log('Notification permission denied');
+				}
+			}).catch(error => {
+				console.error('Error requesting notification permission:', error);
+			});
+		}
+	}
+
+	private initializeGlobalSocket(): void {
+		const user = getStoredUser();
+		if (user && this.token) {
+			globalSocket.connect();
+		}
+	}
+
+	private setupVisibilityChangeHandler(): void {
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible' && 
+				getStoredUser() && 
+				this.token && 
+				!globalSocket.isConnected()) {
+				console.log('Page became visible, reconnecting socket...');
+				globalSocket.connect();
+			}
+		});
+	}
+
 	private bindEvents(): void {
 		window.addEventListener('authSuccess', this.handleAuthSuccess.bind(this));
 		window.addEventListener('logout', this.handleLogout.bind(this));
@@ -64,6 +110,16 @@ class App {
 		window.addEventListener('error', (e) => {
 			console.error('Global error:', e.error);
 			showError('An unexpected error occurred');
+		});
+
+		window.addEventListener('userLoggedIn', () => {
+			console.log('User logged in event received, connecting socket...');
+			globalSocket.connect();
+		});
+
+		window.addEventListener('userLoggedOut', () => {
+			console.log('User logged out event received, disconnecting socket...');
+			globalSocket.disconnect();
 		});
 	}
 
@@ -79,7 +135,6 @@ class App {
 		const { token, user } = event.detail;
 		this.token = token;
 		localStorage.setItem('token', token);
-
 		try {
 			this.currentUser = user || await getCurrentUser(token);
 			localStorage.setItem('userData', JSON.stringify(this.currentUser));
@@ -90,6 +145,8 @@ class App {
 			if (this.currentUser) {
 				showNotification(`Welcome back ${this.currentUser.name}!`, 'success');
 			}
+			/** Dispatch userLoggedIn event to trigger socket connection */
+			window.dispatchEvent(new CustomEvent('userLoggedIn'));
 		} catch (error) {
 			console.error('Authentication failed:', error);
 			this.logout();
@@ -101,6 +158,8 @@ class App {
 	}
 
 	private logout(): void {
+		/** Dispatch userLoggedOut event before clearing data */
+		window.dispatchEvent(new CustomEvent('userLoggedOut'));
 		localStorage.removeItem('token');
 		localStorage.removeItem('userData');
 		this.token = null;
@@ -126,12 +185,15 @@ class App {
 
 	public async start(): Promise<void> {
 		this.showLoadingState();
-
 		try {
 			if (this.token) {
 				this.currentUser = await getCurrentUser(this.token);
 				localStorage.setItem('userData', JSON.stringify(this.currentUser));
 				this.router.setAuthenticated(true);
+				/** Connect socket if user validation is successful */
+				if (this.currentUser) {
+					globalSocket.connect();
+				}
 			} else {
 				this.router.setAuthenticated(false);
 			}
@@ -139,7 +201,6 @@ class App {
 			console.error('Token validation failed:', error);
 			this.logout();
 		}
-
 		this.router.start();
 	}
 }

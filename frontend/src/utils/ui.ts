@@ -19,6 +19,128 @@ export function hideError(): void {
         errorMessage.classList.remove('slide-up');
     }
 }
+export function showClickableNotification(
+    message: string, 
+    type: 'success' | 'error' | 'info' | 'warning' = 'info', 
+    duration: number = 5000, // 0 = don't auto-dismiss
+    onClick?: () => void,
+    actionText?: string // Optional text to show what clicking does
+): void {
+    const notificationsContainer = document.getElementById('notifications');
+    if (!notificationsContainer) {
+        console.warn('Notifications container not found');
+        return;
+    }
+    /** Remove existing clickable notifications of the same type to avoid conflict */
+    const existingNotifications = notificationsContainer.querySelectorAll(`.clickable-notification-${type}`);
+    existingNotifications.forEach(notification => notification.remove());
+    const notification = document.createElement('div');
+    notification.className = `clickable-notification-${type} notification-item notification-${type} max-w-sm w-full transition-all duration-300 transform translate-x-full mb-4`;
+    /** Add hover effect if clickable */
+    if (onClick) {
+        notification.className += ' cursor-pointer hover:shadow-xl hover:scale-105';
+    }
+    notification.innerHTML = `
+        <div class="flex items-start flex-1">
+            <div class="flex-shrink-0">
+                ${getClickableNotificationIcon(type)}
+            </div>
+            <div class="ml-3 flex-1">
+                <p class="text-sm font-medium text-white">${escapeHtml(message)}</p>
+                ${onClick && actionText ? `<p class="text-xs text-gray-300 mt-1">${escapeHtml(actionText)}</p>` : ''}
+                ${onClick && !actionText ? '<p class="text-xs text-gray-300 mt-1">Click to open</p>' : ''}
+            </div>
+            <div class="ml-4 flex-shrink-0">
+                <button class="close-btn text-gray-400 hover:text-white transition-colors">
+                    <span class="sr-only">Close</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    notificationsContainer.appendChild(notification);
+    /** Animate in */
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    /** Add click handler for the entire notification (except close button) */
+    if (onClick) {
+        notification.addEventListener('click', (e) => {
+            if (!(e.target as Element).closest('.close-btn')) {
+                onClick();
+                removeClickableNotification(notification);
+            }
+        });
+    }
+    /** Add close button handler */
+    const closeBtn = notification.querySelector('.close-btn');
+    closeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeClickableNotification(notification);
+    });
+    
+    /** Auto remove after duration (if duration > 0) */
+    if (duration > 0) {
+        setTimeout(() => {
+            removeClickableNotification(notification);
+        }, duration);
+    }
+}
+
+function removeClickableNotification(notification: HTMLElement): void {
+    notification.classList.add('translate-x-full');
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 300);
+}
+
+function getClickableNotificationIcon(type: 'success' | 'error' | 'info' | 'warning'): string {
+    switch (type) {
+        case 'success':
+            return `
+                <svg class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            `;
+        case 'error':
+            return `
+                <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+            `;
+        case 'warning':
+            return `
+                <svg class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+            `;
+        case 'info':
+        default:
+            return `
+                <svg class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            `;
+    }
+}
+
+function getClickableNotificationTextColor(type: 'success' | 'error' | 'info' | 'warning'): string {
+    switch (type) {
+        case 'success':
+            return 'text-green-900';
+        case 'error':
+            return 'text-red-900';
+        case 'warning':
+            return 'text-yellow-900';
+        case 'info':
+        default:
+            return 'text-blue-900';
+    }
+}
 
 export function showNotification(
     message: string, 
@@ -30,10 +152,8 @@ export function showNotification(
         console.warn('Notifications container not found');
         return;
     }
-
     const notification = document.createElement('div');
     notification.className = `notification max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 mb-4 ${getNotificationClasses(type)}`;
-    
     notification.innerHTML = `
         <div class="flex-1 w-0 p-4">
             <div class="flex items-start">
@@ -51,18 +171,14 @@ export function showNotification(
             </button>
         </div>
     `;
-
-    // Add close functionality
     const closeBtn = notification.querySelector('button');
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
             removeNotification(notification);
         });
     }
-
     notificationsContainer.appendChild(notification);
-
-    // Auto-remove after duration
+    /** Auto-remove after duration */
     if (duration > 0) {
         setTimeout(() => {
             removeNotification(notification);
@@ -222,23 +338,18 @@ export function validateEmail(email: string): boolean {
 
 export function validatePassword(password: string): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
     if (password.length < 8) {
         errors.push('Password must be at least 8 characters long');
     }
-    
     if (!/[A-Z]/.test(password)) {
         errors.push('Password must contain at least one uppercase letter');
     }
-    
     if (!/[a-z]/.test(password)) {
         errors.push('Password must contain at least one lowercase letter');
     }
-    
     if (!/\d/.test(password)) {
         errors.push('Password must contain at least one number');
     }
-    
     return {
         isValid: errors.length === 0,
         errors
@@ -255,7 +366,7 @@ export function copyToClipboard(text: string): Promise<boolean> {
     if (navigator.clipboard && window.isSecureContext) {
         return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
     } else {
-        // Fallback for older browsers
+        /** Fallback for older browsers */
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'absolute';
@@ -263,7 +374,6 @@ export function copyToClipboard(text: string): Promise<boolean> {
         
         document.body.prepend(textArea);
         textArea.select();
-        
         try {
             document.execCommand('copy');
             return Promise.resolve(true);
@@ -284,12 +394,10 @@ function generateColorFromString(str: string): string {
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
     const hue = Math.abs(hash) % 360;
     return `hsl(${hue}, 70%, 50%)`.replace(/[^\w]/g, '').slice(3, 9);
 }
 
-// Export utility functions for external use
 export const utils = {
     debounce,
     throttle,

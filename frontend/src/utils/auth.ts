@@ -138,3 +138,16 @@ export function getStoredUser(): User | null {
 export function getStoredToken(): string | null {
     return localStorage.getItem('token');
 }
+
+export function setStoredUser(user: any): void {
+    localStorage.setItem('user_data', JSON.stringify(user));
+    /** Trigger global socket connection */
+    window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: user }));
+}
+
+export function clearStoredAuth(): void {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_data');
+    /** Trigger global socket disconnection */
+    window.dispatchEvent(new CustomEvent('userLoggedOut'));
+}

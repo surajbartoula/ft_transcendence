@@ -2,7 +2,7 @@ import { Page } from '../router/Router';
 import { showError, hideError, showNotification, formatDate, generateAvatarUrl, escapeHtml } from '../utils/ui';
 import { getStoredToken, getStoredUser } from '../utils/auth';
 import { API_CONFIG } from '../config';
-import { io, Socket } from 'socket.io-client';
+import globalSocket from '../utils/globalSocket';
 
 interface User {
     user_id: string;
@@ -53,11 +53,17 @@ interface FriendRequest {
     request_date: string;
 }
 
+declare global {
+    interface WindowEventMap {
+        'globalMessage': CustomEvent<any>;
+        'openSpecificChat': CustomEvent<{ userId: string }>;
+    }
+}
+
 export class ChatPage implements Page {
     title = 'Chat';
     requiresAuth = true;
     
-    private socket: Socket | null = null;
     private currentUser: any = null;
     private currentChatFriend: User | null = null;
     private messages: Message[] = [];
@@ -243,26 +249,109 @@ export class ChatPage implements Page {
             return;
         }
         await this.loadInitialData();
-        await this.initializeSocket();
+        await this.setupGlobalSocketListeners();
         this.setupEventListeners();
+		this.handlePendingNavigation();
     }
 
     cleanup(): void {
-        if (this.socket) {
-            this.socket.disconnect();
-            this.socket = null;
-        }
-        /** Clear all typing timeouts */
+        window.removeEventListener('globalMessage', this.handleGlobalMessage);
+        window.removeEventListener('openSpecificChat', this.handleOpenSpecificChat);
+        
+        // Clear typing timeouts
         Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
         this.typingTimeout = {};
         
-        /** Clear current user typing timeout */
         if (this.currentUserTypingTimeout) {
             clearTimeout(this.currentUserTypingTimeout);
             this.currentUserTypingTimeout = null;
         }
         this.isCurrentUserTyping = false;
         this.isTyping = {};
+
+        // Clear the current chat indicator
+        (window as any).currentOpenChatUserId = null;
+    }
+
+    private setupGlobalSocketListeners(): void {
+        // Use the global socket instead of creating a new one
+        const socket = globalSocket.getSocket();
+        if (!socket) return;
+
+        // Listen for events that are specific to chat page
+        socket.on('user_typing', (data: { user_id: string }) => {
+            this.handleTypingStart(data.user_id);
+        });
+
+        socket.on('user_stopped_typing', (data: { user_id: string }) => {
+            this.handleTypingStop(data.user_id);
+        });
+
+        socket.on('user_online', (data: { user_id: string }) => {
+            this.onlineUsers.add(data.user_id);
+            this.updateUserOnlineStatus(data.user_id, true);
+        });
+
+        socket.on('user_offline', (data: { user_id: string }) => {
+            this.onlineUsers.delete(data.user_id);
+            this.updateUserOnlineStatus(data.user_id, false);
+        });
+
+        socket.on('online_users_list', (data: { user_ids: string[] }) => {
+            this.onlineUsers = new Set(data.user_ids.map(id => String(id)));
+            setTimeout(() => {
+                this.renderChats();
+                this.renderFriends();
+            }, 100);
+        });
+
+        // Request online users when chat page loads
+        if (globalSocket.isConnected()) {
+            socket.emit('get_online_users');
+        }
+
+        // Listen for global messages
+        window.addEventListener('globalMessage', this.handleGlobalMessage.bind(this));
+        window.addEventListener('openSpecificChat', this.handleOpenSpecificChat.bind(this));
+    }
+
+    private handleGlobalMessage = (event: CustomEvent) => {
+        const messageData = event.detail;
+        
+        // If chat is open with this user, add message to UI
+        if (this.currentChatFriend && String(messageData.sender_id) === this.currentChatFriend.user_id) {
+            this.messages.push(messageData);
+            this.renderMessages();
+            this.scrollToBottom();
+        }
+
+        // Always update chats list
+        this.loadChats();
+    };
+
+    private handleOpenSpecificChat = (event: CustomEvent) => {
+        const { userId } = event.detail;
+        const friend = this.friends.find(f => String(f.user_id) === userId) || 
+                      this.chats.find(c => String(c.friend.user_id) === userId)?.friend;
+        
+        if (friend) {
+            this.openChat(friend);
+        }
+    };
+
+    private handlePendingNavigation(): void {
+        /** Check if we should open a specific chat (from notification click) */
+        const pendingUserId = sessionStorage.getItem('openChatUserId');
+        if (pendingUserId) {
+            sessionStorage.removeItem('openChatUserId');
+            setTimeout(async () => {
+                await this.loadFriends();
+                const friend = this.friends.find(f => String(f.user_id) === pendingUserId);
+                if (friend) {
+                    this.openChat(friend);
+                }
+            }, 500);
+        }
     }
 
 	private updateUserOnlineStatus(userId: string, isOnline: boolean): void {
@@ -295,97 +384,6 @@ export class ChatPage implements Page {
 				chatStatus.className = `text-sm ${isOnline ? 'text-green-400' : 'text-gray-400'}`;
 			}
 		}
-	}
-
-	private requestOnlineUsers(): void {
-		let attempts = 0;
-		const maxAttempts = 3;
-		
-		const tryRequest = () => {
-			attempts++;
-			if (this.socket && this.socket.connected) {
-				this.socket.emit('get_online_users');
-				
-				setTimeout(() => {
-					if (this.onlineUsers.size === 0 && attempts < maxAttempts) {
-						tryRequest();
-					}
-				}, 3000);
-			}
-		};
-		setTimeout(tryRequest, 1000);
-	}
-
-	private async initializeSocket(): Promise<void> {
-		const token = getStoredToken();
-		if (!token) return;
-		
-		this.socket = io('http://localhost:3003', {
-			auth: { token },
-			timeout: 10000
-		});
-
-		this.socket.on('connect', () => {
-			setInterval(() => {
-				this.socket?.emit('heartbeat');
-			}, 30000);
-			this.requestOnlineUsers();
-		});
-
-		this.socket.on('disconnect', () => {
-			this.onlineUsers.clear();
-			this.renderChats();
-			this.renderFriends();
-		});
-
-		this.socket.on('new_message', (data: Message & { sender_profile: User }) => {
-			this.handleNewMessage(data);
-		});
-
-		this.socket.on('friend_request', (data: { from_user: User; message: string }) => {
-			showNotification(data.message, 'info');
-			this.loadFriendRequests();
-		});
-
-		this.socket.on('friend_request_accepted', (data: { from_user: User; message: string }) => {
-			showNotification(data.message, 'success');
-			this.loadFriends();
-		});
-
-		this.socket.on('user_typing', (data: { user_id: string }) => {
-			this.handleTypingStart(data.user_id);
-		});
-
-		this.socket.on('user_stopped_typing', (data: { user_id: string }) => {
-			this.handleTypingStop(data.user_id);
-		});
-
-		this.socket.on('user_online', (data: { user_id: string }) => {
-			this.onlineUsers.add(data.user_id);
-			this.updateUserOnlineStatus(data.user_id, true);
-		});
-
-		this.socket.on('user_offline', (data: { user_id: string }) => {
-			this.onlineUsers.delete(data.user_id);
-			this.updateUserOnlineStatus(data.user_id, false);
-		});
-
-		this.socket.on('online_users_list', (data: { user_ids: string[] }) => {
-			this.onlineUsers = new Set(data.user_ids.map(id => String(id))); // Ensure string IDs
-			setTimeout(() => {
-				this.renderChats();
-				this.renderFriends();
-			}, 100);
-		});
-
-		this.socket.on('error', (data: { message: string }) => {
-			console.error('Socket error:', data.message);
-			showError(data.message);
-		});
-
-		this.socket.on('connect_error', (error) => {
-			console.error('Socket connection error:', error);
-		});
 	}
 
     private setupMessageInputListeners(): void {
@@ -584,7 +582,6 @@ export class ChatPage implements Page {
 	private renderFriends(): void {
 		const container = document.getElementById('friendsList');
 		if (!container) return;
-		
 		if (this.friends.length === 0) {
 			container.innerHTML = `
 				<div class="text-center text-gray-400 py-8">
@@ -688,21 +685,21 @@ export class ChatPage implements Page {
         this.isTyping = {};
         this.currentChatFriend = friend;
         this.messages = [];
-        /** Update UI */
+        /** Set global indicator so notifications know which chat is open */
+        (window as any).currentOpenChatUserId = friend.user_id;
         document.getElementById('welcomeScreen')?.classList.add('hidden');
         document.getElementById('chatHeader')?.classList.remove('hidden');
         document.getElementById('messagesArea')?.classList.remove('hidden');
-        /** Update chat header */
         const chatAvatar = document.getElementById('chatAvatar') as HTMLImageElement;
         const chatName = document.getElementById('chatName');
         const chatStatus = document.getElementById('chatStatus');
         if (chatAvatar) chatAvatar.src = (friend.photo?.path ? API_CONFIG.GATEWAY_URL + friend.photo.path : generateAvatarUrl());
         if (chatName) chatName.textContent = friend.display_name;
-		const isOnline = this.isUserOnline(friend.user_id);
-		if (chatStatus) {
-			chatStatus.textContent = isOnline ? 'Online' : 'offline';
-			chatStatus.className = `text-sm ${isOnline ? 'text-green-400': 'text-gray-400'}`;
-		}
+        const isOnline = this.isUserOnline(friend.user_id);
+        if (chatStatus) {
+            chatStatus.textContent = isOnline ? 'Online' : 'Offline';
+            chatStatus.className = `text-sm ${isOnline ? 'text-green-400': 'text-gray-400'}`;
+        }
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
     }
@@ -712,6 +709,8 @@ export class ChatPage implements Page {
         this.isTyping = {};
         this.currentChatFriend = null;
         this.messages = [];
+        /** Clear global indicator */
+        (window as any).currentOpenChatUserId = null;
         document.getElementById('welcomeScreen')?.classList.remove('hidden');
         document.getElementById('chatHeader')?.classList.add('hidden');
         document.getElementById('messagesArea')?.classList.add('hidden');
@@ -772,15 +771,10 @@ export class ChatPage implements Page {
     private async sendMessage(): Promise<void> {
         const input = document.getElementById('messageInput') as HTMLInputElement;
         const content = input.value.trim();
-        if (!content || !this.currentChatFriend || !this.socket) return;
-        /** Clear input */
+        if (!content || !this.currentChatFriend) return;
         input.value = '';
-        /** Send via socket */
-        this.socket.emit('send_message', {
-            receiver_id: this.currentChatFriend.user_id,
-            content,
-            message_type: 'text'
-        });
+        globalSocket.sendMessage(this.currentChatFriend.user_id, content, 'text');
+
         const tempMessage: Message = {
             id: Date.now(),
             sender_id: this.currentUser.id,
@@ -789,6 +783,7 @@ export class ChatPage implements Page {
             message_type: 'text',
             created_at: new Date().toISOString()
         };
+
         this.messages.push(tempMessage);
         this.renderMessages();
         this.scrollToBottom();
@@ -815,31 +810,28 @@ export class ChatPage implements Page {
     }
 
     private handleTyping(): void {
-        if (!this.currentChatFriend || !this.socket) {
-            console.log('Cannot send typing: no chat friend or socket');
-            return;
-        }
+        if (!this.currentChatFriend) return;
+
         if (!this.isCurrentUserTyping) {
             this.isCurrentUserTyping = true;
-            this.socket.emit('typing_start', {
-                receiver_id: this.currentChatFriend.user_id
-            });
+            globalSocket.startTyping(this.currentChatFriend.user_id);
         }
+
         if (this.currentUserTypingTimeout) {
             clearTimeout(this.currentUserTypingTimeout);
         }
-        /** Set new timeout to stop typing after 2 seconds of inactivity */
+
         this.currentUserTypingTimeout = setTimeout(() => {
             this.stopTyping();
         }, 2000);
     }
 
     private stopTyping(): void {
-        if (!this.currentChatFriend || !this.socket || !this.isCurrentUserTyping) return;
-        this.socket.emit('typing_stop', {
-            receiver_id: this.currentChatFriend.user_id
-        });
+        if (!this.currentChatFriend || !this.isCurrentUserTyping) return;
+
+        globalSocket.stopTyping(this.currentChatFriend.user_id);
         this.isCurrentUserTyping = false;
+        
         if (this.currentUserTypingTimeout) {
             clearTimeout(this.currentUserTypingTimeout);
             this.currentUserTypingTimeout = null;
