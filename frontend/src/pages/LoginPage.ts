@@ -16,7 +16,7 @@ export class LoginPage implements Page {
 
     public render(): string {
         return `
-            <div class="min-h-screen flex items-center justify-center px-4" style="background-image: url('./welcome.JPG'); background-size: cover; background-position: center;">
+            <div class="min-h-screen flex items-center justify-center px-4" style="background-image: url('/welcome.JPG'); background-size: cover; background-position: center;">
                 <div class="w-full max-w-md relative z-10">
                     <div class="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8 fade-in">
                         <div class="text-center mb-8">
