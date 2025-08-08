@@ -5,7 +5,11 @@ module.exports = {
     "./src/**/*.{ts,js}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        'BitcountGridDouble': ['BitcountGridDouble', 'sans-serif'],
+      }
+	},
   },
   plugins: [],
 };
