@@ -57,7 +57,7 @@ class App {
 
 	private initializeApp(): void {
 		/** Request notification permission when app loads */
-		this.requestNotificationPermission();
+		// this.requestNotificationPermission();
 		/** Initialize global socket if user is already logged in */
 		this.initializeGlobalSocket();
 		/** Setup visibility change handler for socket reconnection */
