@@ -14,13 +14,13 @@ export class EmailVerificationPage implements Page {
     private cooldownInterval: NodeJS.Timeout | null = null;
 
     constructor() {
-        // Get email from session storage (set by login page)
+        /** Get email from session storage (set by login page) */
         this.email = sessionStorage.getItem('verificationEmail') || '';
     }
 
     public render(): string {
         if (!this.email) {
-            // If no email, redirect back to login
+            /** If no email, redirect back to login */
             setTimeout(() => {
                 const event = new CustomEvent('navigateToLogin');
                 window.dispatchEvent(event);
@@ -144,54 +144,43 @@ export class EmailVerificationPage implements Page {
     private setupCodeInput(): void {
         const codeInput = document.getElementById('verificationCode') as HTMLInputElement;
         if (codeInput) {
-            // Only allow numbers and letters
+            /** Only allow numbers and letters */
             codeInput.addEventListener('input', (e) => {
                 const target = e.target as HTMLInputElement;
                 target.value = target.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
-                
-                // Auto-submit when 6 digits are entered
+                /** Auto-submit when 6 digits are entered */
                 if (target.value.length === 6) {
                     this.handleVerify();
                 }
             });
-
-            // Focus the input on page load
+            /** Focus the input on page load */
             codeInput.focus();
         }
     }
 
     private async handleVerify(): Promise<void> {
         this.hideMessages();
-        
         const codeInput = document.getElementById('verificationCode') as HTMLInputElement;
         const code = codeInput.value.trim();
-        
         if (!code) {
             this.showError('Please enter the verification code');
             return;
         }
-        
         if (code.length !== 6) {
             this.showError('Verification code must be 6 digits');
             return;
         }
-        
         this.setLoadingState(true);
-        
         try {
             const response: LoginResponse = await verifyEmail(this.email, code);
-            
             this.showSuccess(response.message || 'Email verified successfully!');
-            
-            // Store authentication data if provided
+            /** Store authentication data if provided */
             if (response.token && response.user) {
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('userData', JSON.stringify(response.user));
-                
-                // Clear verification email from session
+                /** Clear verification email from session */
                 sessionStorage.removeItem('verificationEmail');
-                
-                // Redirect to dashboard after short delay
+                /** Redirect to dashboard after short delay */
                 setTimeout(() => {
                     const event = new CustomEvent('authSuccess', {
                         detail: response
@@ -199,10 +188,9 @@ export class EmailVerificationPage implements Page {
                     window.dispatchEvent(event);
                 }, 1500);
             }
-            
         } catch (err: any) {
             this.showError(err.message || 'Verification failed');
-            // Clear the input on error
+            /** Clear the input on error */
             codeInput.value = '';
             codeInput.focus();
         } finally {
@@ -212,15 +200,12 @@ export class EmailVerificationPage implements Page {
 
     private async handleResend(): Promise<void> {
         if (this.resendCooldown > 0) return;
-        
         this.hideMessages();
         this.setResendLoadingState(true);
-        
         try {
             await resendVerificationCode(this.email);
             this.showSuccess('Verification code sent successfully!');
-            this.startCooldown(60); // 60 second cooldown
-            
+            this.startCooldown(60); /** 60 second cooldown */
         } catch (err: any) {
             this.showError(err.message || 'Failed to resend verification code');
         } finally {
@@ -229,26 +214,23 @@ export class EmailVerificationPage implements Page {
     }
 
     private handleBackToLogin(): void {
-        // Clear verification email from session
+        /** Clear verification email from session */
         sessionStorage.removeItem('verificationEmail');
-        
         const event = new CustomEvent('navigateToLogin');
         window.dispatchEvent(event);
     }
 
     private startInitialCooldown(): void {
-        // Start with 30 second cooldown since code was just sent
+        /** Start with 30 second cooldown since code was just sent */
         this.startCooldown(30);
     }
 
     private startCooldown(seconds: number): void {
         this.resendCooldown = seconds;
         this.updateCooldownUI();
-        
         this.cooldownInterval = setInterval(() => {
             this.resendCooldown--;
             this.updateCooldownUI();
-            
             if (this.resendCooldown <= 0) {
                 if (this.cooldownInterval) {
                     clearInterval(this.cooldownInterval);
@@ -309,7 +291,6 @@ export class EmailVerificationPage implements Page {
         if (this.resendButton) this.resendButton.disabled = isLoading || this.resendCooldown > 0;
         if (this.backButton) this.backButton.disabled = isLoading;
         if (codeInput) codeInput.disabled = isLoading;
-        
         if (verifyStatus) {
             verifyStatus.classList.toggle('hidden', !isLoading);
         }
@@ -323,7 +304,6 @@ export class EmailVerificationPage implements Page {
         } else if (resendText && isLoading) {
             resendText.textContent = 'Sending...';
         }
-        
         if (this.resendButton) {
             this.resendButton.disabled = isLoading || this.resendCooldown > 0;
         }

@@ -1,8 +1,8 @@
-// pages/ProfilePage.ts - Profile page with all related functionality
 import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { showNotification, showError } from '../utils/ui';
 import { API_CONFIG } from '../config';
+import { generateAvatarUrl } from '../utils/ui';
 
 interface ProfileData {
     username: string;
@@ -204,8 +204,7 @@ export class ProfilePage implements Page {
         const memberSince = document.getElementById('memberSince');
 
         if (profileAvatar) {
-            const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
-            profileAvatar.innerHTML = `<span class="text-white text-2xl font-bold">${initials}</span>`;
+            profileAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">`;
         }
         if (currentUserName) {
             currentUserName.textContent = this.currentUser.name;

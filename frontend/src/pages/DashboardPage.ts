@@ -2,7 +2,7 @@
 import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { fetchUserGameData } from '../utils/dashboard';
-import { showError, showNotification } from '../utils/ui';
+import { generateAvatarUrl, showError, showNotification } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
 export class DashboardPage implements Page {
@@ -145,21 +145,17 @@ export class DashboardPage implements Page {
         if (this.playButton) {
             this.playButton.removeEventListener('click', this.handlePlayClick);
         }
-        
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.removeEventListener('click', this.handleLogout);
         }
-
         const closeButton = document.getElementById('closeButton');
         if (closeButton) {
             closeButton.removeEventListener('click', this.hideModal);
         }
-
         if (this.modalOverlay) {
             this.modalOverlay.removeEventListener('click', this.handleModalClick);
         }
-
         document.removeEventListener('keydown', this.handleKeyDown);
     }
 
@@ -172,25 +168,20 @@ export class DashboardPage implements Page {
         if (this.playButton) {
             this.playButton.addEventListener('click', this.handlePlayClick.bind(this));
         }
-
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', this.handleLogout.bind(this));
         }
-
-        // Modal events
+        /** Modal events */
         const closeButton = document.getElementById('closeButton');
         if (closeButton) {
             closeButton.addEventListener('click', this.hideModal.bind(this));
         }
-
         if (this.modalOverlay) {
             this.modalOverlay.addEventListener('click', this.handleModalClick.bind(this));
         }
-
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
-
-        // Game mode selection
+        /** Game mode selection */
         const gameModeButtons = document.querySelectorAll('[data-game-mode]');
         gameModeButtons.forEach(button => {
             button.addEventListener('click', this.handleGameModeSelect.bind(this));
@@ -199,19 +190,16 @@ export class DashboardPage implements Page {
 
     private async loadUserData(): Promise<void> {
         try {
-            // Get user data from localStorage
+            /** Get user data from localStorage */
             const userDataStr = localStorage.getItem('userData');
             const token = localStorage.getItem('token');
-            
             if (userDataStr) {
                 this.currentUser = JSON.parse(userDataStr);
             }
-
             if (token) {
-                // Fetch latest profile data with photo
+                /** Fetch latest profile data with photo */
                 await this.fetchLatestProfile(token);
-                
-                // Fetch game data
+                /** Fetch game data */
                 this.gameData = await fetchUserGameData(token);
             }
         } catch (error) {
@@ -222,7 +210,7 @@ export class DashboardPage implements Page {
 
     private async fetchLatestProfile(token: string): Promise<void> {
         try {
-            // Fetch profile data
+            /** Fetch profile data */
             const profileResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
                 method: 'GET',
                 headers: {
@@ -230,86 +218,72 @@ export class DashboardPage implements Page {
                     'Content-Type': 'application/json'
                 }
             });
-
             if (profileResponse.ok) {
                 const profile = await profileResponse.json();
-                // Update current user with profile username
+                /** Update current user with profile username */
                 if (this.currentUser && profile.username) {
                     this.currentUser.name = profile.username;
                 }
             }
-
-            // Fetch photo data
+            /** Fetch photo data */
             const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
             if (photoResponse.ok) {
                 const photo = await photoResponse.json();
-                // Store photo data for later use
+                /** Store photo data for later use */
                 if (this.currentUser) {
                     this.currentUser.photo = photo;
                 }
             }
         } catch (error) {
             console.log('Could not fetch profile/photo data:', error);
-            // Not critical, continue with localStorage data
         }
     }
 
     private populateUserInterface(): void {
         if (!this.currentUser) return;
-
-        // Update user avatar and info
+        /** Update user avatar and info */
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
         const userHandle = document.getElementById('userHandle');
         const userRating = document.getElementById('userRating');
         
         if (userAvatar) {
-            // Check if user has a photo
-            if (this.currentUser.photo) {
+            /** Check if user has a photo */
+            if (this.currentUser.photo && this.currentUser.photo.path) {
                 userAvatar.innerHTML = `<img src="${API_CONFIG.GATEWAY_URL}${this.currentUser.photo.path}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
-            } else {
-                // Use initials as fallback
-                const initials = this.currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
-                userAvatar.innerHTML = `<span class="text-white font-bold text-xl">${initials}</span>`;
-            }
+			} else {
+				userAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
+			}
         }
-        
         if (userName) {
             userName.textContent = this.currentUser.name;
         }
-        
         if (userHandle) {
             const handle = this.currentUser.email ? 
                 `@${this.currentUser.email.split('@')[0]}` : 
                 `@${this.currentUser.name.toLowerCase().replace(/\s+/g, '')}`;
             userHandle.textContent = handle;
         }
-        
         if (userRating && this.gameData) {
             userRating.textContent = this.gameData.stats?.rating?.toString() || '1000';
         }
-        
-        // Update game statistics
+        /** Update game statistics */
         this.updateGameStatistics();
-        
-        // Populate sections
+        /** Populate sections */
         this.populateRecentGames();
         this.populateAchievements();
     }
 
     private updateGameStatistics(): void {
         if (!this.gameData) return;
-
         const gamesPlayed = document.getElementById('gamesPlayed');
         const wins = document.getElementById('wins');
         const losses = document.getElementById('losses');
-        
         if (gamesPlayed) gamesPlayed.textContent = this.gameData.stats?.gamesPlayed?.toString() || '0';
         if (wins) wins.textContent = this.gameData.stats?.wins?.toString() || '0';
         if (losses) losses.textContent = this.gameData.stats?.losses?.toString() || '0';
@@ -318,9 +292,7 @@ export class DashboardPage implements Page {
     private populateRecentGames(): void {
         const container = document.getElementById('recentGamesContainer');
         if (!container) return;
-
         const recentGames = this.gameData?.recentGames || [];
-        
         if (recentGames.length === 0) {
             container.innerHTML = `
                 <div class="p-8 text-center empty-state">
@@ -331,7 +303,6 @@ export class DashboardPage implements Page {
             `;
             return;
         }
-        
         container.innerHTML = recentGames.map((game: any) => `
             <div class="grid grid-cols-4 gap-4 p-4 border-b border-slate-700 hover:bg-slate-700 transition-colors">
                 <div class="font-medium">${game.game}</div>
@@ -345,9 +316,7 @@ export class DashboardPage implements Page {
     private populateAchievements(): void {
         const container = document.getElementById('achievementsContainer');
         if (!container) return;
-
         const achievements = this.gameData?.achievements || [];
-        
         if (achievements.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-8 empty-state">
@@ -358,7 +327,6 @@ export class DashboardPage implements Page {
             `;
             return;
         }
-        
         container.innerHTML = achievements.slice(0, 4).map((achievement: any) => `
             <div class="bg-slate-700 p-4 rounded-lg flex items-center space-x-4 card-hover">
                 <div class="text-2xl">${achievement.icon}</div>
@@ -407,9 +375,7 @@ export class DashboardPage implements Page {
     private handleGameModeSelect(e: Event): void {
         const target = e.currentTarget as HTMLElement;
         const gameMode = target.getAttribute('data-game-mode');
-        
         this.hideModal();
-        
         switch (gameMode) {
             case 'solo-ai':
             case 'multiplayer-local':
@@ -422,7 +388,7 @@ export class DashboardPage implements Page {
     }
 
     private navigateToGame(): void {
-        // Dispatch navigation event
+        /** Dispatch navigation event */
         const event = new CustomEvent('navigate', {
             detail: { path: '/game' }
         });
@@ -430,7 +396,6 @@ export class DashboardPage implements Page {
     }
 
     private navigateToSettings(): void {
-        // Dispatch navigation event
         const event = new CustomEvent('navigate', {
             detail: { path: '/dashboard/settings' }
         });
@@ -439,15 +404,11 @@ export class DashboardPage implements Page {
 
     private handleLogout(e: Event): void {
         e.preventDefault();
-        
-        // Clear authentication data
         localStorage.removeItem('token');
         localStorage.removeItem('userData');
-        
-        // Dispatch logout event
+        /** Dispatch logout event */
         const event = new CustomEvent('logout');
         window.dispatchEvent(event);
-        
         showNotification('Successfully logged out', 'success');
     }
 }
