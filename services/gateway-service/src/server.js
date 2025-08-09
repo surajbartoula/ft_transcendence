@@ -1,16 +1,36 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import httpProxy from '@fastify/http-proxy';
-import { Server } from 'socket.io';
-import { io as ioClient } from 'socket.io-client';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+const PORT = process.env.PORT || 3005;
+
+const sslKeyPath = '/app/ssl/key.pem';
+const sslCertPath = '/app/ssl/cert.pem';
+
+let httpsOptions = null;
+
+try {
+	if (!fs.existsSync(sslKeyPath) || !fs.existsSync(sslCertPath)) {
+		console.error('SSL certificates not found!');
+		process.exit(1);
+	}
+	httpsOptions = {
+		key: fs.readFileSync(sslKeyPath),
+		cert: fs.readFileSync(sslCertPath)
+	}
+} catch (error) {
+	console.error('Error reading SSL certificates:', error.message);
+	process.exit(1);
+}
 
 const fastify = Fastify({ 
     logger: {
@@ -21,10 +41,9 @@ const fastify = Fastify({
                 colorize: true
             }
         } : undefined
-    }
+    },
+	https: httpsOptions
 });
-
-const PORT = process.env.PORT || 3005;
 
 /** Register CORS plugin */
 await fastify.register(cors, {
@@ -39,10 +58,10 @@ await fastify.register(cors, {
 
 /** Service endpoints configuration */
 const services = {
-    auth: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
-    user: process.env.USER_SERVICE_URL || 'http://localhost:3002',
-    chat: process.env.CHAT_SERVICE_URL || 'http://localhost:3003',
-    game: process.env.GAME_SERVICE_URL || 'http://localhost:3004'
+    auth: process.env.AUTH_SERVICE_URL || 'http://auth-service:3001',
+    user: process.env.USER_SERVICE_URL || 'http://user-service:3002',
+    chat: process.env.CHAT_SERVICE_URL || 'http://chat-service:3003',
+    game: process.env.GAME_SERVICE_URL || 'http://game-service:3004'
 };
 
 /** Helper function to fetch user profile from user service */
@@ -88,7 +107,8 @@ fastify.get('/health', async (request, reply) => {
         status: 'healthy',
         service: 'gateway-service',
         timestamp: new Date().toISOString(),
-        services: Object.keys(services)
+        services: Object.keys(services),
+		ssl: true
     };
 });
 
@@ -145,10 +165,9 @@ await fastify.register(async function (fastify) {
         prefix: '/api/user',
         rewritePrefix: '/api/user',
         http2: false,
-        // Increase timeout for file uploads
         http: {
             requestOptions: {
-                timeout: 30000 // 30 seconds
+                timeout: 30000 /** 30 sec */
             }
         }
     });
@@ -203,13 +222,13 @@ fastify.setNotFoundHandler((request, reply) => {
 const start = async () => {
     try {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
+		fastify.log.info(`🛜  Frontend running on port ${process.env.FRONTEND_URL}`);
         fastify.log.info(`🚀 Gateway service running on port ${PORT}`);
         fastify.log.info(`📡 Proxying to services:`);
         Object.entries(services).forEach(([name, url]) => {
             fastify.log.info(`   - ${name}: ${url}`);
         });
 		fastify.log.info(`🔌 Socket.io gateway active on /socket.io/`);
-		fastify.log.info(`💚 Health checks available at /health and /health/services`);
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);

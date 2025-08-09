@@ -132,6 +132,8 @@ services:
       - game-service
     networks:
       - pong-network
+    volumes:
+      - ./certs:/app/ssl:ro
 
 networks:
   pong-network:

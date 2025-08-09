@@ -448,7 +448,7 @@ export default async function authRoutes(fastify, options) {
 	 */
 	async function createUserProfile(user, jwtToken) {
 		try {
-			const gatewayUrl = process.env.GATEWAY_URL || 'http://localhost:3005';
+			const gatewayUrl = process.env.GATEWAY_URL || 'https://localhost:3005';
 			const response = await fetch(`${gatewayUrl}/api/user/profile`, {
 				method: 'POST',
 				headers: {

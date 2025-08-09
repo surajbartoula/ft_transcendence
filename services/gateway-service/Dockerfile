@@ -14,6 +14,10 @@ RUN apk add --no-cache build-base python3 curl && \
 # Copy source code
 COPY src/ ./src/
 
+# Create SSL certificate directory with proper permissions
+RUN mkdir -p /app/ssl && \
+    chown -R 1001:1001 /app/ssl
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs \
 	&& adduser -S nodeuser -u 1001 \
