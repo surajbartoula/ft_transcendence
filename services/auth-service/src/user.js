@@ -223,7 +223,7 @@ export class User {
 					email,
 					name,
 					picture,
-					googleId: googleId,
+					google_id: googleId,
 					two_factor_enabled: false
 				});
 			});

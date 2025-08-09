@@ -7,7 +7,6 @@ export function showError(message: string): void {
         errorMessage.classList.remove('hidden');
         errorMessage.classList.add('slide-up');
     } else {
-        // Fallback: show notification if error elements don't exist
         showNotification(message, 'error');
     }
 }
@@ -22,9 +21,9 @@ export function hideError(): void {
 export function showClickableNotification(
     message: string, 
     type: 'success' | 'error' | 'info' | 'warning' = 'info', 
-    duration: number = 5000, // 0 = don't auto-dismiss
+    duration: number = 5000,
     onClick?: () => void,
-    actionText?: string // Optional text to show what clicking does
+    actionText?: string
 ): void {
     const notificationsContainer = document.getElementById('notifications');
     if (!notificationsContainer) {

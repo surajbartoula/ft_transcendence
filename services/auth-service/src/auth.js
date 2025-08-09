@@ -210,37 +210,32 @@ export default async function authRoutes(fastify, options) {
 					error: 'Email, password, and 2FA token are required'
 				});
 			}
-			
-			// First verify email and password again
+			/** First verify email and password again */
 			const user = await User.findByEmail(email);
 			if (!user) {
 				return reply.status(401).send({
 					error: 'Invalid credentials'
 				});
 			}
-			
 			const isValidPassword = await User.verifyPassword(password, user.password);
 			if (!isValidPassword) {
 				return reply.status(401).send({
 					error: 'Invalid credentials'
 				});
 			}
-			
 			if (!user.email_verified) {
 				return reply.status(403).send({
 					error: 'Email not verified'
 				});
 			}
-			
-			// Verify 2FA token
+			/** Verify 2FA token */
 			const is2FAValid = await User.verify2FALogin(user.id, token);
 			if (!is2FAValid) {
 				return reply.status(401).send({
 					error: 'Invalid 2FA token'
 				});
 			}
-			
-			// Generate JWT token for successful login
+			/** Generate JWT token for successful login */
 			const jwtToken = await reply.jwtSign({
 				id: user.id,
 				email: user.email
@@ -249,7 +244,7 @@ export default async function authRoutes(fastify, options) {
 			reply.send({
 				message: 'Login successful',
 				token: jwtToken,
-				requires2FA: true, // They just completed 2FA
+				requires2FA: true,
 				user: {
 					id: user.id,
 					email: user.email,
@@ -405,6 +400,7 @@ export default async function authRoutes(fastify, options) {
 					id: user.id,
 					email: user.email,
 					name: user.name,
+					google_id: user.google_id,
 					created_at: user.created_at
 				}
 			});
@@ -580,7 +576,7 @@ export default async function authRoutes(fastify, options) {
  */
 async function fetchGoogleUserInfo(accessToken) {
 	try {
-		const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+		const response = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
 			headers: {
 				'Authorization': `Bearer ${accessToken}`
 			}
