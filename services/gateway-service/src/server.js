@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3005;
 /** Register CORS plugin */
 await fastify.register(cors, {
     origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
+        process.env.FRONTEND_URL || 'https://localhost:3000',
         process.env.FRONTEND_DOCKER_URL || 'http://frontend:3000'
     ],
     credentials: true,

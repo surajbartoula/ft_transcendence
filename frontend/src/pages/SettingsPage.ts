@@ -323,11 +323,8 @@ export class SettingsPage implements Page {
     }
 
     private setupEventListeners(): void {
-        if (this.listenersSetup) return; // Prevent duplicate setup
-        /** Remove any existing delegated listeners first */
-        document.removeEventListener('change', this.handleDocumentChange);
-        document.removeEventListener('click', this.handleDocumentClick);
-        document.removeEventListener('input', this.handleDocumentInput);
+        if (this.listenersSetup) return;
+        this.cleanup();
         /** Add single delegated listeners */
         document.addEventListener('change', this.handleDocumentChange);
         document.addEventListener('click', this.handleDocumentClick);
@@ -346,11 +343,13 @@ export class SettingsPage implements Page {
 
     private handleDocumentClick = (e: Event) => {
         const target = e.target as HTMLElement;
+        if (target.id === 'logoutBtn') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleLogout();
+            return;
+        }
         switch (target.id) {
-            case 'logoutBtn':
-                e.preventDefault();
-                this.handleLogout();
-                break;
             case 'confirmEnable2FA':
                 hideModal('enable2FAModal');
                 this.startSetup2FA();
@@ -401,10 +400,16 @@ export class SettingsPage implements Page {
     };
 
     private handleLogout(): void {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userData');
-        sessionStorage.clear();
-        window.location.href = '/login';
+        console.log('Logging out user...');
+        try {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+            sessionStorage.clear();
+            window.location.assign('/login');
+        } catch (error) {
+            console.error('Error during logout:', error);
+            window.location.href = '/login';
+        }
     }
 
     private async handle2FAToggle(isEnabled: boolean): Promise<void> {
@@ -585,28 +590,15 @@ export class SettingsPage implements Page {
     }
 
     private updatePageContent(): void {
-        /** Find the security settings container */
-        const securityContainer = document.querySelector('.bg-slate-800.p-6.rounded-lg.mb-6');
-        if (securityContainer) {
-            /** Clear everything except the title */
-            const title = securityContainer.querySelector('h2');
-            if (title) {
-                /** Remove all elements after the title */
-                let nextElement = title.nextElementSibling;
-                while (nextElement) {
-                    const elementToRemove = nextElement;
-                    nextElement = nextElement.nextElementSibling;
-                    elementToRemove.remove();
-                }
-                /** Add the new 2FA section */
-                title.insertAdjacentHTML('afterend', this.render2FASection());
-            }
+        const statusContainer = document.getElementById('2fa-status-container');
+        if (statusContainer) {
+            statusContainer.innerHTML = this.is2FAEnabled ? this.render2FAStatus() : '';
         }
-        /** Update toggle state after DOM update */
         this.updateToggleState();
     }
 
     public cleanup(): void {
+        console.log('Cleaning up Settings page event listeners');
         document.removeEventListener('change', this.handleDocumentChange);
         document.removeEventListener('click', this.handleDocumentClick);
         document.removeEventListener('input', this.handleDocumentInput);

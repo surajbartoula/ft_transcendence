@@ -16,8 +16,8 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = process.env.PORT || 3003;
 const JWT_SECRET = process.env.JWT_SECRET;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://localhost:3000';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://localhost:3000';
 
 const fastify = Fastify({ logger: true });
 

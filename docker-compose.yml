@@ -30,6 +30,8 @@ services:
       - gateway-service
     networks:
       - pong-network
+    volumes:
+      - ./certs:/etc/nginx/ssl:ro
 
   auth-service:
     build:
