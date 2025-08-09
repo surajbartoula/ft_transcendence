@@ -257,28 +257,23 @@ export class ChatPage implements Page {
     cleanup(): void {
         window.removeEventListener('globalMessage', this.handleGlobalMessage);
         window.removeEventListener('openSpecificChat', this.handleOpenSpecificChat);
-        
-        // Clear typing timeouts
+        /** Clear typing timeouts */
         Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
         this.typingTimeout = {};
-        
         if (this.currentUserTypingTimeout) {
             clearTimeout(this.currentUserTypingTimeout);
             this.currentUserTypingTimeout = null;
         }
         this.isCurrentUserTyping = false;
         this.isTyping = {};
-
-        // Clear the current chat indicator
+        /** Clear the current chat indicator */
         (window as any).currentOpenChatUserId = null;
     }
 
     private setupGlobalSocketListeners(): void {
-        // Use the global socket instead of creating a new one
         const socket = globalSocket.getSocket();
         if (!socket) return;
 
-        // Listen for events that are specific to chat page
         socket.on('user_typing', (data: { user_id: string }) => {
             this.handleTypingStart(data.user_id);
         });
@@ -305,27 +300,25 @@ export class ChatPage implements Page {
             }, 100);
         });
 
-        // Request online users when chat page loads
+        /** Request online users when chat page loads */
         if (globalSocket.isConnected()) {
             socket.emit('get_online_users');
         }
 
-        // Listen for global messages
+        /** Listen for global messages */
         window.addEventListener('globalMessage', this.handleGlobalMessage.bind(this));
         window.addEventListener('openSpecificChat', this.handleOpenSpecificChat.bind(this));
     }
 
     private handleGlobalMessage = (event: CustomEvent) => {
         const messageData = event.detail;
-        
-        // If chat is open with this user, add message to UI
+        /** If chat is open with this user, add message to UI */
         if (this.currentChatFriend && String(messageData.sender_id) === this.currentChatFriend.user_id) {
             this.messages.push(messageData);
             this.renderMessages();
             this.scrollToBottom();
         }
-
-        // Always update chats list
+        /** Always update chats list */
         this.loadChats();
     };
 
