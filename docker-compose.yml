@@ -38,13 +38,19 @@ services:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
     env_file:
       - ./services/auth-service/.env
     environment:
       - NODE_ENV=production
       - PORT=3001
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - auth-db:/app/data
+      - ./certs:/app/ssl:ro
     user: "1001:1001"
     depends_on:
       - volume-init
@@ -55,14 +61,20 @@ services:
     build:
       context: ./services/user-service
       dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
     env_file:
       - ./services/user-service/.env
     environment:
       - NODE_ENV=production
       - PORT=3002
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - user-db:/app/data
       - user-uploads:/app/uploads
+      - ./certs:/app/ssl:ro
     user: "1001:1001"
     depends_on:
       - volume-init
@@ -80,6 +92,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3003
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - chat-db:/app/data
       - ./certs:/app/ssl:ro
@@ -93,13 +108,19 @@ services:
     build:
       context: ./services/game-service
       dockerfile: Dockerfile
+    ports:
+      - "3004:3004"
     env_file:
       - ./services/game-service/.env
     environment:
       - NODE_ENV=production
       - PORT=3004
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
     volumes:
       - game-db:/app/data
+      - ./certs:/app/ssl:ro
     user: "1001:1001"
     depends_on:
       - volume-init
@@ -117,10 +138,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3005
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - USER_SERVICE_URL=http://user-service:3002
-      - CHAT_SERVICE_URL=http://chat-service:3003
-      - GAME_SERVICE_URL=http://game-service:3004
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - AUTH_SERVICE_URL=https://auth-service:3001
+      - USER_SERVICE_URL=https://user-service:3002
+      - CHAT_SERVICE_URL=https://chat-service:3003
+      - GAME_SERVICE_URL=https://game-service:3004
     depends_on:
       - auth-service
       - user-service

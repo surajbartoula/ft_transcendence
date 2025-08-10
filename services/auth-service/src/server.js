@@ -6,14 +6,34 @@ import authRoutes from './auth.js'
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
+	console.error('SSL Certificate not found');
+	process.exit(1);
+}
+
+let sslConfig;
+try {
+	sslConfig = {
+		https: {
+			cert: fs.readFileSync(process.env.SSL_CERT),
+			key: fs.readFileSync(process.env.SSL_KEY)
+		}
+	};
+} catch (error) {
+	console.error('Failed to load SSL certificates:', error.message);
+	process.exit(1);
+}
+
 const fastify = Fastify({
-	logger: true
+	logger: true,
+	...sslConfig
 });
 
 /** Register CORS */
@@ -41,7 +61,7 @@ const start = async () => {
 			port: 3001,
 			host: '0.0.0.0'
 		});
-		console.log('Auth service running on http://localhost:3001');
+		console.log('Auth service running on https://localhost:3001');
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);

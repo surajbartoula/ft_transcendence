@@ -35,7 +35,7 @@ export const APP_CONFIG = {
     SESSION_TIMEOUT: 24 * 60 * 60 * 1000, // 24 hours
 };
 
-// Game configuration
+/** Game configuration */
 export const GAME_CONFIG = {
     CANVAS_ID: 'gameCanvas',
     DEFAULT_SETTINGS: {
@@ -51,7 +51,7 @@ export const GAME_CONFIG = {
     }
 };
 
-// Chat configuration
+/** Chat configuration */
 export const CHAT_CONFIG = {
     MAX_MESSAGE_LENGTH: 500,
     TYPING_TIMEOUT: 3000,
@@ -59,7 +59,7 @@ export const CHAT_CONFIG = {
     RECONNECT_DELAY: 1000
 };
 
-// UI Configuration
+/** UI Configuration */
 export const UI_CONFIG = {
     SIDEBAR_WIDTH: 256, // 16rem in pixels
     HEADER_HEIGHT: 64,  // 4rem in pixels
@@ -76,6 +76,6 @@ export const UI_CONFIG = {
     }
 };
 
-// Export types for better TypeScript support
+/** Export types for better TypeScript support */
 export type RouteKey = keyof typeof ROUTES;
 export type GameMode = keyof typeof GAME_CONFIG.GAME_MODES;

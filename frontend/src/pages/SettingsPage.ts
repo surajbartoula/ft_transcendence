@@ -381,7 +381,7 @@ export class SettingsPage implements Page {
                 break;
         }
         /** Handle sidebar navigation */
-        if (target.classList.contains('sidebar-item') || target.closest('.sidebar-item')) {
+        if ((target.classList.contains('sidebar-item') || target.closest('.sidebar-item')) && target.id !== 'logoutBtn'){
             const sidebarItem = target.classList.contains('sidebar-item') ? target : target.closest('.sidebar-item');
             const route = sidebarItem?.getAttribute('data-route');
             if (route) {
@@ -400,12 +400,13 @@ export class SettingsPage implements Page {
     };
 
     private handleLogout(): void {
-        console.log('Logging out user...');
         try {
             localStorage.removeItem('token');
             localStorage.removeItem('userData');
             sessionStorage.clear();
-            window.location.assign('/login');
+            // window.location.assign('/login');
+			const event = new CustomEvent('logout');
+			window.dispatchEvent(event);
         } catch (error) {
             console.error('Error during logout:', error);
             window.location.href = '/login';

@@ -13,20 +13,21 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = process.env.PORT || 3005;
 
-const sslKeyPath = '/app/ssl/key.pem';
-const sslCertPath = '/app/ssl/cert.pem';
+if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
+	console.error('SSL_CERT & SSL_KEY not found');
+	process.exit(1);
+}
 
-let httpsOptions = null;
-
+let httpsOptions;
 try {
-	if (!fs.existsSync(sslKeyPath) || !fs.existsSync(sslCertPath)) {
-		console.error('SSL certificates not found!');
+	if (!fs.existsSync(process.env.SSL_CERT) || !fs.existsSync(process.env.SSL_KEY)) {
+		console.error('SSL Certificates not found');
 		process.exit(1);
 	}
 	httpsOptions = {
-		key: fs.readFileSync(sslKeyPath),
-		cert: fs.readFileSync(sslCertPath)
-	}
+		key: fs.readFileSync(process.env.SSL_KEY),
+		cert: fs.readFileSync(process.env.SSL_CERT)
+	};
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);
 	process.exit(1);
@@ -49,7 +50,7 @@ const fastify = Fastify({
 await fastify.register(cors, {
     origin: [
         process.env.FRONTEND_URL || 'https://localhost:3000',
-        process.env.FRONTEND_DOCKER_URL || 'http://frontend:3000'
+        process.env.FRONTEND_DOCKER_URL || 'https://localhost:3000'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -58,10 +59,10 @@ await fastify.register(cors, {
 
 /** Service endpoints configuration */
 const services = {
-    auth: process.env.AUTH_SERVICE_URL || 'http://auth-service:3001',
-    user: process.env.USER_SERVICE_URL || 'http://user-service:3002',
-    chat: process.env.CHAT_SERVICE_URL || 'http://chat-service:3003',
-    game: process.env.GAME_SERVICE_URL || 'http://game-service:3004'
+    auth: process.env.AUTH_SERVICE_URL || 'https://auth-service:3001',
+    user: process.env.USER_SERVICE_URL || 'https://user-service:3002',
+    chat: process.env.CHAT_SERVICE_URL || 'https://chat-service:3003',
+    game: process.env.GAME_SERVICE_URL || 'https://game-service:3004'
 };
 
 /** Helper function to fetch user profile from user service */

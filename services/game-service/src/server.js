@@ -2,6 +2,32 @@ import Fastify from 'fastify';
 import { readFile, writeFile, mkdir, access } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
+
+if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
+	console.error('SSL_CERT and SSL_KEY environment variables are required');
+	process.exit(1);
+}
+
+let httpsOptions;
+try {
+	if (!fs.existsSync(process.env.SSL_CERT) || !fs.existsSync(process.env.SSL_KEY)) {
+		console.error('SSL certificate files not found!');
+		console.error(`SSL_CERT: ${process.env.SSL_CERT}`);
+		console.error(`SSL_KEY: ${process.env.SSL_KEY}`);
+		process.exit(1);
+	}
+	
+	httpsOptions = {
+		key: fs.readFileSync(process.env.SSL_KEY),
+		cert: fs.readFileSync(process.env.SSL_CERT)
+	};
+	
+	console.log('HTTPS configuration loaded for chat service');
+} catch (error) {
+	console.error('Error reading SSL certificates:', error.message);
+	process.exit(1);
+}
 
 const fastify = Fastify({
   logger: {
@@ -13,7 +39,8 @@ const fastify = Fastify({
         ignore: 'pid,hostname'
       }
     }
-  }
+  },
+  https: httpsOptions
 });
 
 const PORT = process.env.PORT || 3004;

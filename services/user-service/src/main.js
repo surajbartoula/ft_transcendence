@@ -15,10 +15,31 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
+	console.error('SSL_CERT & SSL_KEY not found');
+	process.exit(1);
+}
+
+let httpsOptions;
+try {
+	if (!fs.existsSync(process.env.SSL_CERT) || !fs.existsSync(process.env.SSL_KEY)) {
+		console.error('SSL certifcates file not found');
+		process.exit(1);
+	}
+	httpsOptions = {
+		key: fs.readFileSync(process.env.SSL_KEY),
+		cert: fs.readFileSync(process.env.SSL_CERT)
+	};
+} catch (error) {
+	console.error('Error rading SSL certificates:', error.message);
+	process.exit(1);
+}
+
 const fastify = Fastify({
 	logger: {
 		level: process.env.LOG_LEVEL || 'info'
-	}
+	},
+	https: httpsOptions
 });
 
 const uploadDir = process.env.DOCKER_ENV ? '/app/uploads' : path.join(__dirname, 'uploads');
@@ -90,7 +111,7 @@ const start = async () => {
 		const port = process.env.PORT || 3002;
 		const host = process.env.HOST || '0.0.0.0';
 		await fastify.listen({ port: parseInt(port), host });
-		fastify.log.info(`User service listening on http://${host}:${port}`);
+		fastify.log.info(`User service listening on https://${host}:${port}`);
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);

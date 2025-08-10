@@ -20,19 +20,20 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://localhost:3000';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://localhost:3000';
 
-const sslKeyPath = '/app/ssl/key.pem';
-const sslCertPath = '/app/ssl/cert.pem';
+if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
+	console.error('SSL_CERT & SSL_KEY not found');
+	process.exit(1);
+}
 
-let httpsOptions = null;
-
+let httpsOptions;
 try {
-	if (!fs.existsSync(sslKeyPath) || !fs.existsSync(sslCertPath)) {
-		console.error('SSL certificates not found!');
+	if (!fs.existsSync(process.env.SSL_CERT) || !fs.existsSync(process.env.SSL_KEY)) {
+		console.error('SSL certifcate files not found');
 		process.exit(1);
 	}
 	httpsOptions = {
-		key: fs.readFileSync(sslKeyPath),
-		cert: fs.readFileSync(sslCertPath)
+		key: fs.readFileSync(process.env.SSL_KEY),
+		cert: fs.readFileSync(process.env.SSL_CERT)
 	}
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);

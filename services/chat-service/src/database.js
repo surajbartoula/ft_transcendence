@@ -108,7 +108,7 @@ function getTokenFromRequest(req) {
 
 async function getUserProfile(userId, token = null) {
   try {
-    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3002';
+    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://user-service:3002';
     const headers = {
       'Content-Type': 'application/json'
     };
@@ -147,7 +147,7 @@ async function getUserProfiles(userIds, token = null) {
     if (!userIds || userIds.length === 0) {
       return {};
     }
-    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3002';
+    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://user-service:3002';
     const headers = {
       'Content-Type': 'application/json'
     };
@@ -204,7 +204,7 @@ async function getUserProfiles(userIds, token = null) {
 
 async function searchUsers(query, currentUserId, token = null) {
   try {
-    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3002';
+    const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://user-service:3002';
     const headers = {
       'Content-Type': 'application/json'
     };
