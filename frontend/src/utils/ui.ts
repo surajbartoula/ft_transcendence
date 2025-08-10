@@ -397,6 +397,34 @@ function generateColorFromString(str: string): string {
     return `hsl(${hue}, 70%, 50%)`.replace(/[^\w]/g, '').slice(3, 9);
 }
 
+export function clearAllClickableNotifications(): void {
+    const notificationsContainer = document.getElementById('notifications');
+    if (!notificationsContainer) {
+        return;
+    }
+    /** Find all clickable notifications */
+    const clickableNotifications = notificationsContainer.querySelectorAll('[class*="clickable-notification-"]');
+    /** Remove each clickable notification with animation */
+    clickableNotifications.forEach(notification => {
+        removeClickableNotification(notification as HTMLElement);
+    });
+}
+
+export function clearAllNotifications(): void {
+    const notificationsContainer = document.getElementById('notifications');
+    if (!notificationsContainer) {
+        return;
+    }
+    const allNotifications = notificationsContainer.querySelectorAll('.notification-item, .notification');
+    allNotifications.forEach(notification => {
+        if (notification.classList.contains('notification-item')) {
+            removeClickableNotification(notification as HTMLElement);
+        } else {
+            removeNotification(notification as HTMLElement);
+        }
+    });
+}
+
 export const utils = {
     debounce,
     throttle,
@@ -405,5 +433,7 @@ export const utils = {
     validatePassword,
     copyToClipboard,
     generateAvatarUrl,
-    escapeHtml
+    escapeHtml,
+	clearAllClickableNotifications,
+	clearAllNotifications
 };

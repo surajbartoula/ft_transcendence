@@ -8,7 +8,7 @@ import { ChatPage } from './pages/ChatPage';
 import { GamePage } from './pages/GamePage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { getCurrentUser, User, getStoredUser } from './utils/auth';
-import { showNotification, showError } from './utils/ui';
+import { showNotification, showError, clearAllClickableNotifications } from './utils/ui';
 import globalSocket from './utils/globalSocket';
 
 declare global {
@@ -49,7 +49,12 @@ class App {
 
 		routes.forEach(({ path, page, requiresAuth }) => {
 			this.router.addRoute(path, {
-				page: async () => page(),
+				page: async () => {
+					if (!requiresAuth) {
+						clearAllClickableNotifications();
+					}
+					return page();
+				},
 				requiresAuth
 			});
 		});
@@ -122,10 +127,12 @@ class App {
 	}
 
 	private handleNavigateToVerification(event: CustomEvent<{ email?: string }>): void {
+		clearAllClickableNotifications();
 		this.router.navigate('/verify-email');
 	}
 
 	private handleNavigateToLogin(): void {
+		clearAllClickableNotifications();
 		this.router.navigate('/login');
 	}
 
@@ -156,6 +163,7 @@ class App {
 	}
 
 	private logout(): void {
+		clearAllClickableNotifications();
 		/** Dispatch userLoggedOut event before clearing data */
 		window.dispatchEvent(new CustomEvent('userLoggedOut'));
 		localStorage.removeItem('token');

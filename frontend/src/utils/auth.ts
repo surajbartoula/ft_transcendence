@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../config';
+import { clearAllClickableNotifications } from './ui';
 
 export interface User {
     id: string;
@@ -110,6 +111,7 @@ export async function refreshToken(token: string): Promise<string> {
 }
 
 export function logout(): void {
+	clearAllClickableNotifications();
     localStorage.removeItem('token');
     localStorage.removeItem('userData');
 }
@@ -146,6 +148,7 @@ export function setStoredUser(user: any): void {
 }
 
 export function clearStoredAuth(): void {
+	clearAllClickableNotifications();
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_data');
     /** Trigger global socket disconnection */
