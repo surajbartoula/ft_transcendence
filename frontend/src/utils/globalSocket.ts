@@ -40,7 +40,7 @@ class GlobalSocket {
         const token = getStoredToken();
         if (!token || this.socket?.connected) return;
 
-        this.socket = io('http://localhost:3003', {
+        this.socket = io('https://localhost:3003', {
             auth: { token },
             timeout: 10000
         });

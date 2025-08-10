@@ -6,6 +6,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# Create SSL certificate directory with proper permissions
+RUN mkdir -p /app/ssl && \
+    chown -R 1001:1001 /app/ssl
+
 # Install dependencies
 RUN apk add --no-cache build-base python3 && \
     npm ci --omit=dev && \

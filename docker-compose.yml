@@ -28,6 +28,7 @@ services:
       - NODE_ENV=production
     depends_on:
       - gateway-service
+      - chat-service
     networks:
       - pong-network
     volumes:
@@ -81,6 +82,7 @@ services:
       - PORT=3003
     volumes:
       - chat-db:/app/data
+      - ./certs:/app/ssl:ro
     user: "1001:1001"
     depends_on:
       - volume-init

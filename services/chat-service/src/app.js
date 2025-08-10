@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fastifySocketIO from 'fastify-socket.io';
+import fs from 'fs';
 
 import { initDatabase, closeDatabase } from './database.js';
 import { registerRoutes } from './routes.js';
@@ -19,24 +20,46 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://localhost:3000';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'https://localhost:3000';
 
-const fastify = Fastify({ logger: true });
+const sslKeyPath = '/app/ssl/key.pem';
+const sslCertPath = '/app/ssl/cert.pem';
+
+let httpsOptions = null;
+
+try {
+	if (!fs.existsSync(sslKeyPath) || !fs.existsSync(sslCertPath)) {
+		console.error('SSL certificates not found!');
+		process.exit(1);
+	}
+	httpsOptions = {
+		key: fs.readFileSync(sslKeyPath),
+		cert: fs.readFileSync(sslCertPath)
+	}
+} catch (error) {
+	console.error('Error reading SSL certificates:', error.message);
+	process.exit(1);
+}
+
+const fastify = Fastify({ 
+	logger: true,
+	https: httpsOptions
+});
 
 async function setupFastify() {
 
 	await fastify.register(cors, {
-	origin: CORS_ORIGIN,
-	credentials: true
+		origin: CORS_ORIGIN,
+		credentials: true
 	});
 
 	await fastify.register(jwt, { 
-	secret: JWT_SECRET
+		secret: JWT_SECRET
 	});
 
 	await fastify.register(fastifySocketIO, {
-	cors: {
-		origin: CORS_ORIGIN,
-		credentials: true
-	}
+		cors: {
+			origin: CORS_ORIGIN,
+			credentials: true
+		}
 	});
 
 	registerRoutes(fastify);
