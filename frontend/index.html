@@ -143,13 +143,15 @@
 		.notification-warning {
 			border-left: 4px solid #f59e0b;
 		}
+		#gameCanvas {
+			width: 100% !important;
+			height: 100% !important;
+			display: block;
+		}
 	</style>
 </head>
 <body class="bg-slate-900 text-white font-BitcountGridDouble m-0 p-0">
 	<div id="app" class="min-h-screen">
-		<!-- Game Canvas -->
-		<canvas id="gameCanvas" class="hidden absolute inset-0 w-full h-full z-0"></canvas>
-		
 		<!-- Main Content -->
 		<div id="main-content" class="min-h-screen page-transition">
 			<!-- Content loaded dynamically -->
