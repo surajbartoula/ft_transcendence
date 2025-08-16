@@ -5,9 +5,11 @@ import { PhysicsSystem } from "./PhysicsSystem";
 import { ScoreManager } from "./ScoreManager";
 import { UIManager } from "./UIManager";
 import { AudioManager } from "./AudioManager";
+import { AIPlayer } from "./AIPlayer";
+import { TournamentManager } from "./TournamentManager";
 
 // =====================================
-// MAIN GAME MANAGER - Orchestrator
+// ENHANCED PONG GAME MANAGER
 // =====================================
 export class PongGameManager {
     private gameState: GameStateManager;
@@ -17,52 +19,73 @@ export class PongGameManager {
     private audioManager: AudioManager;
     private uiManager: UIManager;
     private scoreManager: ScoreManager;
-
+    private aiPlayer: AIPlayer;
+    private tournamentManager: TournamentManager;
     private isRunning: boolean = false;
     private lastTime: number = 0;
 
     constructor(canvas: HTMLCanvasElement) {
-        // Initialize all systems
-        this.renderEngine = new RenderEngine(canvas); // 🎨 The "visual display" chef
-        this.inputManager = new InputManager();       // 🎮 The "order taker" (keyboard/mouse)
-        this.physicsSystem = new PhysicsSystem();    // ⚡ The "movement & collision" chef
-        this.audioManager = new AudioManager();      // 🔊 The "sound effects" DJ
-        this.uiManager = new UIManager();           // 🖥️ The "menu display" manager
-        this.scoreManager = new ScoreManager();     // 🥅 The "score keeper" manager
+        console.log("🎮 Initializing Enhanced Pong Game Manager...");
+        
+        // Initialize core systems
+        this.renderEngine = new RenderEngine(canvas);
+        this.inputManager = new InputManager();
+        this.physicsSystem = new PhysicsSystem();
+        this.audioManager = new AudioManager();
+        this.uiManager = new UIManager();
+        this.scoreManager = new ScoreManager();
+        
+        // Initialize AI and Tournament systems
+        this.aiPlayer = new AIPlayer(this.physicsSystem, this.renderEngine);
+        this.tournamentManager = new TournamentManager();
 
-        // Initialize game state manager with references to all systems
+        // Initialize game state manager with all systems
         this.gameState = new GameStateManager({
             renderEngine: this.renderEngine,
             inputManager: this.inputManager,
             physicsSystem: this.physicsSystem,
             audioManager: this.audioManager,
             uiManager: this.uiManager,
-            scoreManager: this.scoreManager
+            scoreManager: this.scoreManager,
+            aiPlayer: this.aiPlayer,
+            tournamentManager: this.tournamentManager
         });
+
         this.initialize();
     }
 
     private async initialize(): Promise<void> {
-        console.log("🎮 Initializing Pong Game Manager...");
-        
-        // Initialize all systems in order
-        await this.renderEngine.initialize();
-        this.inputManager.initialize();
-        this.physicsSystem.initialize();
-        this.audioManager.initialize();
-        this.uiManager.initialize();
-        this.scoreManager.initialize();
+        console.log("🎮 Initializing Enhanced Pong Game Systems...");
 
-        // Hook score change to UI flash
-        this.scoreManager.setScoreChangeCallback(({ leftScore, rightScore, scorer }) => {
-            this.uiManager.showScoreFlash({ scorer, leftScore, rightScore });
-        });
+        try {
+            // Initialize all systems in proper order
+            await this.renderEngine.initialize();
+            this.inputManager.initialize();
+            this.physicsSystem.initialize();
+            this.audioManager.initialize();
+            this.uiManager.initialize();
+            this.scoreManager.initialize();
 
-        // Start with menu state
-        this.gameState.setState('menu');
-        this.startGameLoop();
-        
-        console.log("✅ Game Manager initialized successfully!");
+            // Set up score change callback with enhanced UI features
+            this.scoreManager.setScoreChangeCallback(({ leftScore, rightScore, scorer }) => {
+                this.uiManager.showScoreFlash({ 
+                    scorer, 
+                    leftScore, 
+                    rightScore,
+                    durationMs: 2000
+                });
+            });
+
+            // Start with main menu instead of old start menu
+            await this.gameState.setState('menu');
+            this.startGameLoop();
+
+            console.log("✅ Enhanced Game Manager initialized successfully!");
+            
+        } catch (error) {
+            console.error("❌ Failed to initialize game systems:", error);
+            throw error;
+        }
     }
 
     private startGameLoop(): void {
@@ -70,32 +93,324 @@ export class PongGameManager {
         
         const gameLoop = (timestamp: number) => {
             if (!this.isRunning) return;
-            
+
             const deltaTime = timestamp - this.lastTime;
             this.lastTime = timestamp;
 
-            // Update all systems
-            this.gameState.update(deltaTime);
-            this.physicsSystem.update(deltaTime);
-            this.renderEngine.update(deltaTime);
-            this.uiManager.update(deltaTime);
+            try {
+                // Update all systems
+                this.gameState.update(deltaTime);
+                this.physicsSystem.update(deltaTime);
+                this.renderEngine.update(deltaTime);
+                this.uiManager.update(deltaTime);
 
-            // Render
-            this.renderEngine.render();
-            this.uiManager.render();
+                // Render
+                this.renderEngine.render();
+                this.uiManager.render();
+
+            } catch (error) {
+                console.error("❌ Error in game loop:", error);
+            }
 
             requestAnimationFrame(gameLoop);
         };
 
         requestAnimationFrame(gameLoop);
+        console.log("🔄 Enhanced game loop started");
     }
 
+    // =====================================
+    // PUBLIC API METHODS
+    // =====================================
+    
+    /**
+     * Set AI difficulty level
+     */
+    public setAIDifficulty(difficulty: 'easy' | 'medium' | 'hard'): void {
+        this.aiPlayer.setDifficulty(difficulty);
+        console.log(`🤖 AI difficulty set to: ${difficulty}`);
+    }
+
+    /**
+     * Get current game mode information
+     */
+    public getGameMode(): any {
+        return this.gameState.getGameMode();
+    }
+
+    /**
+     * Get current tournament information (if in tournament mode)
+     */
+    public getCurrentTournament(): any {
+        const gameMode = this.gameState.getGameMode();
+        if (gameMode.type === 'tournament' && gameMode.tournamentId) {
+            return this.tournamentManager.getTournament(gameMode.tournamentId);
+        }
+        return null;
+    }
+
+    /**
+     * Get AI statistics for display
+     */
+    public getAIStats(): any {
+        return this.aiPlayer.getAIStats();
+    }
+
+    /**
+     * Force navigate to a specific game state
+     */
+    public async navigateToState(stateName: string, data?: any): Promise<void> {
+        await this.gameState.setState(stateName, data);
+    }
+
+    /**
+     * Start a new local multiplayer game
+     */
+    public async startLocalGame(player1Name: string = "Player 1", player2Name: string = "Player 2"): Promise<void> {
+        this.gameState.setGameMode({
+            type: 'local',
+            player1Name,
+            player2Name
+        });
+        await this.gameState.setState('playing');
+    }
+
+    /**
+     * Start a new AI game
+     */
+    public async startAIGame(playerName: string = "Player", difficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> {
+        this.setAIDifficulty(difficulty);
+        this.gameState.setGameMode({
+            type: 'ai',
+            player1Name: playerName,
+            player2Name: "AI Opponent"
+        });
+        await this.gameState.setState('playing');
+    }
+
+    /**
+     * Start a new tournament
+     */
+    public async startTournament(playerNames: string[]): Promise<void> {
+        const tournament = this.tournamentManager.createTournament(playerNames);
+        this.gameState.setGameMode({
+            type: 'tournament',
+            tournamentId: tournament.id
+        });
+        
+        // Show bracket briefly, then start first match
+        this.uiManager.showTournamentBracket(tournament);
+        
+        setTimeout(async () => {
+            const firstMatch = this.tournamentManager.getNextMatch(tournament.id);
+            if (firstMatch) {
+                await this.gameState.setState('playing', {
+                    player1: firstMatch.player1,
+                    player2: firstMatch.player2,
+                    matchId: firstMatch.id
+                });
+            }
+        }, 3000);
+    }
+
+    /**
+     * Pause the current game
+     */
+    public pauseGame(): void {
+        this.gameState.setState('paused');
+    }
+
+    /**
+     * Resume the current game
+     */
+    public resumeGame(): void {
+        this.gameState.setState('playing');
+    }
+
+    /**
+     * Return to main menu
+     */
+    public returnToMenu(): void {
+        this.scoreManager.reset();
+        this.gameState.setState('menu');
+    }
+
+    /**
+     * Get current game score
+     */
+    public getScore(): { left: number; right: number } {
+        return this.scoreManager.getScore();
+    }
+
+    /**
+     * Check if game is currently running
+     */
+    public isGameRunning(): boolean {
+        return this.isRunning;
+    }
+
+    /**
+     * Get performance metrics
+     */
+    public getPerformanceMetrics(): {
+        fps: number;
+        renderTime: number;
+        physicsTime: number;
+    } {
+        // Basic performance tracking - could be enhanced
+        return {
+            fps: Math.round(1000 / (this.lastTime - (this.lastTime - 16.67))),
+            renderTime: 0, // Would need to implement timing
+            physicsTime: 0 // Would need to implement timing
+        };
+    }
+
+    // =====================================
+    // INTEGRATION WITH BACKEND
+    // =====================================
+    
+    /**
+     * Initialize game session with backend
+     */
+    public async initializeGameSession(gameMode: 'local' | 'ai' | 'tournament', player2Id?: string): Promise<void> {
+        try {
+            // This would integrate with your backend API
+            const response = await fetch('/api/game/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    game_mode: gameMode,
+                    player2_id: player2Id
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create game session');
+            }
+
+            const data = await response.json();
+            console.log('🎮 Game session created:', data.game_session);
+            
+            // Store session ID for later use
+            this.currentGameSessionId = data.game_session.id;
+            
+        } catch (error) {
+            console.error('❌ Failed to initialize game session:', error);
+        }
+    }
+
+    private currentGameSessionId: string | null = null;
+
+    /**
+     * Update game session with score/results
+     */
+    public async updateGameSession(score: { left: number; right: number }, winner?: string): Promise<void> {
+        if (!this.currentGameSessionId) return;
+
+        try {
+            const response = await fetch(`/api/game/session/${this.currentGameSessionId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    player1_score: score.left,
+                    player2_score: score.right,
+                    winner_id: winner,
+                    status: winner ? 'finished' : 'active'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update game session');
+            }
+
+            console.log('🎮 Game session updated');
+            
+        } catch (error) {
+            console.error('❌ Failed to update game session:', error);
+        }
+    }
+
+    /**
+     * Send game event to backend for analytics
+     */
+    public async recordGameEvent(eventType: string, data: any): Promise<void> {
+        if (!this.currentGameSessionId) return;
+
+        try {
+            await fetch(`/api/game/session/${this.currentGameSessionId}/event`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    event_type: eventType,
+                    ...data
+                })
+            });
+        } catch (error) {
+            console.warn('⚠️ Failed to record game event:', error);
+        }
+    }
+
+    // =====================================
+    // ENHANCED DISPOSE METHOD
+    // =====================================
     public dispose(): void {
+        console.log("🎮 Disposing Enhanced Pong Game Manager...");
+        
         this.isRunning = false;
-        this.renderEngine.dispose();
-        this.inputManager.dispose();
-        this.physicsSystem.dispose();
-        this.audioManager.dispose();
-        this.uiManager.dispose();
+
+        try {
+            // Stop AI
+            this.aiPlayer.stop();
+            
+            // Dispose all systems
+            this.renderEngine.dispose();
+            this.inputManager.dispose();
+            this.physicsSystem.dispose();
+            this.audioManager.dispose();
+            this.uiManager.dispose();
+            
+            // Clear any remaining timers or intervals
+            // (GameStateManager handles its own cleanup)
+            
+            console.log("✅ Enhanced Game Manager disposed successfully");
+            
+        } catch (error) {
+            console.warn("⚠️ Error during disposal:", error);
+        }
+    }
+
+    // =====================================
+    // DEBUG METHODS
+    // =====================================
+    
+    /**
+     * Enable debug mode with additional logging and overlays
+     */
+    public enableDebugMode(): void {
+        console.log("🐛 Debug mode enabled");
+        // Add debug overlays, performance monitors, etc.
+    }
+
+    /**
+     * Get debug information
+     */
+    public getDebugInfo(): any {
+        return {
+            gameState: this.gameState,
+            currentMode: this.getGameMode(),
+            score: this.getScore(),
+            aiStats: this.getAIStats(),
+            performance: this.getPerformanceMetrics(),
+            tournament: this.getCurrentTournament()
+        };
     }
 }

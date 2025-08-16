@@ -1,19 +1,26 @@
+import { Tournament, TournamentMatch, TournamentPlayer } from "./TournamentManager";
+
 export class GUIManager {
     private pauseMenu: HTMLElement | null = null;
     private startMenu: HTMLElement | null = null;
+    private mainMenu: HTMLElement | null = null;
+    private playerSetup: HTMLElement | null = null;
+    private tournamentSetup: HTMLElement | null = null;
+    private tournamentBracket: HTMLElement | null = null;
+    private gameUI: HTMLElement | null = null;
+    private gameOver: HTMLElement | null = null;
+    private tournamentComplete: HTMLElement | null = null;
+    private matchResults: HTMLElement | null = null;
     private countdownEl: HTMLElement | null = null;
     private scoreFlashEl: HTMLElement | null = null;
-    // Default assets/config
     private defaultTitleImageUrl?: string;
 
     constructor() {
         this.injectTronStyles();
-        // Set default title image used by the Start Menu if none is provided by callers
         this.defaultTitleImageUrl = './textures/tronpong.png';
     }
 
     private injectTronStyles(): void {
-        // Only inject styles once
         if (document.getElementById('tronStyles')) return;
 
         const style = document.createElement('style');
@@ -40,7 +47,7 @@ export class GUIManager {
                 50% { opacity: 0.7; }
             }
             
-            .pause-content {
+            .tron-container {
                 text-align: center;
                 background: #000000;
                 padding: 50px 40px;
@@ -49,19 +56,16 @@ export class GUIManager {
                 box-shadow: 
                     0 0 30px rgba(0, 255, 255, 0.7),
                     0 0 60px rgba(0, 255, 255, 0.3);
-                max-width: 500px;
+                max-width: 600px;
                 position: relative;
                 font-family: 'Orbitron', 'Courier New', monospace;
                 backdrop-filter: blur(5px);
-            }
-            
-            .title-container {
-                margin-bottom: 30px;
+                color: #00ffff;
             }
             
             .tron-title {
                 margin: 0;
-                font-size: 3em;
+                font-size: 2.5em;
                 font-weight: 900;
                 color: #00ffff;
                 text-shadow: 
@@ -77,320 +81,805 @@ export class GUIManager {
                 50% { text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff, 0 0 45px #00ffff; }
             }
             
-            .title-underline {
-                width: 100%;
-                height: 2px;
-                background: linear-gradient(90deg, transparent, #00ffff, transparent);
-                margin: 15px auto;
-                animation: underlineGlow 3s ease-in-out infinite;
-            }
-            
-            @keyframes underlineGlow {
-                0%, 100% { box-shadow: 0 0 5px #00ffff; }
-                50% { box-shadow: 0 0 15px #00ffff; }
-            }
-            
-            .resume-prompt {
-                font-size: 1.4em;
-                margin: 25px 0;
-                color: #d4af37;
-                text-shadow: 0 0 10px #d4af37;
-                animation: promptBlink 1.5s ease-in-out infinite;
-            }
-            
-            @keyframes promptBlink {
-                0%, 50%, 100% { opacity: 1; }
-                25%, 75% { opacity: 0.6; }
-            }
-            
-            .key-highlight {
-                padding: 8px 16px;
-                background: linear-gradient(145deg, #d4af37, #b8860b);
-                color: #000;
-                border-radius: 4px;
+            .tron-button {
+                background: linear-gradient(145deg, #001122, #003355);
+                border: 2px solid #00ffff;
+                color: #00ffff;
+                padding: 15px 30px;
+                font-family: 'Orbitron', 'Courier New', monospace;
+                font-size: 1.1em;
                 font-weight: bold;
-                box-shadow: 
-                    0 0 15px rgba(212, 175, 55, 0.6),
-                    inset 0 2px 0 rgba(255, 255, 255, 0.3);
-                text-shadow: none;
-            }
-            
-            .pause-controls {
-                margin-top: 40px;
-                padding: 25px 0;
-                border-top: 2px solid rgba(0, 255, 255, 0.5);
-                border-image: linear-gradient(90deg, transparent, #00ffff, transparent) 1;
-            }
-            
-            .control-header {
-                font-size: 1.2em;
-                color: #00ff88;
-                margin-bottom: 20px;
-                text-shadow: 0 0 8px #00ff88;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-transform: uppercase;
                 letter-spacing: 2px;
+                margin: 10px;
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
             }
             
-            .control-grid {
+            .tron-button:hover {
+                background: linear-gradient(145deg, #003355, #004477);
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.7);
+                transform: translateY(-2px);
+            }
+            
+            .tron-input {
+                background: rgba(0, 20, 40, 0.8);
+                border: 2px solid #00ffff;
+                color: #00ffff;
+                padding: 12px 15px;
+                font-family: 'Orbitron', 'Courier New', monospace;
+                font-size: 1em;
+                width: 100%;
+                margin: 10px 0;
+                box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.2);
+            }
+            
+            .tron-input::placeholder {
+                color: rgba(0, 255, 255, 0.6);
+            }
+            
+            .tron-input:focus {
+                outline: none;
+                box-shadow: 
+                    inset 0 0 10px rgba(0, 255, 255, 0.4),
+                    0 0 20px rgba(0, 255, 255, 0.6);
+            }
+            
+            .tournament-bracket {
+                display: flex;
+                gap: 60px;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 20px;
+                overflow-x: auto;
+            }
+            
+            .bracket-round {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
+                gap: 20px;
+                min-width: 200px;
             }
             
-            .control-row {
+            .bracket-match {
+                background: rgba(0, 20, 40, 0.9);
+                border: 2px solid #00ffff;
+                padding: 15px;
+                border-radius: 5px;
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+            }
+            
+            .bracket-match.completed {
+                border-color: #00ff88;
+                box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+            }
+            
+            .bracket-match.active {
+                border-color: #ffff00;
+                box-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+                animation: activePulse 1.5s ease-in-out infinite;
+            }
+            
+            @keyframes activePulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+            
+            .match-player {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 8px 12px;
-                background: rgba(0, 255, 255, 0.05);
-                border: 1px solid rgba(0, 255, 255, 0.2);
-                transition: all 0.3s ease;
+                padding: 8px 0;
+                border-bottom: 1px solid rgba(0, 255, 255, 0.3);
             }
             
-            .control-row:hover {
-                background: rgba(0, 255, 255, 0.1);
-                border-color: rgba(0, 255, 255, 0.4);
-                box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            .match-player:last-child {
+                border-bottom: none;
             }
             
-            .control-label {
-                font-size: 0.95em;
-                color: #88ccff;
-                text-transform: uppercase;
-                letter-spacing: 1px;
+            .match-player.winner {
+                color: #00ff88;
+                font-weight: bold;
             }
             
-            .control-keys {
+            .player-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+                margin: 20px 0;
+            }
+            
+            .player-input-group {
                 display: flex;
+                flex-direction: column;
                 gap: 5px;
             }
             
-            .key {
-                padding: 4px 8px;
-                background: linear-gradient(145deg, #001122, #003355);
-                border: 1px solid #00ffff;
-                border-radius: 3px;
-                color: #00ffff;
-                font-size: 0.9em;
-                font-weight: bold;
-                text-shadow: 0 0 5px #00ffff;
-                box-shadow: 
-                    0 2px 4px rgba(0, 0, 0, 0.5),
-                    inset 0 1px 0 rgba(0, 255, 255, 0.2);
-                min-width: 20px;
-                text-align: center;
-            }
-
-            /* Coordinate display styling */
-            .coordinate-display {
+            .game-ui-overlay {
                 position: fixed;
-                top: 10px;
-                left: 10px;
-                background: rgba(0, 0, 0, 0.9);
-                color: #ff0000ff;
-                padding: 15px;
-                border: 1px solid #00ffff;
-                border-radius: 0;
-                font-family: 'Orbitron', 'Courier New', monospace;
-                font-size: 14px;
+                top: 20px;
+                left: 20px;
+                right: 20px;
                 z-index: 1000;
                 pointer-events: none;
-                box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-                text-shadow: 0 0 5px #00ffff;
+            }
+            
+            .game-scoreboard {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.8);
+                border: 2px solid #00ffff;
+                padding: 20px;
+                font-family: 'Orbitron', 'Courier New', monospace;
+                color: #00ffff;
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            }
+            
+            .player-score {
+                text-align: center;
+            }
+            
+            .player-name {
+                font-size: 1.2em;
+                font-weight: bold;
+                margin-bottom: 10px;
+            }
+            
+            .score-value {
+                font-size: 3em;
+                font-weight: 900;
+                text-shadow: 0 0 20px currentColor;
+            }
+            
+            .game-mode-indicator {
+                text-align: center;
+                padding: 10px;
+                background: rgba(0, 255, 255, 0.1);
+                border: 1px solid #00ffff;
+                margin: 0 20px;
             }
         `;
         document.head.appendChild(style);
     }
 
-    public createPauseMenu(options?: { onResume?: () => void; onRestart?: () => void }): void {
-        // Remove existing pause menu if it exists
-        this.removePauseMenu();
+    // =====================================
+    // MAIN MENU
+    // =====================================
+    createMainMenu(options: {
+        onLocalGame: () => void;
+        onAIGame: () => void;
+        onTournament: () => void;
+    }): void {
+        this.removeMainMenu();
 
-        // Create pause menu overlay
-        this.pauseMenu = document.createElement('div');
-        this.pauseMenu.id = 'pauseMenu';
-        this.pauseMenu.innerHTML = `
-            <div class="pause-content">
-                <div class="title-container">
-                    <h2 class="tron-title">SYSTEM PAUSED</h2>
-                    <div class="title-underline"></div>
+        this.mainMenu = document.createElement('div');
+        this.mainMenu.id = 'mainMenu';
+        this.mainMenu.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h1 class="tron-title">TRON PONG</h1>
+                <div style="margin: 40px 0;">
+                    <button id="localGameBtn" class="tron-button">Local Multiplayer</button>
+                    <button id="aiGameBtn" class="tron-button">Play Against AI</button>
+                    <button id="tournamentBtn" class="tron-button">Tournament</button>
                 </div>
-                <div class="resume-prompt">
-                    <span class="key-highlight">SPACE</span> TO RESUME
+                <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
+                    Select a game mode to begin
                 </div>
-                <div style="margin-top: 10px;">
-                    <button id="restartButton" style="cursor:pointer;padding:10px 16px;border:2px solid #00ffff;background:black;color:#00ffff;font-family:'Orbitron','Courier New',monospace;text-shadow:0 0 10px #00ffff;box-shadow:0 0 15px rgba(0,255,255,0.5);">
-                        RESTART
-                    </button>
+            </div>
+        `;
+
+        this.mainMenu.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+        `;
+
+        document.body.appendChild(this.mainMenu);
+
+        // Bind events
+        document.getElementById('localGameBtn')?.addEventListener('click', options.onLocalGame);
+        document.getElementById('aiGameBtn')?.addEventListener('click', options.onAIGame);
+        document.getElementById('tournamentBtn')?.addEventListener('click', options.onTournament);
+    }
+
+    removeMainMenu(): void {
+        if (this.mainMenu) {
+            this.mainMenu.remove();
+            this.mainMenu = null;
+        }
+    }
+
+    // =====================================
+    // PLAYER SETUP
+    // =====================================
+    createPlayerSetup(options: {
+        title: string;
+        players: Array<{
+            label: string;
+            placeholder: string;
+            defaultValue: string;
+        }>;
+        onStart: (playerNames: string[]) => void;
+        onBack: () => void;
+    }): void {
+        this.removePlayerSetup();
+
+        this.playerSetup = document.createElement('div');
+        this.playerSetup.id = 'playerSetup';
+
+        const playerInputs = options.players.map((player, index) => `
+            <div class="player-input-group">
+                <label style="color: #00ffff; font-weight: bold;">${player.label}:</label>
+                <input 
+                    type="text" 
+                    class="tron-input" 
+                    id="player${index + 1}Name"
+                    placeholder="${player.placeholder}"
+                    value="${player.defaultValue}"
+                    maxlength="20"
+                />
+            </div>
+        `).join('');
+
+        this.playerSetup.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2em;">${options.title}</h2>
+                <div class="player-list">
+                    ${playerInputs}
                 </div>
-                <div class="pause-controls">
-                    <div class="control-header">CONTROL INTERFACE</div>
-                    <div class="control-grid">
-                        <div class="control-row">
-                            <span class="control-label">LEFT PADDLE</span>
-                            <span class="control-keys"><span class="key">A</span>/<span class="key">D</span></span>
+                <div style="margin-top: 30px;">
+                    <button id="startGameBtn" class="tron-button">Start Game</button>
+                    <button id="backBtn" class="tron-button">Back</button>
+                </div>
+            </div>
+        `;
+
+        this.playerSetup.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+        `;
+
+        document.body.appendChild(this.playerSetup);
+
+        // Bind events
+        document.getElementById('startGameBtn')?.addEventListener('click', () => {
+            const playerNames: string[] = [];
+            options.players.forEach((_, index) => {
+                const input = document.getElementById(`player${index + 1}Name`) as HTMLInputElement;
+                playerNames.push(input?.value?.trim() || `Player ${index + 1}`);
+            });
+            options.onStart(playerNames);
+        });
+
+        document.getElementById('backBtn')?.addEventListener('click', options.onBack);
+
+        // Focus first input
+        setTimeout(() => {
+            const firstInput = document.getElementById('player1Name') as HTMLInputElement;
+            firstInput?.focus();
+        }, 100);
+    }
+
+    removePlayerSetup(): void {
+        if (this.playerSetup) {
+            this.playerSetup.remove();
+            this.playerSetup = null;
+        }
+    }
+
+    // =====================================
+    // TOURNAMENT SETUP
+    // =====================================
+    createTournamentSetup(options: {
+        onCreateTournament: (playerNames: string[]) => void;
+        onBack: () => void;
+    }): void {
+        this.removeTournamentSetup();
+
+        this.tournamentSetup = document.createElement('div');
+        this.tournamentSetup.id = 'tournamentSetup';
+        this.tournamentSetup.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2em;">Tournament Setup</h2>
+                <div style="margin: 20px 0;">
+                    <label style="color: #00ffff; font-weight: bold;">Number of Players:</label>
+                    <select id="playerCount" class="tron-input" style="width: auto; margin: 10px;">
+                        <option value="4">4 Players</option>
+                        <option value="8" selected>8 Players</option>
+                        <option value="16">16 Players</option>
+                    </select>
+                </div>
+                <div id="playerInputs" class="player-list">
+                    <!-- Player inputs will be generated here -->
+                </div>
+                <div style="margin-top: 30px;">
+                    <button id="createTournamentBtn" class="tron-button">Create Tournament</button>
+                    <button id="backBtn" class="tron-button">Back</button>
+                </div>
+            </div>
+        `;
+
+        this.tournamentSetup.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+            overflow-y: auto;
+        `;
+
+        document.body.appendChild(this.tournamentSetup);
+
+        // Generate player inputs based on count
+        const generatePlayerInputs = (count: number) => {
+            const container = document.getElementById('playerInputs');
+            if (!container) return;
+
+            container.innerHTML = '';
+            for (let i = 1; i <= count; i++) {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'player-input-group';
+                inputGroup.innerHTML = `
+                    <label style="color: #00ffff; font-weight: bold;">Player ${i}:</label>
+                    <input 
+                        type="text" 
+                        class="tron-input" 
+                        id="tournamentPlayer${i}"
+                        placeholder="Enter player ${i} name"
+                        value="Player ${i}"
+                        maxlength="20"
+                    />
+                `;
+                container.appendChild(inputGroup);
+            }
+        };
+
+        // Initial generation
+        generatePlayerInputs(8);
+
+        // Bind events
+        document.getElementById('playerCount')?.addEventListener('change', (e) => {
+            const count = parseInt((e.target as HTMLSelectElement).value);
+            generatePlayerInputs(count);
+        });
+
+        document.getElementById('createTournamentBtn')?.addEventListener('click', () => {
+            const playerCount = parseInt((document.getElementById('playerCount') as HTMLSelectElement).value);
+            const playerNames: string[] = [];
+            
+            for (let i = 1; i <= playerCount; i++) {
+                const input = document.getElementById(`tournamentPlayer${i}`) as HTMLInputElement;
+                const name = input?.value?.trim() || `Player ${i}`;
+                playerNames.push(name);
+            }
+            
+            options.onCreateTournament(playerNames);
+        });
+
+        document.getElementById('backBtn')?.addEventListener('click', options.onBack);
+    }
+
+    removeTournamentSetup(): void {
+        if (this.tournamentSetup) {
+            this.tournamentSetup.remove();
+            this.tournamentSetup = null;
+        }
+    }
+
+    // =====================================
+    // TOURNAMENT BRACKET
+    // =====================================
+    createTournamentBracket(tournament: Tournament): void {
+        this.removeTournamentBracket();
+
+        const rounds: TournamentMatch[][] = [];
+        for (let round = 1; round <= tournament.totalRounds; round++) {
+            const roundMatches = tournament.matches.filter(m => m.roundNumber === round);
+            rounds.push(roundMatches);
+        }
+
+        const roundsHtml = rounds.map((roundMatches, roundIndex) => {
+            const roundName = roundIndex === rounds.length - 1 ? 'Final' :
+                             roundIndex === rounds.length - 2 ? 'Semi-Final' :
+                             `Round ${roundIndex + 1}`;
+
+            const matchesHtml = roundMatches.map(match => {
+                const isActive = !match.isComplete && roundIndex + 1 === tournament.currentRound;
+                const matchClass = match.isComplete ? 'completed' : (isActive ? 'active' : '');
+
+                return `
+                    <div class="bracket-match ${matchClass}">
+                        <div style="font-weight: bold; margin-bottom: 10px; color: #00ffff;">
+                            Match ${match.matchNumber}
                         </div>
-                        <div class="control-row">
-                            <span class="control-label">RIGHT PADDLE</span>
-                            <span class="control-keys"><span class="key">←</span>/<span class="key">→</span></span>
+                        <div class="match-player ${match.winner?.id === match.player1.id ? 'winner' : ''}">
+                            <span>${match.player1.name}</span>
+                            <span>${match.score?.player1 || 0}</span>
                         </div>
-                        <div class="control-row">
-                            <span class="control-label">CAMERA LOCK</span>
-                            <span class="control-keys"><span class="key">L</span></span>
+                        <div class="match-player ${match.winner?.id === match.player2.id ? 'winner' : ''}">
+                            <span>${match.player2.name}</span>
+                            <span>${match.score?.player2 || 0}</span>
                         </div>
-                        <div class="control-row">
-                            <span class="control-label">DEBUG INFO</span>
-                            <span class="control-keys"><span class="key">C</span></span>
+                        ${match.winner ? `
+                            <div style="margin-top: 10px; color: #00ff88; font-weight: bold; text-align: center;">
+                                Winner: ${match.winner.name}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="bracket-round">
+                    <h3 style="color: #00ffff; text-align: center; margin-bottom: 20px;">${roundName}</h3>
+                    ${matchesHtml}
+                </div>
+            `;
+        }).join('');
+
+        this.tournamentBracket = document.createElement('div');
+        this.tournamentBracket.id = 'tournamentBracket';
+        this.tournamentBracket.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 9998;">
+                <div style="padding: 20px; height: 100%; overflow: auto;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2 class="tron-title">${tournament.name}</h2>
+                        <div style="color: #00ffff; margin-top: 10px;">
+                            Round ${tournament.currentRound} of ${tournament.totalRounds}
                         </div>
+                    </div>
+                    <div class="tournament-bracket">
+                        ${roundsHtml}
                     </div>
                 </div>
             </div>
         `;
 
-        // Style the pause menu with Tron theme
+        document.body.appendChild(this.tournamentBracket);
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            this.removeTournamentBracket();
+        }, 3000);
+    }
+
+    removeTournamentBracket(): void {
+        if (this.tournamentBracket) {
+            this.tournamentBracket.remove();
+            this.tournamentBracket = null;
+        }
+    }
+
+    // =====================================
+    // GAME UI
+    // =====================================
+    createGameUI(options: {
+        player1Name: string;
+        player2Name: string;
+        gameMode: 'local' | 'ai' | 'tournament';
+    }): void {
+        this.removeGameUI();
+
+        this.gameUI = document.createElement('div');
+        this.gameUI.id = 'gameUI';
+        this.gameUI.innerHTML = `
+            <div class="game-ui-overlay">
+                <div class="game-scoreboard">
+                    <div class="player-score">
+                        <div class="player-name">${options.player1Name}</div>
+                        <div class="score-value" id="leftScore">0</div>
+                    </div>
+                    <div class="game-mode-indicator">
+                        <div style="font-size: 0.9em; margin-bottom: 5px;">
+                            ${options.gameMode.toUpperCase()} MODE
+                        </div>
+                        <div style="font-size: 0.8em; color: #888;">
+                            ${options.gameMode === 'local' ? 'Two Players' : 
+                              options.gameMode === 'ai' ? 'Player vs AI' : 'Tournament Match'}
+                        </div>
+                    </div>
+                    <div class="player-score">
+                        <div class="player-name">${options.player2Name}</div>
+                        <div class="score-value" id="rightScore">0</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(this.gameUI);
+    }
+
+    removeGameUI(): void {
+        if (this.gameUI) {
+            this.gameUI.remove();
+            this.gameUI = null;
+        }
+    }
+
+    // Update scores in game UI
+    updateGameScores(leftScore: number, rightScore: number): void {
+        const leftScoreEl = document.getElementById('leftScore');
+        const rightScoreEl = document.getElementById('rightScore');
+        
+        if (leftScoreEl) leftScoreEl.textContent = leftScore.toString();
+        if (rightScoreEl) rightScoreEl.textContent = rightScore.toString();
+    }
+
+    // =====================================
+    // GAME OVER
+    // =====================================
+    createGameOver(options: {
+        winner: string;
+        score: { left: number; right: number };
+        gameMode: any;
+        onPlayAgain: () => void;
+        onMainMenu: () => void;
+    }): void {
+        this.removeGameOver();
+
+        const winnerText = options.winner === 'left' ? 
+            options.gameMode.player1Name || 'Player 1' : 
+            options.gameMode.player2Name || 'Player 2';
+
+        this.gameOver = document.createElement('div');
+        this.gameOver.id = 'gameOver';
+        this.gameOver.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2.5em;">GAME OVER</h2>
+                <div style="margin: 30px 0; font-size: 1.5em; color: #00ff88;">
+                    🏆 ${winnerText} Wins!
+                </div>
+                <div style="margin: 20px 0; font-size: 1.2em;">
+                    Final Score: ${options.score.left} - ${options.score.right}
+                </div>
+                <div style="margin-top: 40px;">
+                    ${options.gameMode.type !== 'tournament' ? 
+                        '<button id="playAgainBtn" class="tron-button">Play Again</button>' : ''}
+                    <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                </div>
+            </div>
+        `;
+
+        this.gameOver.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        `;
+
+        document.body.appendChild(this.gameOver);
+
+        // Bind events
+        document.getElementById('playAgainBtn')?.addEventListener('click', options.onPlayAgain);
+        document.getElementById('mainMenuBtn')?.addEventListener('click', options.onMainMenu);
+    }
+
+    removeGameOver(): void {
+        if (this.gameOver) {
+            this.gameOver.remove();
+            this.gameOver = null;
+        }
+    }
+
+    // =====================================
+    // TOURNAMENT RESULTS
+    // =====================================
+    createTournamentComplete(options: {
+        tournament: Tournament;
+        champion: TournamentPlayer;
+        onNewTournament: () => void;
+        onMainMenu: () => void;
+    }): void {
+        this.removeTournamentComplete();
+
+        this.tournamentComplete = document.createElement('div');
+        this.tournamentComplete.id = 'tournamentComplete';
+        this.tournamentComplete.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2.5em;">TOURNAMENT COMPLETE</h2>
+                <div style="margin: 40px 0;">
+                    <div style="font-size: 2em; color: #d4af37; margin-bottom: 20px;">
+                        🏆 CHAMPION 🏆
+                    </div>
+                    <div style="font-size: 1.8em; color: #00ff88; font-weight: bold;">
+                        ${options.champion.name}
+                    </div>
+                </div>
+                <div style="margin: 30px 0; color: #888;">
+                    Tournament: ${options.tournament.name}
+                </div>
+                <div style="margin-top: 40px;">
+                    <button id="newTournamentBtn" class="tron-button">New Tournament</button>
+                    <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                </div>
+            </div>
+        `;
+
+        this.tournamentComplete.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        `;
+
+        document.body.appendChild(this.tournamentComplete);
+
+        // Bind events
+        document.getElementById('newTournamentBtn')?.addEventListener('click', options.onNewTournament);
+        document.getElementById('mainMenuBtn')?.addEventListener('click', options.onMainMenu);
+    }
+
+    createMatchResults(options: {
+        winner: string;
+        nextMatch: TournamentMatch | null;
+        tournament: Tournament;
+        onContinue: () => void;
+        onMainMenu: () => void;
+    }): void {
+        this.removeMatchResults();
+
+        this.matchResults = document.createElement('div');
+        this.matchResults.id = 'matchResults';
+        this.matchResults.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2em;">MATCH COMPLETE</h2>
+                <div style="margin: 30px 0; font-size: 1.5em; color: #00ff88;">
+                    Winner: ${options.winner}
+                </div>
+                ${options.nextMatch ? `
+                    <div style="margin: 20px 0;">
+                        <div style="color: #00ffff; font-weight: bold; margin-bottom: 10px;">Next Match:</div>
+                        <div style="font-size: 1.2em;">
+                            ${options.nextMatch.player1.name} vs ${options.nextMatch.player2.name}
+                        </div>
+                    </div>
+                    <div style="margin-top: 40px;">
+                        <button id="continueBtn" class="tron-button">Continue Tournament</button>
+                        <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                    </div>
+                ` : `
+                    <div style="margin-top: 40px;">
+                        <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                    </div>
+                `}
+            </div>
+        `;
+
+        this.matchResults.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10000;
+        `;
+
+        document.body.appendChild(this.matchResults);
+
+        // Bind events
+        document.getElementById('continueBtn')?.addEventListener('click', options.onContinue);
+        document.getElementById('mainMenuBtn')?.addEventListener('click', options.onMainMenu);
+    }
+
+    removeTournamentComplete(): void {
+        if (this.tournamentComplete) {
+            this.tournamentComplete.remove();
+            this.tournamentComplete = null;
+        }
+    }
+
+    removeMatchResults(): void {
+        if (this.matchResults) {
+            this.matchResults.remove();
+            this.matchResults = null;
+        }
+    }
+
+    // =====================================
+    // EXISTING METHODS (Enhanced)
+    // =====================================
+    createPauseMenu(options?: { 
+        onResume?: () => void; 
+        onRestart?: () => void;
+        onMainMenu?: () => void;
+    }): void {
+        this.removePauseMenu();
+
+        this.pauseMenu = document.createElement('div');
+        this.pauseMenu.id = 'pauseMenu';
+        this.pauseMenu.innerHTML = `
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <h2 class="tron-title" style="font-size: 2em;">GAME PAUSED</h2>
+                <div style="margin: 30px 0; font-size: 1.2em;">
+                    Press <span style="color: #d4af37; font-weight: bold;">SPACE</span> to resume
+                </div>
+                <div style="margin-top: 40px;">
+                    <button id="resumeBtn" class="tron-button">Resume</button>
+                    <button id="restartBtn" class="tron-button">Restart</button>
+                    <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                </div>
+            </div>
+        `;
+
         this.pauseMenu.style.cssText = `
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; align-items: center; justify-content: center;
             z-index: 10000;
-            font-family: 'Courier New', 'Monaco', monospace;
-            color: #00ffff;
-            overflow: hidden;
         `;
 
         document.body.appendChild(this.pauseMenu);
 
-        // Wire callbacks
-        const restartBtn = this.pauseMenu.querySelector('#restartButton') as HTMLButtonElement | null;
-        if (restartBtn && options?.onRestart) {
-            restartBtn.addEventListener('click', () => options.onRestart && options.onRestart());
-        }
+        // Bind events
+        document.getElementById('resumeBtn')?.addEventListener('click', () => options?.onResume?.());
+        document.getElementById('restartBtn')?.addEventListener('click', () => options?.onRestart?.());
+        document.getElementById('mainMenuBtn')?.addEventListener('click', () => options?.onMainMenu?.());
     }
 
-    public removePauseMenu(): void {
+    removePauseMenu(): void {
         if (this.pauseMenu) {
             this.pauseMenu.remove();
             this.pauseMenu = null;
         }
     }
 
-    public isPauseMenuVisible(): boolean {
-        return this.pauseMenu !== null;
-    }
-
-    public displayCoordinateOnPage(meshName: string, position: { x: number; y: number; z: number }): void {
-        // Remove existing coordinate display
-        const existing = document.getElementById('coordinateDisplay');
-        if (existing) existing.remove();
-
-        // Create coordinate display element
-        const display = document.createElement('div');
-        display.id = 'coordinateDisplay';
-        display.className = 'coordinate-display';
-        display.innerHTML = `
-            <strong>${meshName}</strong><br>
-            X: ${position.x.toFixed(2)}<br>
-            Y: ${position.y.toFixed(2)}<br>
-            Z: ${position.z.toFixed(2)}
-        `;
-        
-        document.body.appendChild(display);
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-            const element = document.getElementById('coordinateDisplay');
-            if (element) {
-                element.remove();
-            }
-        }, 3000);
-    }
-
-    public dispose(): void {
-        this.removePauseMenu();
-        
-        // Remove injected styles
-        const styles = document.getElementById('tronStyles');
-        if (styles) {
-            styles.remove();
-        }
-    }
-
-    // ===== Start Menu =====
-    public createStartMenu(options?: { titleImageUrl?: string }): void {
+    createStartMenu(options?: { titleImageUrl?: string }): void {
         this.removeStartMenu();
 
         this.startMenu = document.createElement('div');
         this.startMenu.id = 'startMenu';
-    const effectiveTitleImage = options?.titleImageUrl ?? this.defaultTitleImageUrl;
-    const titleBlock = effectiveTitleImage
-            ? `<div class="title-container">
-            <img src="${effectiveTitleImage}" alt="Title" style="max-width:420px; width:80%; filter: drop-shadow(0 0 12px #00ffff);"/>
-                    <div class="title-underline"></div>
-               </div>`
-            : `<div class="title-container">
-                    <h1 class="tron-title">TRONPONG</h1>
-                    <div class="title-underline"></div>
-               </div>`;
+        const effectiveTitleImage = options?.titleImageUrl ?? this.defaultTitleImageUrl;
+        const titleBlock = effectiveTitleImage
+            ? `<img src="${effectiveTitleImage}" alt="Title" style="max-width:420px; width:80%; filter: drop-shadow(0 0 12px #00ffff);"/>`
+            : `<h1 class="tron-title">TRONPONG</h1>`;
+
         this.startMenu.innerHTML = `
-            <div class="pause-content">
-                ${titleBlock}
-                <div class="resume-prompt">
-                    PRESS <span class="key-highlight">SPACE</span> TO START
+            <div class="tron-container">
+                <div class="tron-grid-bg"></div>
+                <div style="margin-bottom: 30px;">
+                    ${titleBlock}
                 </div>
-                <div class="pause-controls">
-                    <div class="control-header">CONTROLS</div>
-                    <div class="control-grid">
-                        <div class="control-row">
-                            <span class="control-label">LEFT PADDLE</span>
-                            <span class="control-keys"><span class="key">←</span>/<span class="key">→</span></span>
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">RIGHT PADDLE</span>
-                            <span class="control-keys"><span class="key">A</span>/<span class="key">D</span></span>
-                        </div>
-                        <div class="control-row">
-                            <span class="control-label">PAUSE/RESUME</span>
-                            <span class="control-keys"><span class="key">SPACE</span></span>
-                        </div>
-                        
-                    </div>
+                <div style="margin: 30px 0; font-size: 1.2em;">
+                    Press <span style="color: #d4af37; font-weight: bold;">SPACE</span> to start
                 </div>
             </div>
         `;
 
         this.startMenu.style.cssText = `
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: flex; align-items: center; justify-content: center;
             z-index: 9999;
-            font-family: 'Courier New', 'Monaco', monospace;
-            color: #00ffff;
-            overflow: hidden;
         `;
 
         document.body.appendChild(this.startMenu);
     }
 
-    public removeStartMenu(): void {
+    removeStartMenu(): void {
         if (this.startMenu) {
             this.startMenu.remove();
             this.startMenu = null;
         }
     }
 
-    // ===== Countdown Overlay =====
-    public updateCountdown(value: number | string): void {
+    updateCountdown(value: number | string): void {
         if (!this.countdownEl) {
             this.countdownEl = document.createElement('div');
             this.countdownEl.id = 'countdownOverlay';
@@ -402,7 +891,7 @@ export class GUIManager {
                 color: #00ffff;
                 text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
                 font-family: 'Orbitron', 'Courier New', monospace;
-                background: rgba(0,0,0,0.2);
+                background: rgba(0,0,0,0.3);
             `;
             document.body.appendChild(this.countdownEl);
         }
@@ -414,23 +903,30 @@ export class GUIManager {
         `;
     }
 
-    public clearCountdown(): void {
+    clearCountdown(): void {
         if (this.countdownEl) {
             this.countdownEl.remove();
             this.countdownEl = null;
         }
     }
 
-    // ===== Score Flash Overlay =====
-    public showScoreFlash(options: { scorer: 'left' | 'right'; leftScore: number; rightScore: number; imageUrl?: string; durationMs?: number }): void {
-        // Clear existing first
+    showScoreFlash(options: { 
+        scorer: 'left' | 'right'; 
+        leftScore: number; 
+        rightScore: number; 
+        imageUrl?: string; 
+        durationMs?: number;
+    }): void {
         this.clearScoreFlash();
         this.scoreFlashEl = document.createElement('div');
         this.scoreFlashEl.id = 'scoreFlashOverlay';
         const { scorer, leftScore, rightScore, imageUrl } = options;
         const duration = options.durationMs ?? 1800;
         const titleText = scorer === 'left' ? 'LEFT SCORES!' : 'RIGHT SCORES!';
-        const content = imageUrl ? `<img src="${imageUrl}" alt="Score" style="max-height:160px; filter: drop-shadow(0 0 12px #00ffff);"/>` : `<div style="font-size:64px;font-weight:900;letter-spacing:3px;">${titleText}</div>`;
+        const content = imageUrl ? 
+            `<img src="${imageUrl}" alt="Score" style="max-height:160px; filter: drop-shadow(0 0 12px #00ffff);"/>` : 
+            `<div style="font-size:64px;font-weight:900;letter-spacing:3px;">${titleText}</div>`;
+        
         this.scoreFlashEl.style.cssText = `
             position:fixed;top:0;left:0;width:100%;height:100%;
             display:flex;align-items:center;justify-content:center;
@@ -439,6 +935,7 @@ export class GUIManager {
             font-family:'Orbitron','Courier New',monospace;color:#00ffff;
             animation: scoreFlashFade ${duration}ms ease-out forwards;
         `;
+        
         this.scoreFlashEl.innerHTML = `
             <div style="text-align:center;">
                 ${content}
@@ -446,21 +943,46 @@ export class GUIManager {
                     ${leftScore} : ${rightScore}
                 </div>
             </div>`;
-        // Inject keyframes if not present
+        
         if (!document.getElementById('scoreFlashKeyframes')) {
             const style = document.createElement('style');
             style.id = 'scoreFlashKeyframes';
             style.textContent = `@keyframes scoreFlashFade {0%{opacity:0;}10%{opacity:1;}90%{opacity:1;}100%{opacity:0;}}`;
             document.head.appendChild(style);
         }
+        
         document.body.appendChild(this.scoreFlashEl);
+        
+        // Update game UI scores
+        this.updateGameScores(leftScore, rightScore);
+        
         setTimeout(() => this.clearScoreFlash(), duration);
     }
 
-    public clearScoreFlash(): void {
+    clearScoreFlash(): void {
         if (this.scoreFlashEl) {
             this.scoreFlashEl.remove();
             this.scoreFlashEl = null;
+        }
+    }
+
+    dispose(): void {
+        this.removeMainMenu();
+        this.removePlayerSetup();
+        this.removeTournamentSetup();
+        this.removeTournamentBracket();
+        this.removeGameUI();
+        this.removeGameOver();
+        this.removeTournamentComplete();
+        this.removeMatchResults();
+        this.removePauseMenu();
+        this.removeStartMenu();
+        this.clearCountdown();
+        this.clearScoreFlash();
+        
+        const styles = document.getElementById('tronStyles');
+        if (styles) {
+            styles.remove();
         }
     }
 }

@@ -12,11 +12,14 @@ export class GamePage implements Page {
     private backButton: HTMLElement | null = null;
     private fullscreenButton: HTMLElement | null = null;
     private gameContainer: HTMLElement | null = null;
+    // NEW: Add these properties for enhanced features
+    private aiDifficultySelector: HTMLElement | null = null;
+    private gameModeIndicator: HTMLElement | null = null;
 
     public render(): string {
         return `
             <div class="fixed inset-0 bg-slate-900 flex flex-col h-screen">
-                <!-- Game Header -->
+                <!-- Enhanced Game Header -->
                 <div class="bg-slate-800 border-b border-slate-700 p-4 z-10">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
@@ -27,10 +30,24 @@ export class GamePage implements Page {
                                 <span>Back to Dashboard</span>
                             </button>
                             <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-xl font-bold text-white">Pong Game</h1>
+                            <h1 class="text-xl font-bold text-white">Enhanced Pong Game</h1>
+                            <!-- NEW: Game mode indicator -->
+                            <div id="gameModeIndicator" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hidden">
+                                Local Mode
+                            </div>
                         </div>
                         
                         <div class="flex items-center space-x-4">
+                            <!-- NEW: AI Difficulty Selector -->
+                            <div id="aiDifficultySelector" class="flex items-center space-x-2 hidden">
+                                <span class="text-sm text-gray-400">AI Difficulty:</span>
+                                <select id="difficultySelect" class="bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600">
+                                    <option value="easy">Easy</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+                            </div>
+                            
                             <div class="text-sm text-gray-400">
                                 <span class="hidden sm:inline">Controls: </span>
                                 <span class="text-blue-400">↑↓</span> Left Paddle | 
@@ -44,6 +61,15 @@ export class GamePage implements Page {
                             </button>
                         </div>
                     </div>
+
+                    <!-- NEW: Game Status Bar -->
+                    <div id="gameStatusBar" class="mt-2 flex items-center justify-between text-sm text-gray-400 hidden">
+                        <div id="gameStatus">Ready to play</div>
+                        <div id="gameStats" class="flex space-x-4">
+                            <span id="currentScore">Score: 0 - 0</span>
+                            <span id="gameTime">Time: 0:00</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Game Container -->
@@ -52,8 +78,8 @@ export class GamePage implements Page {
                     <div id="gameLoading" class="absolute inset-0 flex items-center justify-center bg-slate-900">
                         <div class="text-center">
                             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                            <p class="text-white text-lg">Loading Pong Game...</p>
-                            <p class="text-gray-400 text-sm mt-2">Initializing 3D engine and assets</p>
+                            <p class="text-white text-lg">Loading Enhanced Pong Game...</p>
+                            <p class="text-gray-400 text-sm mt-2">Initializing 3D engine, AI system, and tournament features</p>
                         </div>
                     </div>
                     
@@ -70,7 +96,7 @@ export class GamePage implements Page {
                             <div class="text-red-500 text-6xl mb-4">⚠️</div>
                             <h2 class="text-white text-xl font-bold mb-2">Game Failed to Load</h2>
                             <p class="text-gray-400 mb-4" id="errorMessage">
-                                Unable to initialize the game engine. This may be due to WebGL compatibility issues.
+                                Unable to initialize the enhanced game engine. This may be due to WebGL compatibility issues.
                             </p>
                             <div class="space-y-2">
                                 <button id="retryButton" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded mr-2">
@@ -82,6 +108,19 @@ export class GamePage implements Page {
                             </div>
                         </div>
                     </div>
+
+                    <!-- NEW: Quick Action Buttons (shown when game is loaded) -->
+                    <div id="quickActions" class="absolute bottom-4 right-4 flex flex-col space-y-2 hidden">
+                        <button id="newLocalGameBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                            New Local Game
+                        </button>
+                        <button id="newAIGameBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                            Play vs AI
+                        </button>
+                        <button id="newTournamentBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">
+                            Tournament
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Notifications Container -->
@@ -91,7 +130,7 @@ export class GamePage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('🎮 Initializing Game Page...');
+        console.log('🎮 Initializing Enhanced Game Page...');
         
         this.bindElements();
         this.attachEventListeners();
@@ -102,14 +141,14 @@ export class GamePage implements Page {
     }
 
     public cleanup(): void {
-        console.log('🎮 Cleaning up Game Page...');
+        console.log('🎮 Cleaning up Enhanced Game Page...');
         
         if (this.gameManager) {
             try {
                 this.gameManager.dispose();
-                console.log('✅ Game manager disposed successfully');
+                console.log('✅ Enhanced game manager disposed successfully');
             } catch (error) {
-                console.warn('⚠️ Error disposing game manager:', error);
+                console.warn('⚠️ Error disposing enhanced game manager:', error);
             }
             this.gameManager = null;
         }
@@ -130,6 +169,8 @@ export class GamePage implements Page {
         this.backButton = null;
         this.fullscreenButton = null;
         this.gameContainer = null;
+        this.aiDifficultySelector = null;
+        this.gameModeIndicator = null;
     }
 
     private bindElements(): void {
@@ -137,6 +178,8 @@ export class GamePage implements Page {
         this.backButton = document.getElementById('backButton');
         this.fullscreenButton = document.getElementById('fullscreenButton');
         this.gameContainer = document.getElementById('gameContainer');
+        this.aiDifficultySelector = document.getElementById('aiDifficultySelector');
+        this.gameModeIndicator = document.getElementById('gameModeIndicator');
     }
 
     private attachEventListeners(): void {
@@ -146,16 +189,44 @@ export class GamePage implements Page {
         if (this.fullscreenButton) {
             this.fullscreenButton.addEventListener('click', this.handleFullscreenClick.bind(this));
         }
+
+        // Enhanced event listeners
         const retryButton = document.getElementById('retryButton');
         if (retryButton) {
             retryButton.addEventListener('click', this.handleRetry.bind(this));
         }
+
         const backToMenuButton = document.getElementById('backToMenuButton');
         if (backToMenuButton) {
             backToMenuButton.addEventListener('click', this.handleBackClick.bind(this));
         }
+
+        // NEW: AI difficulty selector
+        const difficultySelect = document.getElementById('difficultySelect') as HTMLSelectElement;
+        if (difficultySelect) {
+            difficultySelect.addEventListener('change', this.handleDifficultyChange.bind(this));
+        }
+
+        // NEW: Quick action buttons
+        const newLocalGameBtn = document.getElementById('newLocalGameBtn');
+        if (newLocalGameBtn) {
+            newLocalGameBtn.addEventListener('click', () => this.startQuickGame('local'));
+        }
+
+        const newAIGameBtn = document.getElementById('newAIGameBtn');
+        if (newAIGameBtn) {
+            newAIGameBtn.addEventListener('click', () => this.startQuickGame('ai'));
+        }
+
+        const newTournamentBtn = document.getElementById('newTournamentBtn');
+        if (newTournamentBtn) {
+            newTournamentBtn.addEventListener('click', () => this.startQuickGame('tournament'));
+        }
+
+        // Standard event listeners
         document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
         window.addEventListener('resize', this.handleWindowResize.bind(this));
+        
         if (this.gameCanvas) {
             this.gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
         }
@@ -172,43 +243,179 @@ export class GamePage implements Page {
         window.removeEventListener('resize', this.handleWindowResize);
     }
 
-	private async initializeGame(): Promise<void> {
-		if (!this.gameCanvas) {
-			console.error('❌ Game canvas not found');
-			this.showError('Game canvas not available');
-			return;
-		}
+    // ENHANCED: Updated initialization method
+    private async initializeGame(): Promise<void> {
+        if (!this.gameCanvas) {
+            console.error('❌ Game canvas not found');
+            this.showError('Game canvas not available');
+            return;
+        }
 
-		try {
-			console.log('🎮 Starting game initialization...');
-			if (!this.checkWebGLSupport()) {
-				throw new Error('WebGL is not supported in this browser');
-			}
-			this.showGameState();
-			await new Promise(resolve => setTimeout(resolve, 100));
-			console.log(`📐 Canvas ready - Display: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-			if (this.gameCanvas.clientWidth === 0 || this.gameCanvas.clientHeight === 0) {
-				throw new Error('Canvas has no display dimensions - check CSS and container setup');
-			}
-			console.log('🏓 Creating PongGameManager...');
-			this.gameManager = new PongGameManager(this.gameCanvas);
-			await new Promise(resolve => setTimeout(resolve, 2000));
-			if (this.gameManager) {
-				console.log('✅ Game initialized successfully!');
-				this.isGameInitialized = true;
-				if ((this.gameManager as any)?.renderEngine?.engine) {
-					(this.gameManager as any).renderEngine.engine.resize();
-					console.log('🔄 Forced resize after initialization');
-				}
-				showNotification('Pong game loaded successfully! Press Space to start.', 'success', 3000);
-			} else {
-				throw new Error('Game manager failed to initialize');
-			}
-		} catch (error) {
-			console.error('❌ Failed to initialize game:', error);
-			this.showError(error instanceof Error ? error.message : 'Unknown error occurred');
-		}
-	}
+        try {
+            console.log('🎮 Starting enhanced game initialization...');
+            
+            if (!this.checkWebGLSupport()) {
+                throw new Error('WebGL is not supported in this browser');
+            }
+
+            this.showGameState();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log(`📐 Canvas ready - Display: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
+            if (this.gameCanvas.clientWidth === 0 || this.gameCanvas.clientHeight === 0) {
+                throw new Error('Canvas has no display dimensions - check CSS and container setup');
+            }
+
+            console.log('🏓 Creating Enhanced PongGameManager...');
+            this.gameManager = new PongGameManager(this.gameCanvas);
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            if (this.gameManager) {
+                console.log('✅ Enhanced game initialized successfully!');
+                this.isGameInitialized = true;
+
+                // NEW: Initialize backend session
+                await this.initializeBackendSession();
+
+                // NEW: Set up game state monitoring
+                this.setupGameStateMonitoring();
+
+                // NEW: Show quick action buttons
+                this.showQuickActions();
+
+                if ((this.gameManager as any)?.renderEngine?.engine) {
+                    (this.gameManager as any).renderEngine.engine.resize();
+                    console.log('🔄 Forced resize after initialization');
+                }
+
+                showNotification('Enhanced Pong game loaded! Choose a game mode from the main menu.', 'success', 3000);
+            } else {
+                throw new Error('Enhanced game manager failed to initialize');
+            }
+        } catch (error) {
+            console.error('❌ Failed to initialize enhanced game:', error);
+            this.showError(error instanceof Error ? error.message : 'Unknown error occurred');
+        }
+    }
+
+    // NEW: Initialize backend session
+    private async initializeBackendSession(): Promise<void> {
+        if (!this.gameManager) return;
+
+        try {
+            // Initialize with local mode by default
+            await this.gameManager.initializeGameSession('local');
+            console.log('✅ Backend session initialized');
+        } catch (error) {
+            console.warn('⚠️ Backend session initialization failed:', error);
+            // Continue without backend integration
+        }
+    }
+
+    // NEW: Set up game state monitoring
+    private setupGameStateMonitoring(): void {
+        if (!this.gameManager) return;
+
+        // Monitor game state changes
+        setInterval(() => {
+            this.updateGameStatusDisplay();
+        }, 1000);
+    }
+
+    // NEW: Update game status display
+    private updateGameStatusDisplay(): void {
+        if (!this.gameManager) return;
+
+        try {
+            const gameMode = this.gameManager.getGameMode();
+            const score = this.gameManager.getScore();
+            
+            // Update game mode indicator
+            if (this.gameModeIndicator) {
+                const modeText = gameMode.type === 'local' ? 'Local Mode' :
+                               gameMode.type === 'ai' ? 'AI Mode' :
+                               gameMode.type === 'tournament' ? 'Tournament' : 'Menu';
+                this.gameModeIndicator.textContent = modeText;
+                this.gameModeIndicator.classList.remove('hidden');
+            }
+
+            // Show/hide AI difficulty selector
+            if (this.aiDifficultySelector) {
+                if (gameMode.type === 'ai') {
+                    this.aiDifficultySelector.classList.remove('hidden');
+                } else {
+                    this.aiDifficultySelector.classList.add('hidden');
+                }
+            }
+
+            // Update score display
+            const currentScore = document.getElementById('currentScore');
+            if (currentScore) {
+                currentScore.textContent = `Score: ${score.left} - ${score.right}`;
+            }
+
+            // Show game status bar when game is active
+            const gameStatusBar = document.getElementById('gameStatusBar');
+            if (gameStatusBar) {
+                if (gameMode.type !== 'menu') {
+                    gameStatusBar.classList.remove('hidden');
+                } else {
+                    gameStatusBar.classList.add('hidden');
+                }
+            }
+
+        } catch (error) {
+            console.warn('⚠️ Error updating game status display:', error);
+        }
+    }
+
+    // NEW: Show quick action buttons
+    private showQuickActions(): void {
+        const quickActions = document.getElementById('quickActions');
+        if (quickActions) {
+            quickActions.classList.remove('hidden');
+        }
+    }
+
+    // NEW: Handle difficulty change
+    private handleDifficultyChange(event: Event): void {
+        if (!this.gameManager) return;
+
+        const select = event.target as HTMLSelectElement;
+        const difficulty = select.value as 'easy' | 'medium' | 'hard';
+        
+        this.gameManager.setAIDifficulty(difficulty);
+        showNotification(`AI difficulty set to ${difficulty}`, 'info', 2000);
+    }
+
+    // NEW: Start quick games
+    private async startQuickGame(mode: 'local' | 'ai' | 'tournament'): Promise<void> {
+        if (!this.gameManager) return;
+
+        try {
+            switch (mode) {
+                case 'local':
+                    await this.gameManager.startLocalGame();
+                    showNotification('Local multiplayer game started!', 'success');
+                    break;
+                case 'ai':
+                    const difficulty = (document.getElementById('difficultySelect') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard' || 'medium';
+                    await this.gameManager.startAIGame('Player', difficulty);
+                    showNotification(`AI game started on ${difficulty} difficulty!`, 'success');
+                    break;
+                case 'tournament':
+                    // For quick tournament, use default 4 players
+                    const defaultPlayers = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
+                    await this.gameManager.startTournament(defaultPlayers);
+                    showNotification('Tournament started with 4 players!', 'success');
+                    break;
+            }
+        } catch (error) {
+            console.error('❌ Failed to start quick game:', error);
+            showError(`Failed to start ${mode} game: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
 
     private checkWebGLSupport(): boolean {
         try {
@@ -220,29 +427,32 @@ export class GamePage implements Page {
         }
     }
 
-	private showGameState(): void {
-		const loading = document.getElementById('gameLoading');
-		const canvas = document.getElementById('gameCanvas');
-		const error = document.getElementById('gameError');
-		if (loading) loading.style.display = 'none';
-		if (canvas) {
-			canvas.style.display = 'block';
-			canvas.offsetHeight;
-			console.log(`📐 Canvas shown - Display: ${canvas.clientWidth}x${canvas.clientHeight}`);
-		}
-		if (error) error.style.display = 'none';
-	}
+    private showGameState(): void {
+        const loading = document.getElementById('gameLoading');
+        const canvas = document.getElementById('gameCanvas');
+        const error = document.getElementById('gameError');
+        
+        if (loading) loading.style.display = 'none';
+        if (canvas) {
+            canvas.style.display = 'block';
+            canvas.offsetHeight;
+            console.log(`📐 Canvas shown - Display: ${canvas.clientWidth}x${canvas.clientHeight}`);
+        }
+        if (error) error.style.display = 'none';
+    }
 
     private showError(message: string): void {
         const loading = document.getElementById('gameLoading');
         const canvas = document.getElementById('gameCanvas');
         const error = document.getElementById('gameError');
         const errorMessage = document.getElementById('errorMessage');
+        
         if (loading) loading.style.display = 'none';
         if (canvas) canvas.style.display = 'none';
         if (error) error.style.display = 'flex';
         if (errorMessage) errorMessage.textContent = message;
-        showError(`Game initialization failed: ${message}`);
+        
+        showError(`Enhanced game initialization failed: ${message}`);
     }
 
     private handleBackClick(): void {
@@ -270,33 +480,34 @@ export class GamePage implements Page {
         }
     }
 
-	private handleFullscreenChange(): void {
-		const isFullscreen = !!document.fullscreenElement;
-		console.log('Fullscreen state:', isFullscreen);
-		setTimeout(() => {
-			if (this.gameCanvas) {
-				console.log(`📐 Canvas dimensions after fullscreen change: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-			}
-			if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
-				(this.gameManager as any).renderEngine.engine.resize();
-				console.log('🔄 Babylon.js engine resized after fullscreen change');
-			}
-		}, 200);
-	}
+    private handleFullscreenChange(): void {
+        const isFullscreen = !!document.fullscreenElement;
+        console.log('Fullscreen state:', isFullscreen);
+        
+        setTimeout(() => {
+            if (this.gameCanvas) {
+                console.log(`📐 Canvas dimensions after fullscreen change: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
+            }
+            if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
+                (this.gameManager as any).renderEngine.engine.resize();
+                console.log('🔄 Babylon.js engine resized after fullscreen change');
+            }
+        }, 200);
+    }
 
-	private handleWindowResize(): void {
-		console.log('🔄 Window resize detected');
-		if (this.gameCanvas) {
-			console.log(`📐 Canvas dimensions: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-		}
-		if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
-			(this.gameManager as any).renderEngine.engine.resize();
-			console.log('🔄 Babylon.js engine resized');
-		}
-	}
+    private handleWindowResize(): void {
+        console.log('🔄 Window resize detected');
+        if (this.gameCanvas) {
+            console.log(`📐 Canvas dimensions: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
+        }
+        if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
+            (this.gameManager as any).renderEngine.engine.resize();
+            console.log('🔄 Babylon.js engine resized');
+        }
+    }
 
     private handleRetry(): void {
-        console.log('🔄 Retrying game initialization...');
+        console.log('🔄 Retrying enhanced game initialization...');
         if (this.gameManager) {
             this.gameManager.dispose();
             this.gameManager = null;
