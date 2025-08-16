@@ -198,10 +198,10 @@ export class GUIManager {
             
             .game-ui-overlay {
                 position: fixed;
-                top: 20px;
+                top: 80px;
                 left: 20px;
                 right: 20px;
-                z-index: 1000;
+                z-index: 500;
                 pointer-events: none;
             }
             
@@ -209,36 +209,56 @@ export class GUIManager {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(0, 0, 0, 0.7);
                 border: 2px solid #00ffff;
-                padding: 20px;
+                padding: 12px 20px;
                 font-family: 'Orbitron', 'Courier New', monospace;
                 color: #00ffff;
-                box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+                max-width: 600px;
+                margin: 0 auto;
+                border-radius: 4px;
             }
             
             .player-score {
                 text-align: center;
+                min-width: 120px;
             }
             
             .player-name {
-                font-size: 1.2em;
+                font-size: 0.9em;
                 font-weight: bold;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
             }
             
             .score-value {
-                font-size: 3em;
+                font-size: 2em;
                 font-weight: 900;
-                text-shadow: 0 0 20px currentColor;
+                text-shadow: 0 0 15px currentColor;
             }
             
             .game-mode-indicator {
                 text-align: center;
-                padding: 10px;
+                padding: 8px 16px;
                 background: rgba(0, 255, 255, 0.1);
                 border: 1px solid #00ffff;
                 margin: 0 20px;
+                border-radius: 3px;
+                min-width: 120px;
+            }
+
+            .game-mode-indicator .mode-title {
+                font-size: 0.8em;
+                font-weight: bold;
+                margin-bottom: 4px;
+                color: #00ffff;
+            }
+
+            .game-mode-indicator .mode-subtitle {
+                font-size: 0.7em;
+                color: #888;
             }
         `;
         document.head.appendChild(style);
@@ -580,12 +600,12 @@ export class GUIManager {
                         <div class="score-value" id="leftScore">0</div>
                     </div>
                     <div class="game-mode-indicator">
-                        <div style="font-size: 0.9em; margin-bottom: 5px;">
-                            ${options.gameMode.toUpperCase()} MODE
+                        <div class="mode-title">
+                            ${options.gameMode.toUpperCase()}
                         </div>
-                        <div style="font-size: 0.8em; color: #888;">
+                        <div class="mode-subtitle">
                             ${options.gameMode === 'local' ? 'Two Players' : 
-                              options.gameMode === 'ai' ? 'Player vs AI' : 'Tournament Match'}
+                              options.gameMode === 'ai' ? 'vs AI' : 'Tournament'}
                         </div>
                     </div>
                     <div class="player-score">
@@ -796,6 +816,7 @@ export class GUIManager {
         onResume?: () => void; 
         onRestart?: () => void;
         onMainMenu?: () => void;
+        onQuitToDashboard?: () => void;
     }): void {
         this.removePauseMenu();
 
@@ -809,9 +830,14 @@ export class GUIManager {
                     Press <span style="color: #d4af37; font-weight: bold;">SPACE</span> to resume
                 </div>
                 <div style="margin-top: 40px;">
-                    <button id="resumeBtn" class="tron-button">Resume</button>
-                    <button id="restartBtn" class="tron-button">Restart</button>
-                    <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                    <button id="resumeBtn" class="tron-button">Resume Game</button>
+                    <button id="restartBtn" class="tron-button">Restart Game</button>
+                    <button id="gameMenuBtn" class="tron-button">Game Menu</button>
+                    <button id="quitToDashboardBtn" class="tron-button" style="background: linear-gradient(145deg, #440011, #660022); border-color: #ff4466;">Exit to Dashboard</button>
+                </div>
+                <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
+                    <div style="margin-bottom: 10px;">Controls:</div>
+                    <div>SPACE - Resume | ESC/Q - Dashboard | R - Restart</div>
                 </div>
             </div>
         `;
@@ -829,7 +855,8 @@ export class GUIManager {
         // Bind events
         document.getElementById('resumeBtn')?.addEventListener('click', () => options?.onResume?.());
         document.getElementById('restartBtn')?.addEventListener('click', () => options?.onRestart?.());
-        document.getElementById('mainMenuBtn')?.addEventListener('click', () => options?.onMainMenu?.());
+        document.getElementById('gameMenuBtn')?.addEventListener('click', () => options?.onMainMenu?.());
+        document.getElementById('quitToDashboardBtn')?.addEventListener('click', () => options?.onQuitToDashboard?.());
     }
 
     removePauseMenu(): void {

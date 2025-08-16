@@ -168,6 +168,7 @@ export class UIManager {
         onResume?: () => void; 
         onRestart?: () => void;
         onMainMenu?: () => void;
+        onQuitToDashboard?: () => void;
     }): void {
         this.gui.createPauseMenu(options);
         this.currentMenus.add('pauseMenu');

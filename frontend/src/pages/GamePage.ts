@@ -20,42 +20,41 @@ export class GamePage implements Page {
         return `
             <div class="fixed inset-0 bg-slate-900 flex flex-col h-screen">
                 <!-- Enhanced Game Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-4 z-10">
+                <div class="bg-slate-800 border-b border-slate-700 p-3 z-20 relative">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
+                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors z-30 relative">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                                 </svg>
                                 <span>Back to Dashboard</span>
                             </button>
                             <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-xl font-bold text-white">Enhanced Pong Game</h1>
+                            <h1 class="text-lg font-bold text-white">Enhanced Pong Game</h1>
                             <!-- NEW: Game mode indicator -->
-                            <div id="gameModeIndicator" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hidden">
+                            <div id="gameModeIndicator" class="px-2 py-1 bg-blue-600 text-white text-xs rounded hidden">
                                 Local Mode
                             </div>
                         </div>
                         
-                        <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-3">
                             <!-- NEW: AI Difficulty Selector -->
-                            <div id="aiDifficultySelector" class="flex items-center space-x-2 hidden">
-                                <span class="text-sm text-gray-400">AI Difficulty:</span>
-                                <select id="difficultySelect" class="bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600">
+                            <div id="aiDifficultySelector" class="flex items-center space-x-2 hidden z-30 relative">
+                                <span class="text-xs text-gray-400">AI:</span>
+                                <select id="difficultySelect" class="bg-slate-700 text-white text-xs rounded px-2 py-1 border border-slate-600">
                                     <option value="easy">Easy</option>
                                     <option value="medium" selected>Medium</option>
                                     <option value="hard">Hard</option>
                                 </select>
                             </div>
                             
-                            <div class="text-sm text-gray-400">
-                                <span class="hidden sm:inline">Controls: </span>
-                                <span class="text-blue-400">↑↓</span> Left Paddle | 
-                                <span class="text-orange-400">WS</span> Right Paddle | 
+                            <div class="text-xs text-gray-400 hidden sm:block">
+                                <span class="text-blue-400">↑↓</span> Left | 
+                                <span class="text-orange-400">WS</span> Right | 
                                 <span class="text-green-400">Space</span> Pause
                             </div>
-                            <button id="fullscreenButton" class="text-gray-300 hover:text-white transition-colors p-2 rounded">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button id="fullscreenButton" class="text-gray-300 hover:text-white transition-colors p-2 rounded z-30 relative">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
                                 </svg>
                             </button>
@@ -63,7 +62,7 @@ export class GamePage implements Page {
                     </div>
 
                     <!-- NEW: Game Status Bar -->
-                    <div id="gameStatusBar" class="mt-2 flex items-center justify-between text-sm text-gray-400 hidden">
+                    <div id="gameStatusBar" class="mt-2 flex items-center justify-between text-xs text-gray-400 hidden">
                         <div id="gameStatus">Ready to play</div>
                         <div id="gameStats" class="flex space-x-4">
                             <span id="currentScore">Score: 0 - 0</span>
@@ -110,14 +109,14 @@ export class GamePage implements Page {
                     </div>
 
                     <!-- NEW: Quick Action Buttons (shown when game is loaded) -->
-                    <div id="quickActions" class="absolute bottom-4 right-4 flex flex-col space-y-2 hidden">
-                        <button id="newLocalGameBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
+                    <div id="quickActions" class="absolute bottom-4 right-4 flex flex-col space-y-2 hidden z-10">
+                        <button id="newLocalGameBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-xs">
                             New Local Game
                         </button>
-                        <button id="newAIGameBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                        <button id="newAIGameBtn" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs">
                             Play vs AI
                         </button>
-                        <button id="newTournamentBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm">
+                        <button id="newTournamentBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-xs">
                             Tournament
                         </button>
                     </div>

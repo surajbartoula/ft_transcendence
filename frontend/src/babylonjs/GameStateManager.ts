@@ -417,9 +417,18 @@ class PausedState extends GameState {
             onMainMenu: () => {
                 this.systems.scoreManager.reset();
                 this.stateManager.setState('menu');
+            },
+            onQuitToDashboard: () => {
+                this.systems.scoreManager.reset();
+                // Navigate back to dashboard
+                const event = new CustomEvent('navigate', {
+                    detail: { path: '/dashboard' }
+                });
+                window.dispatchEvent(event);
             }
         });
 
+        // Keyboard shortcuts
         this.systems.inputManager.registerHandler(' ', (pressed) => {
             if (pressed) {
                 const playingState = this.stateManager.getState('playing') as PlayingState;
@@ -427,11 +436,46 @@ class PausedState extends GameState {
                 this.stateManager.setState('playing', this.getCurrentMatchData());
             }
         });
+
+        this.systems.inputManager.registerHandler('escape', (pressed) => {
+            if (pressed) {
+                this.systems.scoreManager.reset();
+                // Navigate back to dashboard
+                const event = new CustomEvent('navigate', {
+                    detail: { path: '/dashboard' }
+                });
+                window.dispatchEvent(event);
+            }
+        });
+
+        this.systems.inputManager.registerHandler('r', (pressed) => {
+            if (pressed) {
+                this.systems.scoreManager.reset();
+                this.systems.physicsSystem.stopBall();
+                const playingState = this.stateManager.getState('playing') as PlayingState;
+                if (playingState) playingState.setResumingFromPause(false);
+                this.stateManager.setState('playing', this.getCurrentMatchData());
+            }
+        });
+
+        this.systems.inputManager.registerHandler('q', (pressed) => {
+            if (pressed) {
+                this.systems.scoreManager.reset();
+                // Navigate back to dashboard
+                const event = new CustomEvent('navigate', {
+                    detail: { path: '/dashboard' }
+                });
+                window.dispatchEvent(event);
+            }
+        });
     }
 
     exit(): void {
         this.systems.uiManager.hidePause();
         this.systems.inputManager.unregisterHandler(' ');
+        this.systems.inputManager.unregisterHandler('escape');
+        this.systems.inputManager.unregisterHandler('r');
+        this.systems.inputManager.unregisterHandler('q');
     }
 
     update(deltaTime: number): void {}
