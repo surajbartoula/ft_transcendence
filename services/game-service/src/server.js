@@ -26,7 +26,7 @@ try {
 		cert: fs.readFileSync(process.env.SSL_CERT)
 	};
 	
-	console.log('HTTPS configuration loaded for game service');
+	console.log('HTTPS configuration loaded for enhanced game service');
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);
 	process.exit(1);
@@ -52,8 +52,8 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
 async function start() {
     try {
-        // Initialize database
-        console.log('🎮 Initializing Pong Game Service...');
+        // Initialize enhanced database with tournament features
+        console.log('🎮 Initializing Enhanced Pong Game Service with Tournament Support...');
         await initializeDatabase();
 
         // Register CORS
@@ -71,19 +71,24 @@ async function start() {
             }
         });
 
-        // Register Socket.IO
+        // Register Socket.IO with enhanced configuration
         await fastify.register(socketio, {
             cors: {
                 origin: CORS_ORIGIN,
                 credentials: true
             },
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
+            pingTimeout: 60000,
+            pingInterval: 25000,
+            upgradeTimeout: 30000,
+            maxHttpBufferSize: 1e6, // 1MB
+            allowEIO3: true // Allow Engine.IO v3 clients
         });
 
-        // Setup Socket.IO handlers
+        // Setup enhanced Socket.IO handlers with tournament support
         setupSocketHandlers(fastify.io);
 
-        // Register routes
+        // Register enhanced routes
         await fastify.register(gameRoutes);
 
         // Global error handler
@@ -112,20 +117,75 @@ async function start() {
             });
         });
 
-        // Health check endpoint
+        // Enhanced health check endpoint
         fastify.get('/', async (request, reply) => {
             return {
-                service: 'Pong Game Service',
+                service: 'Enhanced Pong Game Service',
                 status: 'healthy',
-                version: '1.0.0',
+                version: '2.0.0',
                 timestamp: new Date().toISOString(),
+                features: [
+                    'Tournament System with Seeding',
+                    'Bracket Management',
+                    'Real-time Announcements',
+                    'Advanced Player Statistics',
+                    'Live Spectating',
+                    'Tournament Chat',
+                    'Match History & Analytics'
+                ],
                 endpoints: {
-                    health: '/api/health',
+                    health: '/api/game/health',
                     game_sessions: '/api/game/session',
-                    tournaments: '/api/tournament',
+                    tournaments: '/api/game/tournament',
+                    tournament_seeding: '/api/game/tournament/:id/seeding',
+                    tournament_announcements: '/api/game/tournament/:id/announcements',
                     invitations: '/api/game/invite',
-                    statistics: '/api/stats',
-                    leaderboard: '/api/leaderboard'
+                    statistics: '/api/game/stats',
+                    leaderboard: '/api/game/leaderboard',
+                    game_rooms: '/api/game/room/:id/join'
+                },
+                socket_events: {
+                    authentication: ['authenticate', 'authenticated'],
+                    game_control: ['join_game_room', 'player_ready', 'paddle_move', 'game_pause', 'game_quit'],
+                    tournament: ['join_tournament_room', 'tournament_match_request', 'tournament_bracket_update_request'],
+                    communication: ['game_chat', 'tournament_chat', 'game_emote'],
+                    updates: ['game_update', 'tournament_match_result', 'tournament_bracket_update']
+                }
+            };
+        });
+
+        // Enhanced API documentation endpoint
+        fastify.get('/api/docs', async (request, reply) => {
+            return {
+                title: 'Enhanced Pong Game Service API',
+                version: '2.0.0',
+                description: 'Complete tournament and game management system for Pong',
+                tournament_features: {
+                    seeding: {
+                        methods: ['random', 'ranking', 'manual'],
+                        description: 'Automatic or manual player seeding based on ranking points or custom arrangement'
+                    },
+                    bracket_management: {
+                        types: ['single_elimination', 'double_elimination', 'round_robin'],
+                        positioning: 'Automatic bracket position tracking (R1-M1, R2-M3, etc.)',
+                        advancement: 'Automatic winner advancement and next round generation'
+                    },
+                    announcements: {
+                        types: ['general', 'match_ready', 'match_result', 'round_complete', 'player_advance', 'elimination', 'tournament_start', 'tournament_end'],
+                        targeting: 'Broadcast to all participants or specific players',
+                        expiration: 'Automatic cleanup of expired announcements'
+                    },
+                    real_time: {
+                        spectating: 'Live match viewing for tournament participants',
+                        chat: 'Tournament-wide and match-specific chat systems',
+                        notifications: 'Real-time updates for match results and bracket changes'
+                    }
+                },
+                database_enhancements: {
+                    seeding_support: 'Tournament participants now include seed numbers and ranking points',
+                    bracket_positioning: 'Tournament matches include bracket position tracking',
+                    announcements: 'Dedicated announcement system with targeting and expiration',
+                    enhanced_indexing: 'Optimized database indexes for tournament queries'
                 }
             };
         });
@@ -136,24 +196,49 @@ async function start() {
             host: '0.0.0.0' 
         });
 
-        console.log(`🚀 Pong Game Service running at: ${address}`);
-        console.log(`🔌 Socket.IO enabled for real-time gameplay`);
+        console.log(`🚀 Enhanced Pong Game Service running at: ${address}`);
+        console.log(`🔌 Socket.IO enabled for real-time gameplay and tournaments`);
+        console.log(`🏆 Tournament features: Seeding, Brackets, Announcements, Live Spectating`);
+        console.log(`📊 Advanced analytics and player statistics enabled`);
         console.log(`🎯 Environment: ${process.env.NODE_ENV || 'development'}`);
 
+        // Log feature summary
+        console.log('\n📋 Feature Summary:');
+        console.log('   ✅ Tournament Creation & Management');
+        console.log('   ✅ Advanced Player Seeding (Random, Ranking, Manual)');
+        console.log('   ✅ Automatic Bracket Generation & Management');
+        console.log('   ✅ Real-time Tournament Announcements');
+        console.log('   ✅ Live Match Spectating for Tournaments');
+        console.log('   ✅ Tournament & Match Chat Systems');
+        console.log('   ✅ Advanced Player Statistics & Leaderboards');
+        console.log('   ✅ Automated Tournament Progression');
+        console.log('   ✅ Match History & Analytics');
+        console.log('   ✅ Game Event Recording & Replay Data');
+
     } catch (error) {
-        console.error('💥 Failed to start server:', error);
+        console.error('💥 Failed to start enhanced server:', error);
         process.exit(1);
     }
 }
 
-// Graceful shutdown
+// Graceful shutdown with cleanup
 const signals = ['SIGINT', 'SIGTERM'];
 signals.forEach((signal) => {
     process.on(signal, async () => {
         console.log(`\n📡 Received ${signal}, shutting down gracefully...`);
         try {
+            // Cleanup any active games and tournaments
+            console.log('🧹 Cleaning up active games and tournaments...');
+            
+            // Close Socket.IO connections
+            if (fastify.io) {
+                fastify.io.close();
+                console.log('🔌 Socket.IO connections closed');
+            }
+            
+            // Close server
             await fastify.close();
-            console.log('✅ Server closed successfully');
+            console.log('✅ Enhanced server closed successfully');
             process.exit(0);
         } catch (error) {
             console.error('❌ Error during shutdown:', error);

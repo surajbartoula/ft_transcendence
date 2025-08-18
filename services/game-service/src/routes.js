@@ -58,13 +58,11 @@ export default async function gameRoutes(fastify, options) {
                 const { player2_id, game_mode, tournament_id } = req.body;
                 const token = req.headers.authorization;
 
-                // Validate game mode
                 const validModes = ['local', 'remote', 'ai', 'tournament'];
                 if (!validModes.includes(game_mode)) {
                     return reply.code(400).send({ error: 'Invalid game mode' });
                 }
 
-                // For remote games, check if users are blocked
                 if (game_mode === 'remote' && player2_id) {
                     const isBlocked = await checkIfBlocked(userId, player2_id, token);
                     if (isBlocked) {
@@ -80,7 +78,6 @@ export default async function gameRoutes(fastify, options) {
                     status: 'waiting'
                 });
 
-                // If it's a remote game, create a game room
                 if (game_mode === 'remote') {
                     const roomId = `room_${gameSession.id}_${Date.now()}`;
                     await gameDb.createActiveGameRoom(roomId, gameSession.id);
@@ -108,7 +105,6 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                // Check if user is a participant
                 if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
                     return reply.code(403).send({ error: 'Not authorized to view this game' });
                 }
@@ -121,7 +117,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Update game session (score, status, etc.)
+    // Update game session (enhanced with tournament advancement)
     fastify.patch('/api/game/session/:sessionId', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -135,14 +131,13 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                // Check if user is a participant
                 if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
                     return reply.code(403).send({ error: 'Not authorized to update this game' });
                 }
 
                 const updatedSession = await gameDb.updateGameSession(sessionId, updates);
                 
-                // If game finished, update player statistics
+                // If game finished, update player statistics and handle tournament advancement
                 if (updates.status === 'finished' && updates.winner_id) {
                     const player1Result = {
                         result: updates.winner_id === gameSession.player1_id ? 'won' : 'lost',
@@ -158,6 +153,34 @@ export default async function gameRoutes(fastify, options) {
                     await gameDb.updatePlayerStats(gameSession.player1_id, player1Result);
                     if (gameSession.player2_id) {
                         await gameDb.updatePlayerStats(gameSession.player2_id, player2Result);
+                    }
+
+                    // Handle tournament advancement if this is a tournament game
+                    if (gameSession.tournament_id) {
+                        try {
+                            // Find the tournament match for this game session
+                            const matches = await gameDb.getTournamentMatches(gameSession.tournament_id);
+                            const tournamentMatch = matches.find(m => m.game_session_id === parseInt(sessionId));
+                            
+                            if (tournamentMatch) {
+                                await gameDb.advanceWinnerToNextRound(tournamentMatch.id, updates.winner_id);
+                                
+                                // Notify tournament participants about the result
+                                const tournament = await gameDb.getTournament(gameSession.tournament_id);
+                                const participants = await gameDb.getTournamentParticipants(gameSession.tournament_id);
+                                
+                                participants.forEach(participant => {
+                                    fastify.io.to(`user_${participant.user_id}`).emit('tournament_match_result', {
+                                        tournament_id: gameSession.tournament_id,
+                                        match_id: tournamentMatch.id,
+                                        winner_id: updates.winner_id,
+                                        game_session: updatedSession
+                                    });
+                                });
+                            }
+                        } catch (error) {
+                            req.log.error('Tournament advancement error:', error);
+                        }
                     }
                 }
 
@@ -187,19 +210,31 @@ export default async function gameRoutes(fastify, options) {
     });
 
     // ========================================
-    // TOURNAMENT ROUTES
+    // ENHANCED TOURNAMENT ROUTES
     // ========================================
 
-    // Create a new tournament
+    // Create a new tournament (enhanced with seeding options)
     fastify.post('/api/game/tournament', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
             try {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
-                const { name, description, max_players = 8, tournament_type = 'single_elimination' } = req.body;
+                const { 
+                    name, 
+                    description, 
+                    max_players = 8, 
+                    tournament_type = 'single_elimination',
+                    seeding_method = 'random',
+                    auto_advance_timer = 300
+                } = req.body;
 
                 if (!name || name.trim().length === 0) {
                     return reply.code(400).send({ error: 'Tournament name is required' });
+                }
+
+                const validSeedingMethods = ['random', 'ranking', 'manual'];
+                if (!validSeedingMethods.includes(seeding_method)) {
+                    return reply.code(400).send({ error: 'Invalid seeding method' });
                 }
 
                 const tournament = await gameDb.createTournament({
@@ -207,7 +242,9 @@ export default async function gameRoutes(fastify, options) {
                     description: description || '',
                     creator_id: userId,
                     max_players: Math.max(2, Math.min(64, max_players)),
-                    tournament_type
+                    tournament_type,
+                    seeding_method,
+                    auto_advance_timer: Math.max(60, Math.min(1800, auto_advance_timer)) // 1-30 minutes
                 });
 
                 reply.send({ success: true, tournament });
@@ -218,12 +255,13 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get tournament details
+    // Get tournament details (enhanced with announcements)
     fastify.get('/api/game/tournament/:tournamentId', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
             try {
                 const { tournamentId } = req.params;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
                 
                 const tournament = await gameDb.getTournament(tournamentId);
                 if (!tournament) {
@@ -232,10 +270,16 @@ export default async function gameRoutes(fastify, options) {
 
                 const participants = await gameDb.getTournamentParticipants(tournamentId);
                 const matches = await gameDb.getTournamentMatches(tournamentId);
+                const announcements = await gameDb.getTournamentAnnouncements(tournamentId, userId);
 
                 reply.send({ 
                     success: true, 
-                    tournament: { ...tournament, participants, matches }
+                    tournament: { 
+                        ...tournament, 
+                        participants, 
+                        matches, 
+                        announcements 
+                    }
                 });
             } catch (error) {
                 req.log.error(error);
@@ -244,7 +288,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Join a tournament
+    // Join a tournament (enhanced)
     fastify.post('/api/game/tournament/:tournamentId/join', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -253,7 +297,6 @@ export default async function gameRoutes(fastify, options) {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const token = req.headers.authorization;
 
-                // Get user profile for username
                 const userProfile = await getUserProfile(userId, token);
                 if (!userProfile) {
                     return reply.code(400).send({ error: 'Could not fetch user profile' });
@@ -285,7 +328,66 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Start a tournament
+    // Apply seeding to tournament
+    fastify.post('/api/game/tournament/:tournamentId/seeding', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const { tournamentId } = req.params;
+                const { seeding_method, manual_seeds } = req.body;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+
+                const tournament = await gameDb.getTournament(tournamentId);
+                if (!tournament) {
+                    return reply.code(404).send({ error: 'Tournament not found' });
+                }
+
+                if (tournament.creator_id !== userId) {
+                    return reply.code(403).send({ error: 'Only tournament creator can manage seeding' });
+                }
+
+                if (tournament.status !== 'registration') {
+                    return reply.code(400).send({ error: 'Cannot change seeding after tournament starts' });
+                }
+
+                let participants;
+                if (seeding_method === 'manual' && manual_seeds) {
+                    // Apply manual seeding
+                    const promises = manual_seeds.map(({ user_id, seed_number }) => {
+                        return new Promise((resolve, reject) => {
+                            db.run(`
+                                UPDATE tournament_participants 
+                                SET seed_number = ? 
+                                WHERE tournament_id = ? AND user_id = ?
+                            `, [seed_number, tournamentId, user_id], (err) => {
+                                if (err) return reject(err);
+                                resolve();
+                            });
+                        });
+                    });
+                    await Promise.all(promises);
+                    participants = await gameDb.getTournamentParticipants(tournamentId);
+                } else {
+                    participants = await gameDb.applySeeding(tournamentId, seeding_method);
+                }
+
+                // Notify participants about seeding
+                participants.forEach(participant => {
+                    fastify.io.to(`user_${participant.user_id}`).emit('tournament_seeding_updated', {
+                        tournament_id: tournamentId,
+                        participants
+                    });
+                });
+
+                reply.send({ success: true, participants });
+            } catch (error) {
+                req.log.error(error);
+                reply.code(500).send({ error: 'Failed to apply seeding' });
+            }
+        }
+    });
+
+    // Start a tournament (enhanced)
     fastify.post('/api/game/tournament/:tournamentId/start', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -305,19 +407,33 @@ export default async function gameRoutes(fastify, options) {
                 const updatedTournament = await gameDb.startTournament(tournamentId);
                 const participants = await gameDb.getTournamentParticipants(tournamentId);
                 const matches = await gameDb.getTournamentMatches(tournamentId, 1);
+                const announcements = await gameDb.getTournamentAnnouncements(tournamentId);
 
                 // Notify all participants
                 participants.forEach(participant => {
                     fastify.io.to(`user_${participant.user_id}`).emit('tournament_started', {
                         tournament: updatedTournament,
-                        first_round_matches: matches
+                        first_round_matches: matches,
+                        announcements
                     });
                 });
+
+                // Create match ready announcements for first round
+                for (const match of matches) {
+                    if (match.status === 'ready' && match.player1_id && match.player2_id) {
+                        await gameDb.createMatchReadyAnnouncement(
+                            tournamentId, 
+                            match.id, 
+                            [match.player1_id, match.player2_id]
+                        );
+                    }
+                }
 
                 reply.send({ 
                     success: true, 
                     tournament: updatedTournament, 
-                    matches 
+                    matches,
+                    announcements
                 });
             } catch (error) {
                 req.log.error(error);
@@ -326,7 +442,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get tournament bracket/matches
+    // Get tournament bracket/matches (enhanced)
     fastify.get('/api/game/tournament/:tournamentId/matches', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -335,7 +451,22 @@ export default async function gameRoutes(fastify, options) {
                 const { round } = req.query;
 
                 const matches = await gameDb.getTournamentMatches(tournamentId, round);
-                reply.send({ success: true, matches });
+                
+                // Group matches by round for better bracket visualization
+                const groupedMatches = matches.reduce((acc, match) => {
+                    if (!acc[match.round_number]) {
+                        acc[match.round_number] = [];
+                    }
+                    acc[match.round_number].push(match);
+                    return acc;
+                }, {});
+
+                reply.send({ 
+                    success: true, 
+                    matches,
+                    grouped_matches: groupedMatches,
+                    total_rounds: Math.max(...matches.map(m => m.round_number), 0)
+                });
             } catch (error) {
                 req.log.error(error);
                 reply.code(500).send({ error: 'Failed to fetch tournament matches' });
@@ -343,14 +474,13 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get active tournaments
+    // Get active tournaments (enhanced)
     fastify.get('/api/game/tournaments', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
             try {
                 const { status = 'registration', limit = 20, offset = 0 } = req.query;
                 
-                // Use promise wrapper for database query
                 const tournaments = await new Promise((resolve, reject) => {
                     const stmt = db.prepare(`
                         SELECT t.*, 
@@ -379,7 +509,99 @@ export default async function gameRoutes(fastify, options) {
     });
 
     // ========================================
-    // GAME INVITATION ROUTES
+    // TOURNAMENT ANNOUNCEMENTS
+    // ========================================
+
+    // Get tournament announcements
+    fastify.get('/api/game/tournament/:tournamentId/announcements', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const { tournamentId } = req.params;
+                const { unread_only } = req.query;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+
+                const announcements = await gameDb.getTournamentAnnouncements(
+                    tournamentId, 
+                    userId, 
+                    unread_only === 'true'
+                );
+
+                reply.send({ success: true, announcements });
+            } catch (error) {
+                req.log.error(error);
+                reply.code(500).send({ error: 'Failed to fetch announcements' });
+            }
+        }
+    });
+
+    // Mark announcement as read
+    fastify.post('/api/game/announcement/:announcementId/read', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const { announcementId } = req.params;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+
+                await gameDb.markAnnouncementAsRead(announcementId, userId);
+                reply.send({ success: true });
+            } catch (error) {
+                req.log.error(error);
+                reply.code(500).send({ error: 'Failed to mark announcement as read' });
+            }
+        }
+    });
+
+    // Create custom tournament announcement (creator only)
+    fastify.post('/api/game/tournament/:tournamentId/announcement', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const { tournamentId } = req.params;
+                const { title, message, target_users, priority = 1 } = req.body;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+
+                const tournament = await gameDb.getTournament(tournamentId);
+                if (!tournament) {
+                    return reply.code(404).send({ error: 'Tournament not found' });
+                }
+
+                if (tournament.creator_id !== userId) {
+                    return reply.code(403).send({ error: 'Only tournament creator can create announcements' });
+                }
+
+                const announcement = await gameDb.createAnnouncement(tournamentId, {
+                    type: 'general',
+                    title,
+                    message,
+                    target_users: target_users ? JSON.stringify(target_users) : null,
+                    priority,
+                    created_by: userId
+                });
+
+                // Notify relevant participants
+                const participants = await gameDb.getTournamentParticipants(tournamentId);
+                const targetParticipants = target_users ? 
+                    participants.filter(p => target_users.includes(p.user_id)) : 
+                    participants;
+
+                targetParticipants.forEach(participant => {
+                    fastify.io.to(`user_${participant.user_id}`).emit('tournament_announcement', {
+                        tournament_id: tournamentId,
+                        announcement
+                    });
+                });
+
+                reply.send({ success: true, announcement });
+            } catch (error) {
+                req.log.error(error);
+                reply.code(500).send({ error: 'Failed to create announcement' });
+            }
+        }
+    });
+
+    // ========================================
+    // GAME INVITATIONS
     // ========================================
 
     // Send game invitation
@@ -399,13 +621,11 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(400).send({ error: 'Cannot invite yourself' });
                 }
 
-                // Check if users are blocked
                 const isBlocked = await checkIfBlocked(senderId, receiver_id, token);
                 if (isBlocked) {
                     return reply.code(403).send({ error: 'Cannot send invitation to blocked user' });
                 }
 
-                // Get sender profile for notification
                 const senderProfile = await getUserProfile(senderId, token);
                 if (!senderProfile) {
                     return reply.code(400).send({ error: 'Could not fetch sender profile' });
@@ -419,7 +639,6 @@ export default async function gameRoutes(fastify, options) {
                     message: message || `${senderProfile.username} invites you to play Pong!`
                 });
 
-                // Notify receiver via socket
                 fastify.io.to(`user_${receiver_id}`).emit('game_invitation', {
                     invitation,
                     sender: senderProfile,
@@ -440,7 +659,7 @@ export default async function gameRoutes(fastify, options) {
         handler: async (req, reply) => {
             try {
                 const { invitationId } = req.params;
-                const { response } = req.body; // 'accepted' or 'declined'
+                const { response } = req.body;
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const token = req.headers.authorization;
 
@@ -450,17 +669,14 @@ export default async function gameRoutes(fastify, options) {
 
                 const updatedInvitation = await gameDb.respondToGameInvitation(invitationId, response, userId);
                 
-                // Get user profile for notification
                 const userProfile = await getUserProfile(userId, token);
                 
-                // Notify sender
                 fastify.io.to(`user_${updatedInvitation.sender_id}`).emit('game_invitation_response', {
                     invitation: updatedInvitation,
                     responder: userProfile,
                     response
                 });
 
-                // If accepted, create game session and room
                 if (response === 'accepted') {
                     const gameSession = await gameDb.createGameSession({
                         player1_id: updatedInvitation.sender_id,
@@ -473,7 +689,6 @@ export default async function gameRoutes(fastify, options) {
                     const roomId = `room_${gameSession.id}_${Date.now()}`;
                     await gameDb.createActiveGameRoom(roomId, gameSession.id);
 
-                    // Notify both players about the game room
                     const gameData = {
                         game_session: gameSession,
                         room_id: roomId
@@ -520,7 +735,6 @@ export default async function gameRoutes(fastify, options) {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const stats = await gameDb.getOrCreatePlayerStats(userId);
                 
-                // Calculate additional metrics
                 const winRate = stats.total_games > 0 ? 
                     Math.round((stats.wins / stats.total_games) * 100) : 0;
                 
@@ -574,7 +788,7 @@ export default async function gameRoutes(fastify, options) {
     });
 
     // ========================================
-    // GAME ROOM ROUTES (for real-time gameplay)
+    // GAME ROOM ROUTES
     // ========================================
 
     // Join game room
@@ -595,7 +809,6 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                // Check if user is a participant
                 if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
                     return reply.code(403).send({ error: 'Not authorized to join this game' });
                 }
@@ -612,7 +825,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Record game event (for analytics)
+    // Record game event
     fastify.post('/api/game/session/:sessionId/event', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -626,7 +839,6 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                // Check if user is a participant
                 if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
                     return reply.code(403).send({ error: 'Not authorized' });
                 }
@@ -645,7 +857,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get game events (for replay/analysis)
+    // Get game events
     fastify.get('/api/game/session/:sessionId/events', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -658,7 +870,6 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                // Check if user is a participant
                 if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
                     return reply.code(403).send({ error: 'Not authorized' });
                 }
@@ -685,18 +896,20 @@ export default async function gameRoutes(fastify, options) {
         });
     });
 
-    // Clean up expired data
+    // Clean up expired data (enhanced)
     fastify.post('/api/game/admin/cleanup', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
             try {
                 const expiredInvitations = await gameDb.cleanupExpiredInvitations();
+                const expiredAnnouncements = await gameDb.cleanupExpiredAnnouncements();
                 const oldRooms = await gameDb.cleanupOldGameRooms();
                 
                 reply.send({ 
                     success: true, 
                     cleanup: {
                         expired_invitations: expiredInvitations,
+                        expired_announcements: expiredAnnouncements,
                         old_rooms: oldRooms
                     }
                 });

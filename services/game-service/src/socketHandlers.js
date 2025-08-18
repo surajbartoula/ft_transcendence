@@ -4,6 +4,7 @@ const gameDb = new GameDatabaseService();
 
 // Game state management for active games
 const activeGames = new Map();
+const tournamentRooms = new Map(); // Track tournament spectators
 
 export function setupSocketHandlers(io) {
     io.on('connection', (socket) => {
@@ -12,6 +13,7 @@ export function setupSocketHandlers(io) {
         let currentUser = null;
         let currentRoom = null;
         let currentGameSession = null;
+        let currentTournamentId = null;
 
         // ========================================
         // AUTHENTICATION & USER MANAGEMENT
@@ -34,7 +36,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // GAME ROOM MANAGEMENT
+        // GAME ROOM MANAGEMENT (enhanced)
         // ========================================
 
         socket.on('join_game_room', async (data) => {
@@ -45,7 +47,6 @@ export function setupSocketHandlers(io) {
                     return socket.emit('error', { error: 'Not authenticated' });
                 }
 
-                // Verify game session and user authorization
                 const gameSession = await gameDb.getGameSession(game_session_id);
                 if (!gameSession) {
                     return socket.emit('error', { error: 'Game session not found' });
@@ -58,12 +59,16 @@ export function setupSocketHandlers(io) {
                     return socket.emit('error', { error: 'Not authorized to join this game' });
                 }
 
-                // Join the game room
                 await socket.join(room_id);
                 currentRoom = room_id;
                 currentGameSession = gameSession;
 
-                // Update room with socket info
+                // If this is a tournament game, also join tournament room
+                if (gameSession.tournament_id) {
+                    currentTournamentId = gameSession.tournament_id;
+                    await socket.join(`tournament_${gameSession.tournament_id}`);
+                }
+
                 const isPlayer1 = gameSession.player1_id === currentUser.user_id;
                 const updateData = {};
                 updateData[isPlayer1 ? 'player1_socket_id' : 'player2_socket_id'] = socket.id;
@@ -71,7 +76,6 @@ export function setupSocketHandlers(io) {
 
                 await gameDb.updateGameRoom(room_id, updateData);
 
-                // Initialize game state if not exists
                 if (!activeGames.has(room_id)) {
                     activeGames.set(room_id, {
                         gameSession,
@@ -98,13 +102,23 @@ export function setupSocketHandlers(io) {
 
                 console.log(`🎮 Player ${currentUser.username} joined game room: ${room_id}`);
                 
-                // Notify all players in the room
                 socket.to(room_id).emit('player_joined', {
                     user: currentUser,
                     players_count: Object.keys(gameData.players).length
                 });
 
-                // Send current game state to the joining player
+                // If tournament game, notify tournament room about active match
+                if (gameSession.tournament_id) {
+                    socket.to(`tournament_${gameSession.tournament_id}`).emit('tournament_match_started', {
+                        game_session_id: game_session_id,
+                        room_id: room_id,
+                        players: [
+                            { id: gameSession.player1_id, is_ready: false },
+                            { id: gameSession.player2_id, is_ready: false }
+                        ]
+                    });
+                }
+
                 socket.emit('game_state', {
                     room_id,
                     game_session: gameSession,
@@ -126,10 +140,10 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // GAME CONTROL EVENTS
+        // GAME CONTROL EVENTS (enhanced)
         // ========================================
 
-        socket.on('player_ready', () => {
+        socket.on('player_ready', async () => {
             if (!currentRoom || !currentUser) return;
 
             const gameData = activeGames.get(currentRoom);
@@ -137,7 +151,6 @@ export function setupSocketHandlers(io) {
 
             gameData.players[currentUser.user_id].ready = true;
             
-            // Check if both players are ready
             const playerCount = Object.keys(gameData.players).length;
             const readyCount = Object.values(gameData.players).filter(p => p.ready).length;
 
@@ -147,9 +160,19 @@ export function setupSocketHandlers(io) {
                 total_players: playerCount
             });
 
+            // Notify tournament room if applicable
+            if (currentTournamentId) {
+                socket.to(`tournament_${currentTournamentId}`).emit('tournament_player_ready', {
+                    user: currentUser,
+                    game_session_id: currentGameSession?.id,
+                    ready_count: readyCount,
+                    total_players: playerCount
+                });
+            }
+
             // Start game if both players are ready
             if (playerCount === 2 && readyCount === 2) {
-                startGame(currentRoom);
+                await startGame(currentRoom);
             }
         });
 
@@ -162,9 +185,8 @@ export function setupSocketHandlers(io) {
             const player = gameData.players[currentUser.user_id];
             if (!player) return;
 
-            const { direction, y } = data; // direction: 'up' | 'down' | 'stop', y: absolute position
+            const { direction, y } = data;
             
-            // Update paddle position
             if (player.is_player1) {
                 gameData.gameState.paddle1.y = Math.max(0, Math.min(500, y || gameData.gameState.paddle1.y));
                 if (direction === 'up') gameData.gameState.paddle1.y -= 10;
@@ -175,7 +197,6 @@ export function setupSocketHandlers(io) {
                 if (direction === 'down') gameData.gameState.paddle2.y += 10;
             }
 
-            // Broadcast paddle movement to other players
             socket.to(currentRoom).emit('paddle_update', {
                 player: player.is_player1 ? 'player1' : 'player2',
                 y: player.is_player1 ? gameData.gameState.paddle1.y : gameData.gameState.paddle2.y
@@ -195,7 +216,6 @@ export function setupSocketHandlers(io) {
                 is_paused: gameData.gameState.isPaused
             });
 
-            // Record pause event
             if (currentGameSession) {
                 try {
                     await gameDb.recordGameEvent(currentGameSession.id, {
@@ -216,14 +236,12 @@ export function setupSocketHandlers(io) {
             if (!gameData) return;
 
             try {
-                // Determine winner (the other player)
                 const otherPlayer = Object.values(gameData.players).find(p => p.socket_id !== socket.id);
                 if (otherPlayer && currentGameSession) {
                     const winnerUserId = Object.keys(gameData.players).find(userId => 
                         gameData.players[userId].socket_id === otherPlayer.socket_id
                     );
 
-                    // Update game session with forfeit
                     await gameDb.updateGameSession(currentGameSession.id, {
                         winner_id: winnerUserId,
                         status: 'finished',
@@ -235,9 +253,30 @@ export function setupSocketHandlers(io) {
                         }
                     });
 
-                    // Update player stats
                     await gameDb.updatePlayerStats(currentUser.user_id, { result: 'lost', score: 0 });
                     await gameDb.updatePlayerStats(winnerUserId, { result: 'won', score: 0 });
+
+                    // Handle tournament advancement if applicable
+                    if (currentGameSession.tournament_id) {
+                        try {
+                            const matches = await gameDb.getTournamentMatches(currentGameSession.tournament_id);
+                            const tournamentMatch = matches.find(m => m.game_session_id === currentGameSession.id);
+                            
+                            if (tournamentMatch) {
+                                await gameDb.advanceWinnerToNextRound(tournamentMatch.id, winnerUserId);
+                                
+                                // Notify tournament room
+                                io.to(`tournament_${currentGameSession.tournament_id}`).emit('tournament_match_result', {
+                                    match_id: tournamentMatch.id,
+                                    winner_id: winnerUserId,
+                                    result_type: 'forfeit',
+                                    forfeit_by: currentUser.user_id
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Tournament advancement error:', error);
+                        }
+                    }
                 }
 
                 io.to(currentRoom).emit('game_ended', {
@@ -253,21 +292,8 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // TOURNAMENT EVENTS
+        // ENHANCED TOURNAMENT EVENTS
         // ========================================
-
-        socket.on('tournament_ready', (data) => {
-            const { tournament_id, match_id } = data;
-            
-            if (!currentUser) return;
-
-            // Mark player as ready for tournament match
-            socket.to(`tournament_${tournament_id}`).emit('tournament_player_ready', {
-                match_id,
-                player: currentUser,
-                ready: true
-            });
-        });
 
         socket.on('join_tournament_room', async (data) => {
             const { tournament_id } = data;
@@ -283,16 +309,29 @@ export function setupSocketHandlers(io) {
                 }
 
                 await socket.join(`tournament_${tournament_id}`);
+                currentTournamentId = tournament_id;
+                
+                // Track tournament spectators
+                if (!tournamentRooms.has(tournament_id)) {
+                    tournamentRooms.set(tournament_id, new Set());
+                }
+                tournamentRooms.get(tournament_id).add(socket.id);
                 
                 const participants = await gameDb.getTournamentParticipants(tournament_id);
+                const matches = await gameDb.getTournamentMatches(tournament_id);
+                const announcements = await gameDb.getTournamentAnnouncements(tournament_id, currentUser.user_id);
                 
                 socket.emit('tournament_joined', {
                     tournament,
-                    participants
+                    participants,
+                    matches,
+                    announcements,
+                    spectator_count: tournamentRooms.get(tournament_id).size
                 });
 
                 socket.to(`tournament_${tournament_id}`).emit('tournament_spectator_joined', {
-                    user: currentUser
+                    user: currentUser,
+                    spectator_count: tournamentRooms.get(tournament_id).size
                 });
 
             } catch (error) {
@@ -301,8 +340,100 @@ export function setupSocketHandlers(io) {
             }
         });
 
+        socket.on('leave_tournament_room', () => {
+            if (currentTournamentId) {
+                socket.leave(`tournament_${currentTournamentId}`);
+                
+                const spectators = tournamentRooms.get(currentTournamentId);
+                if (spectators) {
+                    spectators.delete(socket.id);
+                    socket.to(`tournament_${currentTournamentId}`).emit('tournament_spectator_left', {
+                        user: currentUser,
+                        spectator_count: spectators.size
+                    });
+                }
+                
+                currentTournamentId = null;
+            }
+        });
+
+        socket.on('tournament_match_request', async (data) => {
+            const { tournament_id, opponent_id } = data;
+            
+            if (!currentUser) return;
+
+            try {
+                // Check if both players are participants
+                const participant1 = await gameDb.getTournamentParticipant(tournament_id, currentUser.user_id);
+                const participant2 = await gameDb.getTournamentParticipant(tournament_id, opponent_id);
+                
+                if (!participant1 || !participant2) {
+                    return socket.emit('error', { error: 'Both players must be tournament participants' });
+                }
+
+                // Find their current match
+                const matches = await gameDb.getTournamentMatches(tournament_id);
+                const currentMatch = matches.find(m => 
+                    (m.player1_id === currentUser.user_id && m.player2_id === opponent_id) ||
+                    (m.player1_id === opponent_id && m.player2_id === currentUser.user_id)
+                );
+
+                if (!currentMatch || currentMatch.status !== 'ready') {
+                    return socket.emit('error', { error: 'No available match between these players' });
+                }
+
+                // Create match ready announcement
+                await gameDb.createMatchReadyAnnouncement(
+                    tournament_id, 
+                    currentMatch.id, 
+                    [currentUser.user_id, opponent_id]
+                );
+
+                // Notify both players
+                io.to(`user_${currentUser.user_id}`).emit('tournament_match_invitation', {
+                    tournament_id,
+                    match: currentMatch,
+                    requested_by: currentUser
+                });
+                
+                io.to(`user_${opponent_id}`).emit('tournament_match_invitation', {
+                    tournament_id,
+                    match: currentMatch,
+                    requested_by: currentUser
+                });
+
+            } catch (error) {
+                console.error('Tournament match request error:', error);
+                socket.emit('error', { error: 'Failed to request tournament match' });
+            }
+        });
+
+        socket.on('tournament_bracket_update_request', async (data) => {
+            const { tournament_id } = data;
+            
+            if (!currentUser) return;
+
+            try {
+                const tournament = await gameDb.getTournament(tournament_id);
+                const participants = await gameDb.getTournamentParticipants(tournament_id);
+                const matches = await gameDb.getTournamentMatches(tournament_id);
+                const announcements = await gameDb.getTournamentAnnouncements(tournament_id, currentUser.user_id);
+
+                socket.emit('tournament_bracket_update', {
+                    tournament,
+                    participants,
+                    matches,
+                    announcements
+                });
+
+            } catch (error) {
+                console.error('Tournament bracket update error:', error);
+                socket.emit('error', { error: 'Failed to update tournament bracket' });
+            }
+        });
+
         // ========================================
-        // CHAT & COMMUNICATION
+        // CHAT & COMMUNICATION (enhanced)
         // ========================================
 
         socket.on('game_chat', (data) => {
@@ -314,29 +445,64 @@ export function setupSocketHandlers(io) {
             const chatData = {
                 user: currentUser,
                 message: message.trim(),
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                room_type: currentTournamentId ? 'tournament_match' : 'casual_match'
             };
 
             io.to(currentRoom).emit('chat_message', chatData);
+
+            // Also send to tournament room if applicable
+            if (currentTournamentId) {
+                socket.to(`tournament_${currentTournamentId}`).emit('tournament_match_chat', {
+                    ...chatData,
+                    game_session_id: currentGameSession?.id
+                });
+            }
+        });
+
+        socket.on('tournament_chat', (data) => {
+            if (!currentTournamentId || !currentUser) return;
+
+            const { message } = data;
+            if (!message || message.trim().length === 0) return;
+
+            const chatData = {
+                user: currentUser,
+                message: message.trim(),
+                timestamp: Date.now(),
+                chat_type: 'tournament_general'
+            };
+
+            io.to(`tournament_${currentTournamentId}`).emit('tournament_chat_message', chatData);
         });
 
         socket.on('game_emote', (data) => {
             if (!currentRoom || !currentUser) return;
 
             const { emote } = data;
-            const allowedEmotes = ['👍', '👎', '😄', '😢', '🔥', '⚡', '🎉', '😎'];
+            const allowedEmotes = ['👍', '👎', '😄', '😢', '🔥', '⚡', '🎉', '😎', '🏆', '🎯'];
             
             if (allowedEmotes.includes(emote)) {
-                socket.to(currentRoom).emit('player_emote', {
+                const emoteData = {
                     user: currentUser,
                     emote,
                     timestamp: Date.now()
-                });
+                };
+
+                socket.to(currentRoom).emit('player_emote', emoteData);
+
+                // Send to tournament room if applicable
+                if (currentTournamentId) {
+                    socket.to(`tournament_${currentTournamentId}`).emit('tournament_match_emote', {
+                        ...emoteData,
+                        game_session_id: currentGameSession?.id
+                    });
+                }
             }
         });
 
         // ========================================
-        // CONNECTION MANAGEMENT
+        // CONNECTION MANAGEMENT (enhanced)
         // ========================================
 
         socket.on('disconnect', () => {
@@ -345,6 +511,17 @@ export function setupSocketHandlers(io) {
             if (currentRoom && currentUser) {
                 handlePlayerLeave();
             }
+
+            if (currentTournamentId) {
+                const spectators = tournamentRooms.get(currentTournamentId);
+                if (spectators) {
+                    spectators.delete(socket.id);
+                    socket.to(`tournament_${currentTournamentId}`).emit('tournament_spectator_left', {
+                        user: currentUser,
+                        spectator_count: spectators.size
+                    });
+                }
+            }
         });
 
         socket.on('ping', () => {
@@ -352,7 +529,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // HELPER FUNCTIONS
+        // HELPER FUNCTIONS (enhanced)
         // ========================================
 
         async function startGame(roomId) {
@@ -363,7 +540,6 @@ export function setupSocketHandlers(io) {
             gameData.gameState.isPaused = false;
             gameData.gameState.lastUpdate = Date.now();
 
-            // Update database
             if (currentGameSession) {
                 try {
                     await gameDb.updateGameSession(currentGameSession.id, {
@@ -380,7 +556,15 @@ export function setupSocketHandlers(io) {
                 message: 'Game started! Good luck!'
             });
 
-            // Start game loop for this room
+            // Notify tournament room if applicable
+            if (currentTournamentId && currentGameSession) {
+                io.to(`tournament_${currentTournamentId}`).emit('tournament_match_live', {
+                    game_session_id: currentGameSession.id,
+                    room_id: roomId,
+                    players: Object.values(gameData.players)
+                });
+            }
+
             startGameLoop(roomId);
         }
 
@@ -396,7 +580,6 @@ export function setupSocketHandlers(io) {
 
                 await updateGamePhysics(gameData);
                 
-                // Broadcast game state to all players
                 io.to(roomId).emit('game_update', {
                     ball: gameData.gameState.ball,
                     paddle1: gameData.gameState.paddle1,
@@ -404,7 +587,16 @@ export function setupSocketHandlers(io) {
                     timestamp: Date.now()
                 });
 
-                // Check for scoring
+                // Send live updates to tournament spectators
+                if (currentTournamentId) {
+                    socket.to(`tournament_${currentTournamentId}`).emit('tournament_match_update', {
+                        game_session_id: currentGameSession?.id,
+                        ball: gameData.gameState.ball,
+                        paddle1: gameData.gameState.paddle1,
+                        paddle2: gameData.gameState.paddle2
+                    });
+                }
+
                 await checkScoring(roomId, gameData);
 
             }, 16); // ~60 FPS
@@ -413,11 +605,9 @@ export function setupSocketHandlers(io) {
         async function updateGamePhysics(gameData) {
             const { ball, paddle1, paddle2 } = gameData.gameState;
             
-            // Update ball position
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Ball collision with top/bottom walls
             if (ball.y <= 0 || ball.y >= 600) {
                 ball.vy = -ball.vy;
                 if (currentGameSession) {
@@ -434,7 +624,6 @@ export function setupSocketHandlers(io) {
                 }
             }
 
-            // Ball collision with paddles
             const ballRadius = 10;
             const paddleWidth = 20;
             const paddleHeight = 100;
@@ -486,27 +675,22 @@ export function setupSocketHandlers(io) {
             let scored = false;
             let scorer = null;
 
-            // Player 2 scores (ball goes off left side)
             if (ball.x < 0) {
                 paddle2.score++;
                 scorer = 'player2';
                 scored = true;
-            }
-            // Player 1 scores (ball goes off right side)
-            else if (ball.x > 800) {
+            } else if (ball.x > 800) {
                 paddle1.score++;
                 scorer = 'player1';
                 scored = true;
             }
 
             if (scored) {
-                // Reset ball position
                 ball.x = 400;
                 ball.y = 300;
                 ball.vx = (Math.random() > 0.5 ? 1 : -1) * 5;
                 ball.vy = (Math.random() > 0.5 ? 1 : -1) * 3;
 
-                // Record goal event
                 const scorerUserId = scorer === 'player1' ? 
                     currentGameSession?.player1_id : currentGameSession?.player2_id;
                 
@@ -525,14 +709,23 @@ export function setupSocketHandlers(io) {
                     }
                 }
 
-                io.to(roomId).emit('goal_scored', {
+                const goalData = {
                     scorer,
                     player1_score: paddle1.score,
                     player2_score: paddle2.score,
                     ball_reset: { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy }
-                });
+                };
 
-                // Check for game end (first to 11 points wins)
+                io.to(roomId).emit('goal_scored', goalData);
+
+                // Notify tournament spectators
+                if (currentTournamentId) {
+                    io.to(`tournament_${currentTournamentId}`).emit('tournament_match_goal', {
+                        game_session_id: currentGameSession?.id,
+                        ...goalData
+                    });
+                }
+
                 if (paddle1.score >= 11 || paddle2.score >= 11) {
                     await endGame(roomId, gameData);
                 }
@@ -549,7 +742,6 @@ export function setupSocketHandlers(io) {
             const loserUserId = winner === 'player1' ? 
                 currentGameSession?.player2_id : currentGameSession?.player1_id;
 
-            // Update game session
             if (currentGameSession) {
                 try {
                     const gameDuration = currentGameSession.started_at ? 
@@ -575,6 +767,43 @@ export function setupSocketHandlers(io) {
                         score: winner === 'player1' ? paddle2.score : paddle1.score,
                         duration: gameDuration
                     });
+
+                    // Handle tournament advancement if applicable
+                    if (currentGameSession.tournament_id) {
+                        try {
+                            const matches = await gameDb.getTournamentMatches(currentGameSession.tournament_id);
+                            const tournamentMatch = matches.find(m => m.game_session_id === currentGameSession.id);
+                            
+                            if (tournamentMatch) {
+                                await gameDb.advanceWinnerToNextRound(tournamentMatch.id, winnerUserId);
+                                
+                                // Notify tournament room about the result
+                                io.to(`tournament_${currentGameSession.tournament_id}`).emit('tournament_match_result', {
+                                    tournament_id: currentGameSession.tournament_id,
+                                    match_id: tournamentMatch.id,
+                                    winner_id: winnerUserId,
+                                    loser_id: loserUserId,
+                                    final_score: {
+                                        player1: paddle1.score,
+                                        player2: paddle2.score
+                                    },
+                                    game_duration: gameDuration,
+                                    result_type: 'completed'
+                                });
+
+                                // Check if tournament is complete or next round is ready
+                                const updatedTournament = await gameDb.getTournament(currentGameSession.tournament_id);
+                                const allMatches = await gameDb.getTournamentMatches(currentGameSession.tournament_id);
+                                
+                                io.to(`tournament_${currentGameSession.tournament_id}`).emit('tournament_bracket_update', {
+                                    tournament: updatedTournament,
+                                    matches: allMatches
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Tournament advancement error:', error);
+                        }
+                    }
                 } catch (error) {
                     console.error('Error updating game session:', error);
                 }
@@ -583,7 +812,7 @@ export function setupSocketHandlers(io) {
             const gameDuration = currentGameSession && currentGameSession.started_at ? 
                 Math.floor((Date.now() - new Date(currentGameSession.started_at).getTime()) / 1000) : 0;
 
-            io.to(roomId).emit('game_ended', {
+            const gameEndData = {
                 winner,
                 final_score: {
                     player1: paddle1.score,
@@ -591,7 +820,17 @@ export function setupSocketHandlers(io) {
                 },
                 winner_user_id: winnerUserId,
                 game_duration: gameDuration
-            });
+            };
+
+            io.to(roomId).emit('game_ended', gameEndData);
+
+            // Notify tournament spectators
+            if (currentTournamentId && currentGameSession) {
+                io.to(`tournament_${currentTournamentId}`).emit('tournament_match_ended', {
+                    game_session_id: currentGameSession.id,
+                    ...gameEndData
+                });
+            }
 
             // Clean up game after 10 seconds
             setTimeout(() => cleanupGame(roomId), 10000);
@@ -612,7 +851,6 @@ export function setupSocketHandlers(io) {
                     if (gameData.gameState.isRunning) {
                         gameData.gameState.isRunning = false;
                         
-                        // Determine winner (remaining player)
                         const remainingPlayerIds = Object.keys(gameData.players);
                         if (remainingPlayerIds.length === 1) {
                             const winnerUserId = remainingPlayerIds[0];
@@ -629,6 +867,29 @@ export function setupSocketHandlers(io) {
                                             disconnected_player: currentUser.user_id
                                         }
                                     });
+
+                                    // Handle tournament advancement for disconnection
+                                    if (currentGameSession.tournament_id) {
+                                        try {
+                                            const matches = await gameDb.getTournamentMatches(currentGameSession.tournament_id);
+                                            const tournamentMatch = matches.find(m => m.game_session_id === currentGameSession.id);
+                                            
+                                            if (tournamentMatch) {
+                                                await gameDb.advanceWinnerToNextRound(tournamentMatch.id, winnerUserId);
+                                                
+                                                io.to(`tournament_${currentGameSession.tournament_id}`).emit('tournament_match_result', {
+                                                    tournament_id: currentGameSession.tournament_id,
+                                                    match_id: tournamentMatch.id,
+                                                    winner_id: winnerUserId,
+                                                    loser_id: currentUser.user_id,
+                                                    result_type: 'disconnect',
+                                                    disconnected_player: currentUser.user_id
+                                                });
+                                            }
+                                        } catch (error) {
+                                            console.error('Tournament advancement error on disconnect:', error);
+                                        }
+                                    }
                                 } catch (error) {
                                     console.error('Error updating disconnected game:', error);
                                 }
@@ -656,6 +917,11 @@ export function setupSocketHandlers(io) {
                 socket.leave(`user_${currentUser.user_id}`);
                 currentUser = null;
             }
+
+            if (currentTournamentId) {
+                socket.leave(`tournament_${currentTournamentId}`);
+                currentTournamentId = null;
+            }
         }
 
         async function cleanupGame(roomId) {
@@ -670,7 +936,7 @@ export function setupSocketHandlers(io) {
     });
 
     // ========================================
-    // PERIODIC CLEANUP TASKS
+    // PERIODIC CLEANUP TASKS (enhanced)
     // ========================================
 
     // Clean up expired invitations every 5 minutes
@@ -685,6 +951,18 @@ export function setupSocketHandlers(io) {
         }
     }, 5 * 60 * 1000);
 
+    // Clean up expired announcements every 10 minutes
+    setInterval(async () => {
+        try {
+            const cleaned = await gameDb.cleanupExpiredAnnouncements();
+            if (cleaned > 0) {
+                console.log(`🧹 Cleaned up ${cleaned} expired announcements`);
+            }
+        } catch (error) {
+            console.error('Error cleaning up expired announcements:', error);
+        }
+    }, 10 * 60 * 1000);
+
     // Clean up old game rooms every hour
     setInterval(async () => {
         try {
@@ -697,5 +975,53 @@ export function setupSocketHandlers(io) {
         }
     }, 60 * 60 * 1000);
 
-    console.log('🎮 Pong Game Socket handlers initialized');
+    // Tournament health check - advance matches with no-shows every 2 minutes
+    setInterval(async () => {
+        try {
+            // Find matches that are past their deadline
+            const expiredMatches = await new Promise((resolve, reject) => {
+                db.all(`
+                    SELECT tm.*, t.auto_advance_timer
+                    FROM tournament_matches tm
+                    JOIN tournaments t ON tm.tournament_id = t.id
+                    WHERE tm.status = 'ready' 
+                    AND tm.deadline_at < CURRENT_TIMESTAMP
+                    AND t.status = 'active'
+                `, (err, rows) => {
+                    if (err) return reject(err);
+                    resolve(rows);
+                });
+            });
+
+            for (const match of expiredMatches) {
+                try {
+                    // Auto-advance or forfeit logic could go here
+                    console.log(`⏰ Match ${match.id} in tournament ${match.tournament_id} has expired`);
+                    
+                    // For now, we'll just notify the tournament room
+                    io.to(`tournament_${match.tournament_id}`).emit('tournament_match_expired', {
+                        match_id: match.id,
+                        tournament_id: match.tournament_id,
+                        message: `Match between ${match.player1_username} and ${match.player2_username} has expired due to no-show`
+                    });
+                } catch (error) {
+                    console.error(`Error handling expired match ${match.id}:`, error);
+                }
+            }
+        } catch (error) {
+            console.error('Error in tournament health check:', error);
+        }
+    }, 2 * 60 * 1000);
+
+    // Cleanup inactive tournament rooms every 30 minutes
+    setInterval(() => {
+        for (const [tournamentId, spectators] of tournamentRooms.entries()) {
+            if (spectators.size === 0) {
+                tournamentRooms.delete(tournamentId);
+                console.log(`🧹 Cleaned up empty tournament room: ${tournamentId}`);
+            }
+        }
+    }, 30 * 60 * 1000);
+
+    console.log('🎮 Enhanced Pong Game Socket handlers with tournament support initialized');
 }

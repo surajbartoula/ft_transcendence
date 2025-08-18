@@ -62,6 +62,8 @@ export function initializeDatabase() {
                     current_players INTEGER DEFAULT 0,
                     status TEXT DEFAULT 'registration' CHECK(status IN ('registration', 'active', 'finished', 'cancelled')),
                     tournament_type TEXT DEFAULT 'single_elimination' CHECK(tournament_type IN ('single_elimination', 'double_elimination', 'round_robin')),
+                    seeding_method TEXT DEFAULT 'random' CHECK(seeding_method IN ('random', 'ranking', 'manual')),
+                    auto_advance_timer INTEGER DEFAULT 300, -- seconds to wait for no-show
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     started_at DATETIME,
                     finished_at DATETIME,
@@ -73,146 +75,184 @@ export function initializeDatabase() {
             `, (err) => {
                 if (err) return reject(err);
                 
-                // Tournament Participants table
+                // Tournament Participants table - now with seeding support
                 db.run(`
                     CREATE TABLE IF NOT EXISTS tournament_participants (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         tournament_id INTEGER NOT NULL,
                         user_id TEXT NOT NULL,
                         username TEXT NOT NULL,
+                        seed_number INTEGER, -- 1 is highest seed
+                        ranking_points INTEGER DEFAULT 1000, -- Used for automatic seeding
                         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         eliminated_at DATETIME,
                         final_position INTEGER,
                         status TEXT DEFAULT 'active' CHECK(status IN ('active', 'eliminated', 'winner')),
                         FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-                        UNIQUE(tournament_id, user_id)
+                        UNIQUE(tournament_id, user_id),
+                        UNIQUE(tournament_id, seed_number)
                     )
                 `, (err) => {
                     if (err) return reject(err);
                     
-                    // Tournament Matches table - for bracket management
+                    // Tournament Matches table - enhanced with bracket positioning
                     db.run(`
                         CREATE TABLE IF NOT EXISTS tournament_matches (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             tournament_id INTEGER NOT NULL,
                             round_number INTEGER NOT NULL,
                             match_number INTEGER NOT NULL,
+                            bracket_position TEXT, -- e.g., "WB-R1-M1" (Winners Bracket - Round 1 - Match 1)
                             player1_id TEXT,
                             player2_id TEXT,
+                            player1_seed INTEGER,
+                            player2_seed INTEGER,
                             winner_id TEXT,
                             game_session_id INTEGER,
-                            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'ready', 'active', 'finished')),
+                            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'ready', 'active', 'finished', 'walkover')),
                             scheduled_at DATETIME,
+                            deadline_at DATETIME, -- Auto-advance if no show
+                            next_match_winner INTEGER, -- ID of match where winner advances
+                            next_match_loser INTEGER, -- ID of match where loser goes (double elimination)
                             FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
-                            FOREIGN KEY (game_session_id) REFERENCES game_sessions(id)
+                            FOREIGN KEY (game_session_id) REFERENCES game_sessions(id),
+                            FOREIGN KEY (next_match_winner) REFERENCES tournament_matches(id),
+                            FOREIGN KEY (next_match_loser) REFERENCES tournament_matches(id)
                         )
                     `, (err) => {
                         if (err) return reject(err);
                         
-                        // Game Invitations table
+                        // Tournament Announcements table - new addition
                         db.run(`
-                            CREATE TABLE IF NOT EXISTS game_invitations (
+                            CREATE TABLE IF NOT EXISTS tournament_announcements (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                sender_id TEXT NOT NULL,
-                                receiver_id TEXT NOT NULL,
-                                game_mode TEXT NOT NULL CHECK(game_mode IN ('remote', 'tournament')),
-                                tournament_id INTEGER,
-                                message TEXT,
-                                status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'declined', 'expired', 'cancelled')),
+                                tournament_id INTEGER NOT NULL,
+                                announcement_type TEXT NOT NULL CHECK(announcement_type IN ('general', 'match_ready', 'match_result', 'round_complete', 'player_advance', 'elimination', 'tournament_start', 'tournament_end')),
+                                title TEXT NOT NULL,
+                                message TEXT NOT NULL,
+                                target_users TEXT, -- JSON array of user IDs, null for all participants
+                                match_id INTEGER, -- Reference to specific match if applicable
+                                priority INTEGER DEFAULT 1 CHECK(priority IN (1, 2, 3)), -- 1=low, 2=medium, 3=high
                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                                 expires_at DATETIME,
-                                responded_at DATETIME,
-                                FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
+                                is_read_by TEXT DEFAULT '[]', -- JSON array of user IDs who have read this
+                                created_by TEXT, -- User ID who created the announcement
+                                FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+                                FOREIGN KEY (match_id) REFERENCES tournament_matches(id)
                             )
                         `, (err) => {
                             if (err) return reject(err);
                             
-                            // Player Statistics table
+                            // Game Invitations table
                             db.run(`
-                                CREATE TABLE IF NOT EXISTS player_statistics (
+                                CREATE TABLE IF NOT EXISTS game_invitations (
                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    user_id TEXT UNIQUE NOT NULL,
-                                    total_games INTEGER DEFAULT 0,
-                                    wins INTEGER DEFAULT 0,
-                                    losses INTEGER DEFAULT 0,
-                                    draws INTEGER DEFAULT 0,
-                                    total_score INTEGER DEFAULT 0,
-                                    highest_score INTEGER DEFAULT 0,
-                                    win_streak INTEGER DEFAULT 0,
-                                    current_win_streak INTEGER DEFAULT 0,
-                                    tournaments_joined INTEGER DEFAULT 0,
-                                    tournaments_won INTEGER DEFAULT 0,
-                                    average_game_duration REAL DEFAULT 0,
-                                    last_played DATETIME,
-                                    ranking_points INTEGER DEFAULT 1000,
-                                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                                    sender_id TEXT NOT NULL,
+                                    receiver_id TEXT NOT NULL,
+                                    game_mode TEXT NOT NULL CHECK(game_mode IN ('remote', 'tournament')),
+                                    tournament_id INTEGER,
+                                    message TEXT,
+                                    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'declined', 'expired', 'cancelled')),
+                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                    expires_at DATETIME,
+                                    responded_at DATETIME,
+                                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
                                 )
                             `, (err) => {
                                 if (err) return reject(err);
                                 
-                                // Game Events table - for detailed match analysis
+                                // Player Statistics table
                                 db.run(`
-                                    CREATE TABLE IF NOT EXISTS game_events (
+                                    CREATE TABLE IF NOT EXISTS player_statistics (
                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        game_session_id INTEGER NOT NULL,
-                                        event_type TEXT NOT NULL CHECK(event_type IN ('goal', 'paddle_hit', 'wall_bounce', 'power_up', 'pause', 'resume')),
-                                        player_id TEXT,
-                                        timestamp_ms INTEGER NOT NULL,
-                                        position_x REAL,
-                                        position_y REAL,
-                                        data JSON, -- Additional event-specific data
-                                        FOREIGN KEY (game_session_id) REFERENCES game_sessions(id) ON DELETE CASCADE
+                                        user_id TEXT UNIQUE NOT NULL,
+                                        total_games INTEGER DEFAULT 0,
+                                        wins INTEGER DEFAULT 0,
+                                        losses INTEGER DEFAULT 0,
+                                        draws INTEGER DEFAULT 0,
+                                        total_score INTEGER DEFAULT 0,
+                                        highest_score INTEGER DEFAULT 0,
+                                        win_streak INTEGER DEFAULT 0,
+                                        current_win_streak INTEGER DEFAULT 0,
+                                        tournaments_joined INTEGER DEFAULT 0,
+                                        tournaments_won INTEGER DEFAULT 0,
+                                        average_game_duration REAL DEFAULT 0,
+                                        last_played DATETIME,
+                                        ranking_points INTEGER DEFAULT 1000,
+                                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                                     )
                                 `, (err) => {
                                     if (err) return reject(err);
                                     
-                                    // Active Game Rooms table - for managing live games
+                                    // Game Events table
                                     db.run(`
-                                        CREATE TABLE IF NOT EXISTS active_game_rooms (
-                                            id TEXT PRIMARY KEY, -- Room ID/Code
-                                            game_session_id INTEGER NOT NULL UNIQUE,
-                                            player1_socket_id TEXT,
-                                            player2_socket_id TEXT,
-                                            spectator_count INTEGER DEFAULT 0,
-                                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                            last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                            room_settings JSON,
+                                        CREATE TABLE IF NOT EXISTS game_events (
+                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            game_session_id INTEGER NOT NULL,
+                                            event_type TEXT NOT NULL CHECK(event_type IN ('goal', 'paddle_hit', 'wall_bounce', 'power_up', 'pause', 'resume')),
+                                            player_id TEXT,
+                                            timestamp_ms INTEGER NOT NULL,
+                                            position_x REAL,
+                                            position_y REAL,
+                                            data JSON,
                                             FOREIGN KEY (game_session_id) REFERENCES game_sessions(id) ON DELETE CASCADE
                                         )
                                     `, (err) => {
                                         if (err) return reject(err);
                                         
-                                        // Blocked Users table - prevent game invitations between blocked users
+                                        // Active Game Rooms table
                                         db.run(`
-                                            CREATE TABLE IF NOT EXISTS blocked_users (
-                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                                blocker_id TEXT NOT NULL,
-                                                blocked_id TEXT NOT NULL,
+                                            CREATE TABLE IF NOT EXISTS active_game_rooms (
+                                                id TEXT PRIMARY KEY,
+                                                game_session_id INTEGER NOT NULL UNIQUE,
+                                                player1_socket_id TEXT,
+                                                player2_socket_id TEXT,
+                                                spectator_count INTEGER DEFAULT 0,
                                                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                                                UNIQUE(blocker_id, blocked_id)
+                                                last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                                room_settings JSON,
+                                                FOREIGN KEY (game_session_id) REFERENCES game_sessions(id) ON DELETE CASCADE
                                             )
                                         `, (err) => {
                                             if (err) return reject(err);
                                             
-                                            // Create indexes for better performance
+                                            // Blocked Users table
                                             db.run(`
-                                                CREATE INDEX IF NOT EXISTS idx_game_sessions_players ON game_sessions(player1_id, player2_id);
-                                                CREATE INDEX IF NOT EXISTS idx_game_sessions_tournament ON game_sessions(tournament_id);
-                                                CREATE INDEX IF NOT EXISTS idx_game_sessions_created ON game_sessions(created_at);
-                                                CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
-                                                CREATE INDEX IF NOT EXISTS idx_tournament_participants_user ON tournament_participants(user_id);
-                                                CREATE INDEX IF NOT EXISTS idx_tournament_matches_tournament ON tournament_matches(tournament_id);
-                                                CREATE INDEX IF NOT EXISTS idx_game_invitations_receiver ON game_invitations(receiver_id, status);
-                                                CREATE INDEX IF NOT EXISTS idx_game_invitations_sender ON game_invitations(sender_id);
-                                                CREATE INDEX IF NOT EXISTS idx_player_statistics_user ON player_statistics(user_id);
-                                                CREATE INDEX IF NOT EXISTS idx_game_events_session ON game_events(game_session_id);
-                                                CREATE INDEX IF NOT EXISTS idx_blocked_users_blocker ON blocked_users(blocker_id);
-                                                CREATE INDEX IF NOT EXISTS idx_blocked_users_blocked ON blocked_users(blocked_id);
+                                                CREATE TABLE IF NOT EXISTS blocked_users (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    blocker_id TEXT NOT NULL,
+                                                    blocked_id TEXT NOT NULL,
+                                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                                                    UNIQUE(blocker_id, blocked_id)
+                                                )
                                             `, (err) => {
                                                 if (err) return reject(err);
                                                 
-                                                console.log('✅ Database initialized successfully!');
-                                                resolve();
+                                                // Create indexes for better performance
+                                                db.run(`
+                                                    CREATE INDEX IF NOT EXISTS idx_game_sessions_players ON game_sessions(player1_id, player2_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_game_sessions_tournament ON game_sessions(tournament_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_game_sessions_created ON game_sessions(created_at);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_participants_user ON tournament_participants(user_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_participants_seed ON tournament_participants(tournament_id, seed_number);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_matches_tournament ON tournament_matches(tournament_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_matches_bracket ON tournament_matches(tournament_id, bracket_position);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_announcements_tournament ON tournament_announcements(tournament_id, created_at);
+                                                    CREATE INDEX IF NOT EXISTS idx_tournament_announcements_type ON tournament_announcements(tournament_id, announcement_type);
+                                                    CREATE INDEX IF NOT EXISTS idx_game_invitations_receiver ON game_invitations(receiver_id, status);
+                                                    CREATE INDEX IF NOT EXISTS idx_game_invitations_sender ON game_invitations(sender_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_player_statistics_user ON player_statistics(user_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_player_statistics_ranking ON player_statistics(ranking_points DESC);
+                                                    CREATE INDEX IF NOT EXISTS idx_game_events_session ON game_events(game_session_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_blocked_users_blocker ON blocked_users(blocker_id);
+                                                    CREATE INDEX IF NOT EXISTS idx_blocked_users_blocked ON blocked_users(blocked_id);
+                                                `, (err) => {
+                                                    if (err) return reject(err);
+                                                    
+                                                    console.log('✅ Database initialized successfully!');
+                                                    resolve();
+                                                });
                                             });
                                         });
                                     });
@@ -226,10 +266,10 @@ export function initializeDatabase() {
     });
 }
 
-// Database service class with all game-related operations
+// Database service class with enhanced tournament features
 export class GameDatabaseService {
     // ========================================
-    // GAME SESSIONS
+    // GAME SESSIONS (existing methods unchanged)
     // ========================================
     
     createGameSession(data) {
@@ -250,7 +290,6 @@ export class GameDatabaseService {
                 function(err) {
                     if (err) return reject(err);
                     
-                    // Get the created session
                     db.get('SELECT *, match_data as match_data_json FROM game_sessions WHERE id = ?', 
                         [this.lastID], (err, session) => {
                             if (err) return reject(err);
@@ -315,7 +354,6 @@ export class GameDatabaseService {
             db.run(sql, values, function(err) {
                 if (err) return reject(err);
                 
-                // Return updated session
                 db.get('SELECT *, match_data as match_data_json FROM game_sessions WHERE id = ?', 
                     [sessionId], (err, session) => {
                         if (err) return reject(err);
@@ -357,15 +395,16 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // TOURNAMENTS
+    // ENHANCED TOURNAMENTS WITH SEEDING
     // ========================================
     
     createTournament(data) {
         return new Promise((resolve, reject) => {
             const stmt = db.prepare(`
                 INSERT INTO tournaments (
-                    name, description, creator_id, max_players, tournament_type, settings
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    name, description, creator_id, max_players, tournament_type, 
+                    seeding_method, auto_advance_timer, settings
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `);
             
             stmt.run(
@@ -374,11 +413,12 @@ export class GameDatabaseService {
                 data.creator_id,
                 data.max_players || 8,
                 data.tournament_type || 'single_elimination',
+                data.seeding_method || 'random',
+                data.auto_advance_timer || 300,
                 JSON.stringify(data.settings || {}),
                 function(err) {
                     if (err) return reject(err);
                     
-                    // Get the created tournament
                     db.get('SELECT *, settings as settings_json FROM tournaments WHERE id = ?', 
                         [this.lastID], (err, tournament) => {
                             if (err) return reject(err);
@@ -415,7 +455,6 @@ export class GameDatabaseService {
     
     async joinTournament(tournamentId, userId, username) {
         try {
-            // Check if tournament exists and is accepting registrations
             const tournament = await this.getTournament(tournamentId);
             if (!tournament || tournament.status !== 'registration') {
                 throw new Error('Tournament not accepting registrations');
@@ -424,14 +463,17 @@ export class GameDatabaseService {
             if (tournament.current_players >= tournament.max_players) {
                 throw new Error('Tournament is full');
             }
+
+            // Get player's current ranking points for seeding
+            const playerStats = await this.getOrCreatePlayerStats(userId);
             
             return new Promise((resolve, reject) => {
                 const stmt = db.prepare(`
-                    INSERT INTO tournament_participants (tournament_id, user_id, username)
-                    VALUES (?, ?, ?)
+                    INSERT INTO tournament_participants (tournament_id, user_id, username, ranking_points)
+                    VALUES (?, ?, ?, ?)
                 `);
                 
-                stmt.run(tournamentId, userId, username, function(err) {
+                stmt.run(tournamentId, userId, username, playerStats.ranking_points, function(err) {
                     if (err) {
                         if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
                             return reject(new Error('Already joined this tournament'));
@@ -456,12 +498,13 @@ export class GameDatabaseService {
         }
     }
     
+    // Enhanced method to get participants with seeding info
     getTournamentParticipants(tournamentId) {
         return new Promise((resolve, reject) => {
             db.all(`
                 SELECT * FROM tournament_participants 
                 WHERE tournament_id = ? 
-                ORDER BY joined_at ASC
+                ORDER BY seed_number ASC, ranking_points DESC, joined_at ASC
             `, [tournamentId], (err, rows) => {
                 if (err) return reject(err);
                 resolve(rows);
@@ -469,20 +512,67 @@ export class GameDatabaseService {
         });
     }
     
+    // Method to apply seeding to tournament participants
+    async applySeeding(tournamentId, seedingMethod = 'ranking') {
+        try {
+            const participants = await this.getTournamentParticipants(tournamentId);
+            
+            let seedOrder;
+            if (seedingMethod === 'ranking') {
+                // Sort by ranking points (highest first)
+                seedOrder = participants.sort((a, b) => b.ranking_points - a.ranking_points);
+            } else if (seedingMethod === 'random') {
+                // Random shuffle
+                seedOrder = [...participants];
+                for (let i = seedOrder.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [seedOrder[i], seedOrder[j]] = [seedOrder[j], seedOrder[i]];
+                }
+            } else {
+                // Manual seeding - keep current order
+                seedOrder = participants;
+            }
+            
+            // Apply seed numbers
+            const promises = seedOrder.map((participant, index) => {
+                return new Promise((resolve, reject) => {
+                    db.run(`
+                        UPDATE tournament_participants 
+                        SET seed_number = ? 
+                        WHERE tournament_id = ? AND user_id = ?
+                    `, [index + 1, tournamentId, participant.user_id], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
+                });
+            });
+            
+            await Promise.all(promises);
+            return await this.getTournamentParticipants(tournamentId);
+        } catch (error) {
+            throw error;
+        }
+    }
+    
+    // Enhanced tournament start with proper seeding and bracket generation
     async startTournament(tournamentId) {
         try {
             const tournament = await this.getTournament(tournamentId);
             if (!tournament) throw new Error('Tournament not found');
             if (tournament.status !== 'registration') throw new Error('Tournament already started');
             
-            const participants = await this.getTournamentParticipants(tournamentId);
+            let participants = await this.getTournamentParticipants(tournamentId);
             if (participants.length < 2) throw new Error('Need at least 2 players');
+            
+            // Apply seeding if not already done
+            if (!participants[0].seed_number) {
+                participants = await this.applySeeding(tournamentId, tournament.seeding_method);
+            }
             
             // Calculate tournament structure
             const totalRounds = Math.ceil(Math.log2(participants.length));
             
             return new Promise((resolve, reject) => {
-                // Update tournament status
                 db.run(`
                     UPDATE tournaments 
                     SET status = 'active', started_at = CURRENT_TIMESTAMP, total_rounds = ?
@@ -490,9 +580,18 @@ export class GameDatabaseService {
                 `, [totalRounds, tournamentId], async (err) => {
                     if (err) return reject(err);
                     
-                    // Generate first round matches
                     try {
-                        await this.generateTournamentMatches(tournamentId, participants);
+                        await this.generateSeededTournamentMatches(tournamentId, participants);
+                        
+                        // Create tournament start announcement
+                        await this.createAnnouncement(tournamentId, {
+                            type: 'tournament_start',
+                            title: 'Tournament Started!',
+                            message: `The tournament "${tournament.name}" has begun! Check your first round matches.`,
+                            priority: 3,
+                            created_by: tournament.creator_id
+                        });
+                        
                         const updatedTournament = await this.getTournament(tournamentId);
                         resolve(updatedTournament);
                     } catch (error) {
@@ -505,40 +604,45 @@ export class GameDatabaseService {
         }
     }
     
-    generateTournamentMatches(tournamentId, participants) {
+    // Enhanced match generation with proper bracket positioning
+    generateSeededTournamentMatches(tournamentId, participants) {
         return new Promise((resolve, reject) => {
-            // Simple single elimination bracket generation
-            let round = 1;
-            let currentParticipants = [...participants];
+            const round = 1;
+            const tournamentType = 'single_elimination'; // TODO: Get from tournament settings
             
-            // Shuffle participants for random matchups
-            for (let i = currentParticipants.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [currentParticipants[i], currentParticipants[j]] = [currentParticipants[j], currentParticipants[i]];
-            }
+            // Standard single elimination bracket pairings (1 vs 8, 2 vs 7, etc.)
+            const bracketPairs = this.generateBracketPairings(participants);
             
             const stmt = db.prepare(`
                 INSERT INTO tournament_matches (
-                    tournament_id, round_number, match_number, player1_id, player2_id, status
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    tournament_id, round_number, match_number, bracket_position,
+                    player1_id, player2_id, player1_seed, player2_seed, 
+                    status, deadline_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             
             let completedMatches = 0;
-            let totalMatches = Math.ceil(currentParticipants.length / 2);
+            const totalMatches = bracketPairs.length;
+            const deadlineTime = new Date();
+            deadlineTime.setMinutes(deadlineTime.getMinutes() + 15); // 15 min to start match
             
-            // Generate first round matches
-            let matchNumber = 1;
-            for (let i = 0; i < currentParticipants.length; i += 2) {
-                const player1 = currentParticipants[i];
-                const player2 = currentParticipants[i + 1] || null; // Handle odd number of participants
+            bracketPairs.forEach((pair, index) => {
+                const matchNumber = index + 1;
+                const bracketPosition = `R${round}-M${matchNumber}`;
+                const player1 = pair.player1;
+                const player2 = pair.player2;
                 
                 stmt.run(
                     tournamentId,
                     round,
                     matchNumber,
-                    player1.user_id,
+                    bracketPosition,
+                    player1?.user_id || null,
                     player2?.user_id || null,
-                    player2 ? 'ready' : 'finished', // If no opponent, auto-advance
+                    player1?.seed_number || null,
+                    player2?.seed_number || null,
+                    player2 ? 'ready' : 'walkover', // If no opponent, it's a walkover
+                    deadlineTime.toISOString(),
                     (err) => {
                         if (err) return reject(err);
                         
@@ -549,11 +653,31 @@ export class GameDatabaseService {
                         }
                     }
                 );
-                matchNumber++;
+            });
+            
+            if (totalMatches === 0) {
+                stmt.finalize();
+                resolve();
             }
         });
     }
     
+    // Helper method to generate proper bracket pairings
+    generateBracketPairings(participants) {
+        const pairs = [];
+        const sortedParticipants = [...participants].sort((a, b) => a.seed_number - b.seed_number);
+        
+        // Standard single elimination bracket (1vs8, 2vs7, 3vs6, 4vs5, etc.)
+        for (let i = 0; i < sortedParticipants.length; i += 2) {
+            const player1 = sortedParticipants[i];
+            const player2 = sortedParticipants[i + 1] || null;
+            pairs.push({ player1, player2 });
+        }
+        
+        return pairs;
+    }
+    
+    // Enhanced method to get matches with bracket info
     getTournamentMatches(tournamentId, roundNumber = null) {
         return new Promise((resolve, reject) => {
             let query = `
@@ -582,14 +706,356 @@ export class GameDatabaseService {
             });
         });
     }
+    
+    // Method to advance players after match completion
+    async advanceWinnerToNextRound(matchId, winnerId) {
+        try {
+            const match = await this.getTournamentMatch(matchId);
+            if (!match || match.status !== 'finished') {
+                throw new Error('Match not finished');
+            }
+            
+            // Update match with winner
+            await new Promise((resolve, reject) => {
+                db.run(`
+                    UPDATE tournament_matches 
+                    SET winner_id = ? 
+                    WHERE id = ?
+                `, [winnerId, matchId], (err) => {
+                    if (err) return reject(err);
+                    resolve();
+                });
+            });
+            
+            // Create advancement announcement
+            const winnerParticipant = await this.getTournamentParticipant(match.tournament_id, winnerId);
+            if (winnerParticipant) {
+                await this.createAnnouncement(match.tournament_id, {
+                    type: 'player_advance',
+                    title: 'Player Advanced!',
+                    message: `${winnerParticipant.username} has advanced to the next round!`,
+                    target_users: JSON.stringify([winnerId]),
+                    match_id: matchId,
+                    priority: 2
+                });
+            }
+            
+            // Check if we need to generate next round matches
+            await this.checkAndGenerateNextRound(match.tournament_id);
+            
+        } catch (error) {
+            throw error;
+        }
+    }
+    
+    // Method to get a specific tournament match
+    getTournamentMatch(matchId) {
+        return new Promise((resolve, reject) => {
+            db.get(`
+                SELECT tm.*, 
+                       tp1.username as player1_username,
+                       tp2.username as player2_username
+                FROM tournament_matches tm
+                LEFT JOIN tournament_participants tp1 ON tm.player1_id = tp1.user_id AND tm.tournament_id = tp1.tournament_id
+                LEFT JOIN tournament_participants tp2 ON tm.player2_id = tp2.user_id AND tm.tournament_id = tp2.tournament_id
+                WHERE tm.id = ?
+            `, [matchId], (err, row) => {
+                if (err) return reject(err);
+                resolve(row);
+            });
+        });
+    }
+    
+    // Method to get a tournament participant
+    getTournamentParticipant(tournamentId, userId) {
+        return new Promise((resolve, reject) => {
+            db.get(`
+                SELECT * FROM tournament_participants 
+                WHERE tournament_id = ? AND user_id = ?
+            `, [tournamentId, userId], (err, row) => {
+                if (err) return reject(err);
+                resolve(row);
+            });
+        });
+    }
+    
+    // Method to check and generate next round matches
+    async checkAndGenerateNextRound(tournamentId) {
+        try {
+            const tournament = await this.getTournament(tournamentId);
+            if (!tournament || tournament.status !== 'active') return;
+            
+            const currentRoundMatches = await this.getTournamentMatches(tournamentId, tournament.current_round);
+            const finishedMatches = currentRoundMatches.filter(m => m.status === 'finished' || m.status === 'walkover');
+            
+            // If all matches in current round are finished, generate next round
+            if (finishedMatches.length === currentRoundMatches.length && currentRoundMatches.length > 0) {
+                const winners = finishedMatches.map(m => m.winner_id).filter(Boolean);
+                
+                if (winners.length === 1) {
+                    // Tournament is complete
+                    await this.completeTournament(tournamentId, winners[0]);
+                } else if (winners.length > 1) {
+                    // Generate next round
+                    await this.generateNextRoundMatches(tournamentId, winners);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking next round:', error);
+        }
+    }
+    
+    // Method to generate next round matches
+    async generateNextRoundMatches(tournamentId, winnerIds) {
+        try {
+            const tournament = await this.getTournament(tournamentId);
+            const nextRound = tournament.current_round + 1;
+            
+            // Get winner participants with their seed info
+            const winners = [];
+            for (const winnerId of winnerIds) {
+                const participant = await this.getTournamentParticipant(tournamentId, winnerId);
+                if (participant) winners.push(participant);
+            }
+            
+            // Sort by seed for proper bracket progression
+            winners.sort((a, b) => a.seed_number - b.seed_number);
+            
+            const matches = [];
+            for (let i = 0; i < winners.length; i += 2) {
+                const player1 = winners[i];
+                const player2 = winners[i + 1] || null;
+                
+                if (player1) {
+                    matches.push({
+                        round_number: nextRound,
+                        match_number: Math.floor(i / 2) + 1,
+                        bracket_position: `R${nextRound}-M${Math.floor(i / 2) + 1}`,
+                        player1_id: player1.user_id,
+                        player2_id: player2?.user_id || null,
+                        player1_seed: player1.seed_number,
+                        player2_seed: player2?.seed_number || null,
+                        status: player2 ? 'ready' : 'walkover'
+                    });
+                }
+            }
+            
+            // Insert new matches
+            for (const match of matches) {
+                await new Promise((resolve, reject) => {
+                    const stmt = db.prepare(`
+                        INSERT INTO tournament_matches (
+                            tournament_id, round_number, match_number, bracket_position,
+                            player1_id, player2_id, player1_seed, player2_seed, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `);
+                    
+                    stmt.run(
+                        tournamentId,
+                        match.round_number,
+                        match.match_number,
+                        match.bracket_position,
+                        match.player1_id,
+                        match.player2_id,
+                        match.player1_seed,
+                        match.player2_seed,
+                        match.status,
+                        (err) => {
+                            if (err) return reject(err);
+                            stmt.finalize();
+                            resolve();
+                        }
+                    );
+                });
+            }
+            
+            // Update tournament current round
+            await new Promise((resolve, reject) => {
+                db.run(`
+                    UPDATE tournaments 
+                    SET current_round = ? 
+                    WHERE id = ?
+                `, [nextRound, tournamentId], (err) => {
+                    if (err) return reject(err);
+                    resolve();
+                });
+            });
+            
+            // Create round completion announcement
+            await this.createAnnouncement(tournamentId, {
+                type: 'round_complete',
+                title: `Round ${tournament.current_round} Complete!`,
+                message: `Round ${tournament.current_round} has finished. Round ${nextRound} matches are now available.`,
+                priority: 2
+            });
+            
+        } catch (error) {
+            throw error;
+        }
+    }
+    
+    // Method to complete tournament
+    async completeTournament(tournamentId, winnerId) {
+        try {
+            await new Promise((resolve, reject) => {
+                db.run(`
+                    UPDATE tournaments 
+                    SET status = 'finished', finished_at = CURRENT_TIMESTAMP, winner_id = ?
+                    WHERE id = ?
+                `, [winnerId, tournamentId], (err) => {
+                    if (err) return reject(err);
+                    resolve();
+                });
+            });
+            
+            // Update winner's stats
+            await this.updatePlayerStats(winnerId, {
+                result: 'tournament_won',
+                tournaments_won: 1
+            });
+            
+            const winner = await this.getTournamentParticipant(tournamentId, winnerId);
+            const tournament = await this.getTournament(tournamentId);
+            
+            // Create tournament end announcement
+            await this.createAnnouncement(tournamentId, {
+                type: 'tournament_end',
+                title: 'Tournament Complete!',
+                message: `🏆 ${winner.username} has won "${tournament.name}"! Congratulations!`,
+                priority: 3
+            });
+            
+        } catch (error) {
+            throw error;
+        }
+    }
 
     // ========================================
-    // GAME INVITATIONS
+    // TOURNAMENT ANNOUNCEMENTS SYSTEM
+    // ========================================
+    
+    createAnnouncement(tournamentId, data) {
+        return new Promise((resolve, reject) => {
+            const stmt = db.prepare(`
+                INSERT INTO tournament_announcements (
+                    tournament_id, announcement_type, title, message, 
+                    target_users, match_id, priority, created_by, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            
+            const expiresAt = data.expires_at || (() => {
+                const exp = new Date();
+                exp.setHours(exp.getHours() + 24); // Default 24 hour expiry
+                return exp.toISOString();
+            })();
+            
+            stmt.run(
+                tournamentId,
+                data.type,
+                data.title,
+                data.message,
+                data.target_users || null,
+                data.match_id || null,
+                data.priority || 1,
+                data.created_by || null,
+                expiresAt,
+                function(err) {
+                    if (err) return reject(err);
+                    
+                    db.get('SELECT * FROM tournament_announcements WHERE id = ?', 
+                        [this.lastID], (err, announcement) => {
+                            if (err) return reject(err);
+                            resolve(announcement);
+                        });
+                }
+            );
+            stmt.finalize();
+        });
+    }
+    
+    getTournamentAnnouncements(tournamentId, userId = null, unreadOnly = false) {
+        return new Promise((resolve, reject) => {
+            let query = `
+                SELECT * FROM tournament_announcements 
+                WHERE tournament_id = ? 
+                AND expires_at > CURRENT_TIMESTAMP
+            `;
+            const params = [tournamentId];
+            
+            if (userId) {
+                query += ` AND (target_users IS NULL OR target_users LIKE '%"${userId}"%')`;
+                
+                if (unreadOnly) {
+                    query += ` AND (is_read_by NOT LIKE '%"${userId}"%' OR is_read_by = '[]')`;
+                }
+            }
+            
+            query += ' ORDER BY priority DESC, created_at DESC';
+            
+            db.all(query, params, (err, rows) => {
+                if (err) return reject(err);
+                
+                const announcements = rows.map(row => ({
+                    ...row,
+                    target_users: row.target_users ? JSON.parse(row.target_users) : null,
+                    is_read_by: row.is_read_by ? JSON.parse(row.is_read_by) : []
+                }));
+                
+                resolve(announcements);
+            });
+        });
+    }
+    
+    markAnnouncementAsRead(announcementId, userId) {
+        return new Promise((resolve, reject) => {
+            // First get current read list
+            db.get('SELECT is_read_by FROM tournament_announcements WHERE id = ?', 
+                [announcementId], (err, row) => {
+                    if (err) return reject(err);
+                    if (!row) return reject(new Error('Announcement not found'));
+                    
+                    const readBy = row.is_read_by ? JSON.parse(row.is_read_by) : [];
+                    if (!readBy.includes(userId)) {
+                        readBy.push(userId);
+                    }
+                    
+                    db.run(`
+                        UPDATE tournament_announcements 
+                        SET is_read_by = ? 
+                        WHERE id = ?
+                    `, [JSON.stringify(readBy), announcementId], (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    });
+                });
+        });
+    }
+    
+    // Method to create match-ready announcements
+    async createMatchReadyAnnouncement(tournamentId, matchId, playerIds) {
+        try {
+            const match = await this.getTournamentMatch(matchId);
+            if (!match) return;
+            
+            await this.createAnnouncement(tournamentId, {
+                type: 'match_ready',
+                title: 'Your Match is Ready!',
+                message: `Your match is ready to begin: ${match.player1_username} vs ${match.player2_username}. Join now!`,
+                target_users: JSON.stringify(playerIds),
+                match_id: matchId,
+                priority: 3
+            });
+        } catch (error) {
+            console.error('Error creating match ready announcement:', error);
+        }
+    }
+
+    // ========================================
+    // GAME INVITATIONS (existing methods unchanged)
     // ========================================
     
     async sendGameInvitation(data) {
         try {
-            // Check if users are blocked
             const areBlocked = await this.areUsersBlocked(data.sender_id, data.receiver_id);
             if (areBlocked) {
                 throw new Error('Cannot send game invitation to blocked user');
@@ -603,7 +1069,7 @@ export class GameDatabaseService {
                 `);
                 
                 const expiresAt = new Date();
-                expiresAt.setMinutes(expiresAt.getMinutes() + 5); // 5 minute expiry
+                expiresAt.setMinutes(expiresAt.getMinutes() + 5);
                 
                 stmt.run(
                     data.sender_id,
@@ -615,7 +1081,6 @@ export class GameDatabaseService {
                     function(err) {
                         if (err) return reject(err);
                         
-                        // Get the created invitation
                         db.get('SELECT * FROM game_invitations WHERE id = ?', 
                             [this.lastID], (err, invitation) => {
                                 if (err) return reject(err);
@@ -648,7 +1113,6 @@ export class GameDatabaseService {
             if (invitation.receiver_id !== userId) throw new Error('Not authorized');
             if (invitation.status !== 'pending') throw new Error('Invitation already responded to');
             
-            // Check if expired
             if (new Date() > new Date(invitation.expires_at)) {
                 await this.updateInvitationStatus(invitationId, 'expired');
                 throw new Error('Invitation has expired');
@@ -682,8 +1146,8 @@ export class GameDatabaseService {
                        sender.username as sender_username,
                        receiver.username as receiver_username
                 FROM game_invitations gi
-                LEFT JOIN user_profiles sender ON gi.sender_id = sender.user_id
-                LEFT JOIN user_profiles receiver ON gi.receiver_id = receiver.user_id
+                LEFT JOIN tournament_participants sender ON gi.sender_id = sender.user_id
+                LEFT JOIN tournament_participants receiver ON gi.receiver_id = receiver.user_id
                 WHERE gi.receiver_id = ?
             `;
             
@@ -702,7 +1166,6 @@ export class GameDatabaseService {
         });
     }
 
-    // Helper method for updating invitation status
     updateInvitationStatus(invitationId, status) {
         return new Promise((resolve, reject) => {
             db.run(`
@@ -717,7 +1180,7 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // PLAYER STATISTICS
+    // PLAYER STATISTICS (existing methods unchanged)
     // ========================================
     
     getOrCreatePlayerStats(userId) {
@@ -763,6 +1226,9 @@ export class GameDatabaseService {
                 updates.losses = stats.losses + 1;
                 updates.current_win_streak = 0;
                 updates.ranking_points = Math.max(800, stats.ranking_points - 15);
+            } else if (gameResult.result === 'tournament_won') {
+                updates.tournaments_won = stats.tournaments_won + (gameResult.tournaments_won || 1);
+                updates.ranking_points = stats.ranking_points + 100;
             } else {
                 updates.draws = stats.draws + 1;
                 updates.ranking_points = stats.ranking_points + 5;
@@ -822,7 +1288,7 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // GAME ROOMS & LIVE GAMES
+    // GAME ROOMS & LIVE GAMES (existing methods unchanged)
     // ========================================
     
     createActiveGameRoom(roomId, gameSessionId, settings = {}) {
@@ -910,7 +1376,7 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // BLOCKING SYSTEM
+    // BLOCKING SYSTEM (existing methods unchanged)
     // ========================================
     
     blockUser(blockerId, blockedId) {
@@ -967,7 +1433,7 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // GAME EVENTS & ANALYTICS
+    // GAME EVENTS & ANALYTICS (existing methods unchanged)
     // ========================================
     
     recordGameEvent(gameSessionId, eventData) {
@@ -1029,6 +1495,18 @@ export class GameDatabaseService {
                 UPDATE game_invitations 
                 SET status = 'expired' 
                 WHERE status = 'pending' AND expires_at < CURRENT_TIMESTAMP
+            `, function(err) {
+                if (err) return reject(err);
+                resolve(this.changes);
+            });
+        });
+    }
+    
+    cleanupExpiredAnnouncements() {
+        return new Promise((resolve, reject) => {
+            db.run(`
+                DELETE FROM tournament_announcements 
+                WHERE expires_at < CURRENT_TIMESTAMP
             `, function(err) {
                 if (err) return reject(err);
                 resolve(this.changes);
