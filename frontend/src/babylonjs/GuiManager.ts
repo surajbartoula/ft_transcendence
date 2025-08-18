@@ -271,6 +271,7 @@ export class GUIManager {
         onLocalGame: () => void;
         onAIGame: () => void;
         onTournament: () => void;
+        onExitToDashboard: () => void;
     }): void {
         this.removeMainMenu();
 
@@ -285,7 +286,10 @@ export class GUIManager {
                     <button id="aiGameBtn" class="tron-button">Play Against AI</button>
                     <button id="tournamentBtn" class="tron-button">Tournament</button>
                 </div>
-                <div style="margin-top: 30px; font-size: 0.9em; color: #888;">
+                <div style="margin-top: 20px;">
+                    <button id="exitToDashboardBtn" class="tron-button" style="background: linear-gradient(145deg, #2d1b0e, #4a2c1a); border-color: #ff6b35;">Exit to Dashboard</button>
+                </div>
+                <div style="margin-top: 20px; font-size: 0.9em; color: #888;">
                     Select a game mode to begin
                 </div>
             </div>
@@ -305,6 +309,7 @@ export class GUIManager {
         document.getElementById('localGameBtn')?.addEventListener('click', options.onLocalGame);
         document.getElementById('aiGameBtn')?.addEventListener('click', options.onAIGame);
         document.getElementById('tournamentBtn')?.addEventListener('click', options.onTournament);
+        document.getElementById('exitToDashboardBtn')?.addEventListener('click', options.onExitToDashboard);
     }
 
     removeMainMenu(): void {

@@ -35,21 +35,20 @@ export class PongGameManager {
         this.uiManager = new UIManager();
         this.scoreManager = new ScoreManager();
         
-        // Initialize AI and Tournament systems
-        this.aiPlayer = new AIPlayer(this.physicsSystem, this.renderEngine);
-        this.tournamentManager = new TournamentManager();
-
-        // Initialize game state manager with all systems
+        // Initialize game state manager with core systems only
+        // (GameStateManager creates its own aiPlayer and tournamentManager)
         this.gameState = new GameStateManager({
             renderEngine: this.renderEngine,
             inputManager: this.inputManager,
             physicsSystem: this.physicsSystem,
             audioManager: this.audioManager,
             uiManager: this.uiManager,
-            scoreManager: this.scoreManager,
-            aiPlayer: this.aiPlayer,
-            tournamentManager: this.tournamentManager
+            scoreManager: this.scoreManager
         });
+
+        // Get references to AI and Tournament systems from GameStateManager
+        this.aiPlayer = this.gameState.getAIPlayer();
+        this.tournamentManager = this.gameState.getTournamentManager();
 
         this.initialize();
     }
@@ -123,13 +122,7 @@ export class PongGameManager {
     // PUBLIC API METHODS
     // =====================================
     
-    /**
-     * Set AI difficulty level
-     */
-    public setAIDifficulty(difficulty: 'easy' | 'medium' | 'hard'): void {
-        this.aiPlayer.setDifficulty(difficulty);
-        console.log(`🤖 AI difficulty set to: ${difficulty}`);
-    }
+    // AI difficulty is now always set to hard
 
     /**
      * Get current game mode information
@@ -176,10 +169,11 @@ export class PongGameManager {
     }
 
     /**
-     * Start a new AI game
+     * Start a new AI game (always on hard difficulty)
      */
-    public async startAIGame(playerName: string = "Player", difficulty: 'easy' | 'medium' | 'hard' = 'medium'): Promise<void> {
-        this.setAIDifficulty(difficulty);
+    public async startAIGame(playerName: string = "Player"): Promise<void> {
+        // Set AI to hard difficulty
+        this.aiPlayer.setDifficulty('hard');
         this.gameState.setGameMode({
             type: 'ai',
             player1Name: playerName,

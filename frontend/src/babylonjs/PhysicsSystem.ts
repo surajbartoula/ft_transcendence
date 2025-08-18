@@ -306,6 +306,25 @@ import { ScoreManager } from "./ScoreManager";
 		console.log("🏐 Ball reset to center with velocity:", this.ballVelocity);
 	}
 
+	// Getter methods for AI to access ball data
+	getBallVelocity(): BABYLON.Vector3 {
+		return this.ballVelocity.clone();
+	}
+
+	getBallPosition(): BABYLON.Vector3 | null {
+		if (!this.renderEngine) return null;
+		const ball = this.renderEngine.getMesh('pongBall');
+		return ball ? ball.position.clone() : null;
+	}
+
+	getBallSpeed(): number {
+		return this.ballSpeed;
+	}
+
+	isBallActive(): boolean {
+		return this.ballActive;
+	}
+
 	dispose(): void {
 		this.ballActive = false;
 	}

@@ -23,6 +23,7 @@ export class UIManager {
         onLocalGame: () => void;
         onAIGame: () => void;
         onTournament: () => void;
+        onExitToDashboard: () => void;
     }): void {
         this.gui.createMainMenu(options);
         this.currentMenus.add('mainMenu');

@@ -10,7 +10,9 @@ export class AIPlayer {
     private renderEngine: RenderEngine;
     private isActive: boolean = false;
     private lastUpdateTime: number = 0;
-    private updateInterval: number = 1000; // AI updates once per second
+    private updateInterval: number = 1000; // AI makes decisions once per second
+    private trackingInterval: number = 100; // AI tracks ball position more frequently  
+    private lastTrackingTime: number = 0;
     private currentInput: number = 0;
     
     // AI state tracking
@@ -18,13 +20,14 @@ export class AIPlayer {
     private ballVelocity: BABYLON.Vector3 = new BABYLON.Vector3();
     private paddlePosition: BABYLON.Vector3 = new BABYLON.Vector3();
     private predictedBallY: number = 0;
-    private difficulty: 'easy' | 'medium' | 'hard' = 'medium';
+    private difficulty: 'easy' | 'medium' | 'hard' = 'hard';
     
     // AI behavior parameters
-    private reactionTime: number = 100; // ms delay to simulate human reaction
-    private accuracy: number = 0.8; // How accurate the AI predictions are
+    private reactionTime: number = 50; // ms delay - more responsive
+    private accuracy: number = 0.9; // Higher accuracy for better shot tracking
     private maxSpeed: number = 1.0; // Speed multiplier (same as human players)
-    private anticipationDistance: number = 15; // How far ahead the AI looks
+    private anticipationDistance: number = 12; // Closer tracking distance
+    private previousBallPosition: BABYLON.Vector3 = new BABYLON.Vector3();
 
     constructor(physicsSystem: PhysicsSystem, renderEngine: RenderEngine) {
         this.physicsSystem = physicsSystem;
@@ -34,8 +37,18 @@ export class AIPlayer {
     initialize(): void {
         this.isActive = true;
         this.lastUpdateTime = Date.now();
+        this.lastTrackingTime = Date.now();
         this.currentInput = 0;
-        console.log("🤖 AI Player initialized");
+        
+        // Initialize ball position tracking
+        this.previousBallPosition.set(0, 0, 0);
+        this.ballPosition.set(0, 0, 0);
+        this.ballVelocity.set(0, 0, 0);
+        
+        // Set AI to hard difficulty by default
+        this.setDifficulty('hard');
+        
+        console.log("🤖 AI Player initialized with enhanced responsiveness and real physics data");
     }
 
     stop(): void {
@@ -50,18 +63,18 @@ export class AIPlayer {
         switch (difficulty) {
             case 'easy':
                 this.accuracy = 0.6;
-                this.reactionTime = 300;
+                this.reactionTime = 200;
                 this.anticipationDistance = 10;
                 break;
             case 'medium':
                 this.accuracy = 0.8;
-                this.reactionTime = 200;
-                this.anticipationDistance = 15;
+                this.reactionTime = 100;
+                this.anticipationDistance = 12;
                 break;
             case 'hard':
                 this.accuracy = 0.95;
-                this.reactionTime = 100;
-                this.anticipationDistance = 20;
+                this.reactionTime = 30; // Very responsive
+                this.anticipationDistance = 15;
                 break;
         }
         
@@ -73,10 +86,18 @@ export class AIPlayer {
 
         const currentTime = Date.now();
         
-        // AI only updates its "view" once per second to simulate human limitation
+        // Track ball position more frequently for better awareness
+        if (currentTime - this.lastTrackingTime >= this.trackingInterval) {
+            this.trackBallState();
+            this.lastTrackingTime = currentTime;
+            
+            // Check for immediate threats that need instant response
+            this.checkForImmediateThreats();
+        }
+        
+        // Make AI decisions once per second to simulate human processing
         if (currentTime - this.lastUpdateTime >= this.updateInterval) {
-            this.updateAIState();
-            this.calculateInput();
+            this.makeDecision();
             this.lastUpdateTime = currentTime;
         }
     }
@@ -85,101 +106,157 @@ export class AIPlayer {
         return this.currentInput;
     }
 
-    private updateAIState(): void {
-        if (!this.renderEngine) return;
+    private trackBallState(): void {
+        if (!this.renderEngine || !this.physicsSystem) return;
 
-        // Get current ball state
-        const ball = this.renderEngine.getMesh('pongBall');
+        // Continuously track ball for better awareness (every 100ms)
+        const ballPosition = this.physicsSystem.getBallPosition();
+        const ballVelocity = this.physicsSystem.getBallVelocity();
         const paddle = this.renderEngine.getMesh('paddleRight'); // AI controls right paddle
         
-        if (ball && paddle) {
-            this.ballPosition.copyFrom(ball.position);
+        if (ballPosition && paddle && this.physicsSystem.isBallActive()) {
+            // Update current ball state
+            this.ballPosition.copyFrom(ballPosition);
+            this.ballVelocity.copyFrom(ballVelocity);
             this.paddlePosition.copyFrom(paddle.position);
-            
-            // Estimate ball velocity by tracking position changes
-            // In a real implementation, you'd get this from the physics system
-            this.estimateBallVelocity();
-            
-            // Predict where the ball will be when it reaches the paddle
-            this.predictBallTrajectory();
         }
     }
 
-    private estimateBallVelocity(): void {
-        // Simple velocity estimation - in practice, you'd get this from physics system
-        // For now, we'll use a simplified approach
-        if (this.ballPosition.x > 0) { // Ball moving towards AI
-            this.ballVelocity.x = -Math.abs(this.ballVelocity.x || -5);
-        } else {
-            this.ballVelocity.x = Math.abs(this.ballVelocity.x || 5);
+    private checkForImmediateThreats(): void {
+        if (!this.renderEngine || !this.physicsSystem || !this.physicsSystem.isBallActive()) return;
+
+        const ballX = this.ballPosition.x;
+        const paddleX = this.paddlePosition.x;
+        const distance = paddleX - ballX;
+        const ballVelX = this.ballVelocity.x;
+        
+        // Define immediate threat: fast ball coming directly and close
+        const isImmediateThreat = ballVelX > 2 && distance < 5 && distance > 0;
+        
+        if (isImmediateThreat) {
+            console.log(`🤖 IMMEDIATE THREAT! Fast ball incoming - emergency response!`);
+            // Override normal decision making for immediate response
+            this.predictBallPosition();
+            this.calculateInput();
         }
     }
 
-    private predictBallTrajectory(): void {
+    private makeDecision(): void {
+        if (!this.renderEngine || !this.physicsSystem) return;
+        
+        // Ensure we have current data
+        this.trackBallState();
+        
+        if (this.physicsSystem.isBallActive()) {
+            // Check if this is a direct threat that needs immediate response
+            const ballX = this.ballPosition.x;
+            const paddleX = this.paddlePosition.x;
+            const distance = paddleX - ballX;
+            const ballVelX = this.ballVelocity.x;
+            const isDirectThreat = ballVelX > 0.5 && distance < 8;
+            
+            if (isDirectThreat) {
+                console.log(`🤖 DIRECT THREAT detected! Ball: (${ballX.toFixed(2)}, ${this.ballPosition.z.toFixed(2)}), Vel: (${ballVelX.toFixed(2)}, ${this.ballVelocity.z.toFixed(2)}) - IMMEDIATE RESPONSE!`);
+            } else {
+                console.log(`🤖 AI decision - Ball: (${ballX.toFixed(2)}, ${this.ballPosition.z.toFixed(2)}), Vel: (${ballVelX.toFixed(2)}, ${this.ballVelocity.z.toFixed(2)})`);
+            }
+            
+            // Predict and calculate new input
+            this.predictBallPosition();
+            this.calculateInput();
+        }
+    }
+
+    // Removed calculateBallVelocity - now using real physics data
+
+    private predictBallPosition(): void {
         const paddleX = this.paddlePosition.x;
         const ballX = this.ballPosition.x;
         const ballZ = this.ballPosition.z;
         const ballVelX = this.ballVelocity.x;
-        const ballVelZ = this.ballVelocity.z || 0;
+        const ballVelZ = this.ballVelocity.z;
 
-        // Only predict if ball is moving towards AI paddle
-        if (ballVelX > 0 && ballX < paddleX) {
-            // Calculate time for ball to reach paddle X position
-            const timeToReach = (paddleX - ballX) / Math.abs(ballVelX);
+        // Check if ball is moving towards AI paddle (right side)
+        if (ballVelX > 0.5 && ballX < paddleX) {
+            const timeToReach = (paddleX - ballX) / ballVelX;
+            const distance = paddleX - ballX;
             
-            // Predict ball Z position at that time
+            // Special handling for direct shots (close range, little time to react)
+            if (distance < 8 && timeToReach < 0.8) {
+                // Direct shot - use simple linear prediction, no complex bounces
+                let directPrediction = ballZ + (ballVelZ * timeToReach);
+                
+                // Simple clamp for direct shots
+                const wallTop = 9.5;
+                const wallBottom = -9.5;
+                directPrediction = Math.max(wallBottom, Math.min(wallTop, directPrediction));
+                
+                // For direct shots, be more aggressive and accurate
+                this.predictedBallY = directPrediction;
+                
+                console.log(`🤖 DIRECT SHOT detected! Z: ${this.predictedBallY.toFixed(2)} (dist: ${distance.toFixed(1)}, time: ${timeToReach.toFixed(2)}s)`);
+                return;
+            }
+            
+            // Normal prediction for longer shots with bounces
             let predictedZ = ballZ + (ballVelZ * timeToReach);
             
-            // Account for wall bounces in prediction
-            predictedZ = this.accountForWallBounces(predictedZ, timeToReach);
+            // Handle wall bounces for longer shots
+            const wallTop = 9.5;
+            const wallBottom = -9.5;
             
-            // Add some inaccuracy based on difficulty
-            const error = (Math.random() - 0.5) * 2 * (1 - this.accuracy) * 5;
+            // Check if ball will hit walls
+            if (Math.abs(ballVelZ) > 0.1) { // Only if ball has significant Z velocity
+                if (predictedZ > wallTop) {
+                    // Will hit top wall
+                    const wallHitTime = (wallTop - ballZ) / ballVelZ;
+                    const remainingTime = timeToReach - wallHitTime;
+                    if (remainingTime > 0) {
+                        predictedZ = wallTop - (ballVelZ * remainingTime);
+                    }
+                } else if (predictedZ < wallBottom) {
+                    // Will hit bottom wall  
+                    const wallHitTime = (wallBottom - ballZ) / ballVelZ;
+                    const remainingTime = timeToReach - wallHitTime;
+                    if (remainingTime > 0) {
+                        predictedZ = wallBottom - (ballVelZ * remainingTime);
+                    }
+                }
+            }
+            
+            // Clamp to field boundaries
+            predictedZ = Math.max(wallBottom, Math.min(wallTop, predictedZ));
+            
+            // Add minimal error for realism
+            const error = (Math.random() - 0.5) * (1 - this.accuracy) * 1.0;
             this.predictedBallY = predictedZ + error;
             
-            console.log(`🤖 AI predicts ball at Z: ${this.predictedBallY.toFixed(2)}`);
+            console.log(`🤖 Long shot prediction Z: ${this.predictedBallY.toFixed(2)} (dist: ${distance.toFixed(1)}, time: ${timeToReach.toFixed(2)}s)`);
+        } else if (ballVelX < -0.5) {
+            // Ball moving away - return to center gradually
+            this.predictedBallY = ballZ * 0.3;
         } else {
-            // Ball moving away or parallel - maintain center position
-            this.predictedBallY = 0;
+            // Ball moving slowly or sideways - track current position
+            this.predictedBallY = ballZ * 0.7;
         }
     }
 
-    private accountForWallBounces(predictedZ: number, timeToReach: number): number {
-        // Simple wall bounce prediction
-        const wallTop = 10; // Approximate wall boundaries
-        const wallBottom = -10;
-        
-        let currentZ = predictedZ;
-        let currentVelZ = this.ballVelocity.z || 0;
-        let remainingTime = timeToReach;
-        
-        // Simulate bounces for a few iterations
-        for (let i = 0; i < 5 && remainingTime > 0; i++) {
-            if (currentZ > wallTop) {
-                const bounceTime = (currentZ - wallTop) / Math.abs(currentVelZ);
-                currentZ = wallTop - ((bounceTime - Math.floor(bounceTime)) * Math.abs(currentVelZ));
-                currentVelZ = -Math.abs(currentVelZ);
-                remainingTime -= bounceTime;
-            } else if (currentZ < wallBottom) {
-                const bounceTime = (wallBottom - currentZ) / Math.abs(currentVelZ);
-                currentZ = wallBottom + ((bounceTime - Math.floor(bounceTime)) * Math.abs(currentVelZ));
-                currentVelZ = Math.abs(currentVelZ);
-                remainingTime -= bounceTime;
-            } else {
-                break;
-            }
-        }
-        
-        return currentZ;
-    }
+    // Removed complex wall bounce prediction - using simpler method now
 
     private calculateInput(): void {
         const paddleZ = this.paddlePosition.z;
         const targetZ = this.predictedBallY;
         const difference = targetZ - paddleZ;
         
-        // Dead zone to prevent jittery movement
-        const deadZone = 0.5;
+        // Check if this is an urgent situation (direct shot)
+        const ballX = this.ballPosition.x;
+        const paddleX = this.paddlePosition.x;
+        const distance = paddleX - ballX;
+        const ballVelX = this.ballVelocity.x;
+        const isDirectThreat = ballVelX > 0.5 && distance < 8;
+        
+        // Adjust dead zone based on urgency
+        const deadZone = isDirectThreat ? 0.1 : 0.2; // Smaller dead zone for direct threats
         
         if (Math.abs(difference) < deadZone) {
             this.scheduleInput(0);
@@ -194,41 +271,37 @@ export class AIPlayer {
             desiredInput = -1; // Move down/backward
         }
         
-        // Add some strategic behavior
-        desiredInput = this.addStrategicBehavior(desiredInput);
+        // Scale input based on urgency and distance
+        const distance_abs = Math.abs(difference);
+        let intensity;
         
-        // Schedule input with reaction time delay
-        this.scheduleInput(desiredInput);
-    }
-
-    private addStrategicBehavior(baseInput: number): number {
-        // Add some basic strategic elements
-        
-        // 1. Defensive positioning when ball is far away
-        if (Math.abs(this.ballPosition.x) > this.anticipationDistance) {
-            const centerBias = -this.paddlePosition.z * 0.1;
-            if (Math.abs(centerBias) > Math.abs(baseInput)) {
-                return centerBias > 0 ? 1 : -1;
-            }
+        if (isDirectThreat) {
+            // For direct threats, move at full speed immediately
+            intensity = 1.0;
+            console.log(`🤖 URGENT move: ${desiredInput.toFixed(2)} (diff: ${difference.toFixed(2)}) - DIRECT THREAT!`);
+        } else {
+            // Normal proportional movement
+            intensity = Math.min(1.0, distance_abs / 3.0);
+            console.log(`🤖 Normal move: ${desiredInput.toFixed(2)} (diff: ${difference.toFixed(2)})`);
         }
         
-        // 2. Aggressive positioning to return ball at angles
-        if (this.ballVelocity.x > 0 && this.ballPosition.x > 15) {
-            // Ball approaching fast - try to hit at an angle
-            const angleBias = Math.sin(Date.now() * 0.001) * 0.3;
-            if (Math.random() < 0.3) { // 30% chance for strategic positioning
-                return angleBias > 0 ? 1 : -1;
-            }
-        }
+        desiredInput *= intensity;
         
-        return baseInput;
+        // Use different reaction times based on urgency
+        const reactionTime = isDirectThreat ? 10 : this.reactionTime; // Almost instant for direct threats
+        this.scheduleInput(desiredInput, reactionTime);
     }
 
-    private scheduleInput(input: number): void {
+    // Simplified strategic behavior - removed for better responsiveness
+
+    private scheduleInput(input: number, customReactionTime?: number): void {
+        // Use custom reaction time or default
+        const reactionTime = customReactionTime ?? this.reactionTime;
+        
         // Simulate human reaction time
         setTimeout(() => {
             this.currentInput = input * this.maxSpeed;
-        }, this.reactionTime);
+        }, reactionTime);
     }
 
     // Public method to get AI stats for UI display

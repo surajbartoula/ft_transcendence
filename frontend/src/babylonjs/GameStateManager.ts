@@ -94,6 +94,14 @@ export class GameStateManager {
     getState(stateName: string): GameState | undefined {
         return this.states.get(stateName);
     }
+
+    getAIPlayer(): AIPlayer {
+        return this.systems.aiPlayer;
+    }
+
+    getTournamentManager(): TournamentManager {
+        return this.systems.tournamentManager;
+    }
 }
 
 // =====================================
@@ -119,7 +127,14 @@ class MenuState extends GameState {
         this.systems.uiManager.showMainMenu({
             onLocalGame: () => this.stateManager.setState('gameSetup', { type: 'local' }),
             onAIGame: () => this.stateManager.setState('gameSetup', { type: 'ai' }),
-            onTournament: () => this.stateManager.setState('tournamentSetup')
+            onTournament: () => this.stateManager.setState('tournamentSetup'),
+            onExitToDashboard: () => {
+                console.log("🚪 Exit to Dashboard clicked");
+                const event = new CustomEvent('navigate', {
+                    detail: { path: '/dashboard' }
+                });
+                window.dispatchEvent(event);
+            }
         });
     }
 

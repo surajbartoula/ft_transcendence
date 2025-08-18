@@ -13,7 +13,6 @@ export class GamePage implements Page {
     private fullscreenButton: HTMLElement | null = null;
     private gameContainer: HTMLElement | null = null;
     // NEW: Add these properties for enhanced features
-    private aiDifficultySelector: HTMLElement | null = null;
     private gameModeIndicator: HTMLElement | null = null;
 
     public render(): string {
@@ -38,16 +37,6 @@ export class GamePage implements Page {
                         </div>
                         
                         <div class="flex items-center space-x-3">
-                            <!-- NEW: AI Difficulty Selector -->
-                            <div id="aiDifficultySelector" class="flex items-center space-x-2 hidden z-30 relative">
-                                <span class="text-xs text-gray-400">AI:</span>
-                                <select id="difficultySelect" class="bg-slate-700 text-white text-xs rounded px-2 py-1 border border-slate-600">
-                                    <option value="easy">Easy</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
-                            </div>
-                            
                             <div class="text-xs text-gray-400 hidden sm:block">
                                 <span class="text-blue-400">↑↓</span> Left | 
                                 <span class="text-orange-400">WS</span> Right | 
@@ -168,7 +157,6 @@ export class GamePage implements Page {
         this.backButton = null;
         this.fullscreenButton = null;
         this.gameContainer = null;
-        this.aiDifficultySelector = null;
         this.gameModeIndicator = null;
     }
 
@@ -177,7 +165,6 @@ export class GamePage implements Page {
         this.backButton = document.getElementById('backButton');
         this.fullscreenButton = document.getElementById('fullscreenButton');
         this.gameContainer = document.getElementById('gameContainer');
-        this.aiDifficultySelector = document.getElementById('aiDifficultySelector');
         this.gameModeIndicator = document.getElementById('gameModeIndicator');
     }
 
@@ -200,11 +187,7 @@ export class GamePage implements Page {
             backToMenuButton.addEventListener('click', this.handleBackClick.bind(this));
         }
 
-        // NEW: AI difficulty selector
-        const difficultySelect = document.getElementById('difficultySelect') as HTMLSelectElement;
-        if (difficultySelect) {
-            difficultySelect.addEventListener('change', this.handleDifficultyChange.bind(this));
-        }
+        // AI difficulty is now always set to hard
 
         // NEW: Quick action buttons
         const newLocalGameBtn = document.getElementById('newLocalGameBtn');
@@ -339,14 +322,7 @@ export class GamePage implements Page {
                 this.gameModeIndicator.classList.remove('hidden');
             }
 
-            // Show/hide AI difficulty selector
-            if (this.aiDifficultySelector) {
-                if (gameMode.type === 'ai') {
-                    this.aiDifficultySelector.classList.remove('hidden');
-                } else {
-                    this.aiDifficultySelector.classList.add('hidden');
-                }
-            }
+            // AI difficulty is always hard (no UI selector needed)
 
             // Update score display
             const currentScore = document.getElementById('currentScore');
@@ -377,16 +353,7 @@ export class GamePage implements Page {
         }
     }
 
-    // NEW: Handle difficulty change
-    private handleDifficultyChange(event: Event): void {
-        if (!this.gameManager) return;
-
-        const select = event.target as HTMLSelectElement;
-        const difficulty = select.value as 'easy' | 'medium' | 'hard';
-        
-        this.gameManager.setAIDifficulty(difficulty);
-        showNotification(`AI difficulty set to ${difficulty}`, 'info', 2000);
-    }
+    // AI difficulty is now always hard
 
     // NEW: Start quick games
     private async startQuickGame(mode: 'local' | 'ai' | 'tournament'): Promise<void> {
@@ -399,9 +366,8 @@ export class GamePage implements Page {
                     showNotification('Local multiplayer game started!', 'success');
                     break;
                 case 'ai':
-                    const difficulty = (document.getElementById('difficultySelect') as HTMLSelectElement)?.value as 'easy' | 'medium' | 'hard' || 'medium';
-                    await this.gameManager.startAIGame('Player', difficulty);
-                    showNotification(`AI game started on ${difficulty} difficulty!`, 'success');
+                    await this.gameManager.startAIGame('Player');
+                    showNotification(`AI game started on hard difficulty!`, 'success');
                     break;
                 case 'tournament':
                     // For quick tournament, use default 4 players
