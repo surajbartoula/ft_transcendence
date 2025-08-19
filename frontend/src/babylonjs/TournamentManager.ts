@@ -36,8 +36,12 @@ export class TournamentManager {
     private currentTournamentId: string | null = null;
 
     createTournament(playerNames: string[]): Tournament {
+        console.log('🏗️ TournamentManager: Creating tournament...');
+        console.log(`   Input players (${playerNames.length}): [${playerNames.join(', ')}]`);
+        
         // Validate minimum players
         if (playerNames.length < 2) {
+            console.error('   ❌ Cannot create tournament: need at least 2 players');
             throw new Error('Tournament requires at least 2 players');
         }
 
@@ -45,9 +49,13 @@ export class TournamentManager {
         const validPlayerCounts = [2, 4, 8, 16];
         let actualPlayerCount = playerNames.length;
         
+        console.log(`   Valid bracket sizes: [${validPlayerCounts.join(', ')}]`);
+        console.log(`   Current player count: ${actualPlayerCount}`);
+        
         // Find next valid player count or pad with "Bye" players
         if (!validPlayerCounts.includes(actualPlayerCount)) {
             actualPlayerCount = validPlayerCounts.find(count => count > playerNames.length) || 8;
+            console.log(`   🔧 Adjusting to valid bracket size: ${actualPlayerCount}`);
         }
 
         // Create players
@@ -57,18 +65,32 @@ export class TournamentManager {
             isEliminated: false
         }));
 
+        console.log(`   Created ${players.length} player objects`);
+
         // Add bye players if needed
+        let byeCount = 0;
         while (players.length < actualPlayerCount) {
             players.push({
                 id: `bye_${players.length}`,
                 name: 'Bye',
                 isEliminated: false
             });
+            byeCount++;
         }
+        
+        if (byeCount > 0) {
+            console.log(`   🤖 Added ${byeCount} "Bye" players for balanced bracket`);
+        }
+        
+        console.log(`   Final player list (${players.length}): [${players.map(p => p.name).join(', ')}]`);
 
         // Calculate tournament structure
         const totalRounds = Math.log2(actualPlayerCount);
         const tournamentId = `tournament_${Date.now()}`;
+
+        console.log(`   📊 Tournament structure:`);
+        console.log(`     Total rounds: ${totalRounds}`);
+        console.log(`     Tournament ID: ${tournamentId}`);
 
         const tournament: Tournament = {
             id: tournamentId,
@@ -82,29 +104,43 @@ export class TournamentManager {
             createdAt: new Date()
         };
 
+        console.log(`   🎯 Generating first round matches...`);
         // Generate first round matches
         this.generateRoundMatches(tournament, 1);
         
+        console.log(`   💾 Storing tournament (ID: ${tournamentId})`);
         this.tournaments.set(tournamentId, tournament);
         this.currentTournamentId = tournamentId;
         
-        console.log(`🏆 Tournament created with ${players.length} players, ${totalRounds} rounds`);
+        console.log(`✅ Tournament created successfully:`);
+        console.log(`   Players: ${players.length}, Rounds: ${totalRounds}, Matches: ${tournament.matches.length}`);
         return tournament;
     }
 
     private generateRoundMatches(tournament: Tournament, roundNumber: number): void {
+        console.log(`🎮 TournamentManager: Generating round ${roundNumber} matches...`);
+        
         if (roundNumber === 1) {
             // First round - pair up all players
             const activePlayers = tournament.players.filter(p => !p.isEliminated);
+            console.log(`   Active players for round 1 (${activePlayers.length}): [${activePlayers.map(p => p.name).join(', ')}]`);
+            
+            let matchCount = 0;
+            let byeMatchCount = 0;
             
             for (let i = 0; i < activePlayers.length; i += 2) {
                 const player1 = activePlayers[i];
                 const player2 = activePlayers[i + 1];
                 
+                const matchId = `match_${roundNumber}_${Math.floor(i / 2)}`;
+                const matchNumber = Math.floor(i / 2) + 1;
+                
+                console.log(`   Creating match ${matchNumber}: ${player1.name} vs ${player2?.name || 'undefined'}`);
+                
                 const match: TournamentMatch = {
-                    id: `match_${roundNumber}_${Math.floor(i / 2)}`,
+                    id: matchId,
                     roundNumber,
-                    matchNumber: Math.floor(i / 2) + 1,
+                    matchNumber,
                     player1,
                     player2,
                     isComplete: false
@@ -115,10 +151,17 @@ export class TournamentManager {
                     match.winner = player1;
                     match.isComplete = true;
                     match.score = { player1: 11, player2: 0 };
+                    byeMatchCount++;
+                    console.log(`     ✅ Auto-completed bye match: ${player1.name} advances`);
+                } else {
+                    console.log(`     ⚔️ Regular match created: ${player1.name} vs ${player2.name}`);
                 }
 
                 tournament.matches.push(match);
+                matchCount++;
             }
+            
+            console.log(`   Round 1 complete: ${matchCount} matches created (${byeMatchCount} bye matches)`);
         } else {
             // Subsequent rounds - pair up winners from previous round
             const previousRoundMatches = tournament.matches.filter(

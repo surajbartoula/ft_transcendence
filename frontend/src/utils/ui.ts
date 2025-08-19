@@ -385,7 +385,7 @@ export function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export function generateAvatarUrl(): string {
-    return `../avatar.jpg`;
+    return `/avatar.jpg`;
 }
 
 function generateColorFromString(str: string): string {

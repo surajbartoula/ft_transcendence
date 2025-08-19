@@ -32,28 +32,66 @@ export interface GameData {
 }
 
 const USER_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}`;
+const GAME_SERVICE_URL = 'https://localhost:3004';
 
 export async function fetchUserGameData(token: string): Promise<GameData> {
-    const response = await fetch(`${USER_API_BASE}/game-data`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (!response.ok) {
-        // Return default data if API fails
-        return {
-            stats: {
-                rating: 1000,
-                gamesPlayed: 0,
-                wins: 0,
-                losses: 0,
-                winRate: 0
-            },
-            recentGames: [],
-            achievements: []
-        };
+    try {
+        const response = await fetch(`${GAME_SERVICE_URL}/api/game/stats`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            console.warn('Game service not available, using default stats');
+            return getDefaultGameData();
+        }
+        
+        const text = await response.text();
+        if (!text.trim()) {
+            console.warn('Empty response from game service, using default stats');
+            return getDefaultGameData();
+        }
+        
+        try {
+            const responseData = JSON.parse(text);
+            // Game service returns { success: true, stats: {...} }
+            if (responseData && responseData.stats) {
+                return {
+                    stats: {
+                        rating: responseData.stats.rating || 1000,
+                        gamesPlayed: responseData.stats.total_games || 0,
+                        wins: responseData.stats.wins || 0,
+                        losses: responseData.stats.losses || 0,
+                        winRate: responseData.stats.win_rate || 0
+                    },
+                    recentGames: [], // Game service doesn't provide this yet
+                    achievements: [] // Game service doesn't provide this yet
+                };
+            } else {
+                console.warn('Invalid response structure from game service, using default stats');
+                return getDefaultGameData();
+            }
+        } catch (parseError) {
+            console.warn('Invalid JSON from game service, using default stats:', parseError);
+            return getDefaultGameData();
+        }
+    } catch (error) {
+        console.warn('Game service connection failed, using default stats:', error);
+        return getDefaultGameData();
     }
-    
-    return response.json();
+}
+
+function getDefaultGameData(): GameData {
+    return {
+        stats: {
+            rating: 1000,
+            gamesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            winRate: 0
+        },
+        recentGames: [],
+        achievements: []
+    };
 }
 
 export async function fetchUserProfile(token: string): Promise<any> {

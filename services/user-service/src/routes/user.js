@@ -23,7 +23,9 @@ export default async function userRoutes(fastify, options) {
 			}
 			try {
 				const profile = await dbService.createProfile({ user_id, username, bio });
-				reply.send(profile);
+				// Return profile with default photo information
+				const profileWithPhoto = await dbService.getProfileWithPhoto(user_id);
+				reply.send(profileWithPhoto);
 			} catch (err) {
 				reply.code(500).send({ error: 'Failed to create profile' });
 			}
@@ -107,9 +109,15 @@ export default async function userRoutes(fastify, options) {
 			try {
 				const photo = await dbService.getPhoto(user_id);
 				if (!photo) {
-					return reply.code(404).send({ error: 'Photo not found' });
+					// Return default avatar when no user photo exists
+					return reply.send({
+						filename: 'avatar.jpg',
+						path: '/assets/avatar.jpg',
+						uploaded_at: null,
+						is_default: true
+					});
 				}
-				reply.send(photo);
+				reply.send({ ...photo, is_default: false });
 			} catch (err) {
 				req.log.error(err);
 				reply.code(500).send({ error: 'Failed to fetch photo' });

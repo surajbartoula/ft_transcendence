@@ -29,6 +29,7 @@ services:
     depends_on:
       - gateway-service
       - chat-service
+      - game-service
     networks:
       - pong-network
     volumes:

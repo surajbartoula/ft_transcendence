@@ -13,10 +13,18 @@ export class InputManager {
     private setupEventListeners(): void {
         window.addEventListener('keydown', (event) => {
             const key = event.key.toLowerCase();
+            if (key === ' ') {
+                console.log('🎯 InputManager: Space key detected in keydown, looking for handler');
+                const handler = this.inputHandlers.get(key);
+                console.log(`🎯 InputManager: Space handler found: ${!!handler}`);
+            }
             if (!this.keyStates.get(key)) {
                 this.keyStates.set(key, true);
                 const handler = this.inputHandlers.get(key);
-                if (handler) handler(true);
+                if (handler) {
+                    if (key === ' ') console.log('🎯 InputManager: Calling space handler with true');
+                    handler(true);
+                }
             }
         });
 
@@ -33,7 +41,12 @@ export class InputManager {
     }
 
     registerHandler(key: string, handler: (pressed: boolean) => void): void {
-        this.inputHandlers.set(key.toLowerCase(), handler);
+        const lowerKey = key.toLowerCase();
+        if (lowerKey === ' ') {
+            console.log('🎯 InputManager: Registering space key handler');
+        }
+        this.inputHandlers.set(lowerKey, handler);
+        console.log(`🎯 InputManager: Registered handler for key "${lowerKey}"`);
     }
 
     unregisterHandler(key: string): void {

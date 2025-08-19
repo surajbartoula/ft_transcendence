@@ -44,7 +44,7 @@ export class PongGameManager {
             audioManager: this.audioManager,
             uiManager: this.uiManager,
             scoreManager: this.scoreManager
-        });
+        }, this);
 
         // Get references to AI and Tournament systems from GameStateManager
         this.aiPlayer = this.gameState.getAIPlayer();
@@ -75,8 +75,6 @@ export class PongGameManager {
                 });
             });
 
-            // Start with main menu instead of old start menu
-            await this.gameState.setState('menu');
             this.startGameLoop();
 
             console.log("✅ Enhanced Game Manager initialized successfully!");
@@ -99,7 +97,18 @@ export class PongGameManager {
             try {
                 // Update all systems
                 this.gameState.update(deltaTime);
-                this.physicsSystem.update(deltaTime);
+                
+                // Only update physics if game is not paused
+                const isPaused = this.gameState.isPaused();
+                if (!isPaused) {
+                    this.physicsSystem.update(deltaTime);
+                } else {
+                    // Only log once every 60 frames to avoid spam
+                    if (Math.floor(timestamp / 1000) % 1 < 0.02) {
+                        console.log('🎯 Physics paused - skipping physics update');
+                    }
+                }
+                
                 this.renderEngine.update(deltaTime);
                 this.uiManager.update(deltaTime);
 
@@ -211,6 +220,7 @@ export class PongGameManager {
      * Pause the current game
      */
     public pauseGame(): void {
+        console.log('🎯 PongManager.pauseGame() called');
         this.gameState.setState('paused');
     }
 
@@ -266,10 +276,10 @@ export class PongGameManager {
     /**
      * Initialize game session with backend
      */
-    public async initializeGameSession(gameMode: 'local' | 'ai' | 'tournament', player2Id?: string): Promise<void> {
+    public async initializeGameSession(gameMode: 'local' | 'ai' | 'remote' | 'tournament', player2Id?: string): Promise<void> {
         try {
-            // This would integrate with your backend API
-            const response = await fetch('/api/game/session', {
+            // Use game-service directly instead of gateway
+            const response = await fetch('https://localhost:3004/api/game/session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -282,17 +292,22 @@ export class PongGameManager {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create game session');
+                console.warn('⚠️ Game service not available, playing offline mode');
+                return;
             }
 
-            const data = await response.json();
-            console.log('🎮 Game session created:', data.game_session);
-            
+            const text = await response.text();
+            if (!text.trim()) {
+                console.warn('⚠️ Empty response from game service, playing offline mode');
+                return;
+            }
+
+            const data = JSON.parse(text);
             // Store session ID for later use
-            this.currentGameSessionId = data.game_session.id;
+            this.currentGameSessionId = data.game_session?.id || null;
             
         } catch (error) {
-            console.error('❌ Failed to initialize game session:', error);
+            console.warn('⚠️ Game service connection failed, playing offline mode:', error);
         }
     }
 
@@ -305,7 +320,7 @@ export class PongGameManager {
         if (!this.currentGameSessionId) return;
 
         try {
-            const response = await fetch(`/api/game/session/${this.currentGameSessionId}`, {
+            const response = await fetch(`https://localhost:3004/api/game/session/${this.currentGameSessionId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -337,7 +352,7 @@ export class PongGameManager {
         if (!this.currentGameSessionId) return;
 
         try {
-            await fetch(`/api/game/session/${this.currentGameSessionId}/event`, {
+            await fetch(`https://localhost:3004/api/game/session/${this.currentGameSessionId}/event`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

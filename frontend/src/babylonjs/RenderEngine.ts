@@ -947,7 +947,7 @@ private debugVisualizeFloorBounds(): void {
 		skyboxMaterial.backFaceCulling = false; // Render inside faces
 		
 		// Use diffuse texture instead of reflection for proper UV mapping
-		skyboxMaterial.diffuseTexture = new BABYLON.Texture("./textures/starfield.png", this.scene);
+		skyboxMaterial.diffuseTexture = new BABYLON.Texture("/textures/starfield.png", this.scene);
 		skyboxMaterial.diffuseTexture.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
 		skyboxMaterial.diffuseTexture.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
 		

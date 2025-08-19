@@ -5,11 +5,20 @@ import { ProfilePage } from './pages/ProfilePage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ChatPage } from './pages/ChatPage';
-import { GamePage } from './pages/GamePage';
+import { GameMenuPage } from './pages/GameMenuPage';
+import { SharedGamePage } from './pages/SharedGamePage';
+import { TournamentSetupPage } from './pages/TournamentSetupPage';
+import { TournamentBracketPage } from './pages/TournamentBracketPage';
+import { RemoteTournamentGamePage } from './pages/RemoteTournamentGamePage';
+import { RemoteTournamentLobbyPage } from './pages/RemoteTournamentLobbyPage';
+import { RemoteTournamentBracketPage } from './pages/RemoteTournamentBracketPage';
+import { OnlineMatchLobbyPage } from './pages/OnlineMatchLobbyPage';
+import { RemoteGamePage } from './pages/RemoteGamePage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { getCurrentUser, User, getStoredUser } from './utils/auth';
 import { showNotification, showError, clearAllClickableNotifications } from './utils/ui';
 import globalSocket from './utils/globalSocket';
+import gameSocket from './utils/gameSocket';
 
 declare global {
 	interface WindowEventMap {
@@ -44,7 +53,16 @@ class App {
 			{ path: '/dashboard/leaderboard', page: () => new LeaderboardPage(), requiresAuth: true },
 			{ path: '/dashboard/settings', page: () => new SettingsPage(), requiresAuth: true },
 			{ path: '/chat', page: () => new ChatPage(), requiresAuth: true },
-			{ path: '/game', page: () => new GamePage(), requiresAuth: true },
+			{ path: '/game', page: () => new GameMenuPage(), requiresAuth: true },
+			{ path: '/game/play', page: () => new SharedGamePage(), requiresAuth: true },
+			{ path: '/game/online', page: () => new OnlineMatchLobbyPage(), requiresAuth: true },
+			{ path: '/game/remote/match', page: () => new RemoteGamePage(), requiresAuth: true },
+			{ path: '/game/tournament/setup', page: () => new TournamentSetupPage(), requiresAuth: true },
+			{ path: '/game/tournament/bracket', page: () => new TournamentBracketPage(), requiresAuth: true },
+			{ path: '/game/tournament/match', page: () => new RemoteTournamentGamePage(), requiresAuth: true },
+			{ path: '/game/tournament/remote/lobby', page: () => new RemoteTournamentLobbyPage(), requiresAuth: true },
+			{ path: '/game/tournament/remote/bracket', page: () => new RemoteTournamentBracketPage(), requiresAuth: true },
+			{ path: '/game/tournament/remote/match', page: () => new RemoteTournamentGamePage(), requiresAuth: true },
 		];
 
 		routes.forEach(({ path, page, requiresAuth }) => {
@@ -63,8 +81,8 @@ class App {
 	private initializeApp(): void {
 		/** Request notification permission when app loads */
 		// this.requestNotificationPermission();
-		/** Initialize global socket if user is already logged in */
-		this.initializeGlobalSocket();
+		/** Initialize sockets if user is already logged in */
+		this.initializeSockets();
 		/** Setup visibility change handler for socket reconnection */
 		this.setupVisibilityChangeHandler();
 	}
@@ -83,10 +101,11 @@ class App {
 		}
 	}
 
-	private initializeGlobalSocket(): void {
+	private initializeSockets(): void {
 		const user = getStoredUser();
 		if (user && this.token) {
 			globalSocket.connect();
+			gameSocket.connect();
 		}
 	}
 
@@ -94,10 +113,15 @@ class App {
 		document.addEventListener('visibilitychange', () => {
 			if (document.visibilityState === 'visible' && 
 				getStoredUser() && 
-				this.token && 
-				!globalSocket.isConnected()) {
-				console.log('Page became visible, reconnecting socket...');
-				globalSocket.connect();
+				this.token) {
+				if (!globalSocket.isConnected()) {
+					console.log('Page became visible, reconnecting global socket...');
+					globalSocket.connect();
+				}
+				if (!gameSocket.isConnected()) {
+					console.log('Page became visible, reconnecting game socket...');
+					gameSocket.connect();
+				}
 			}
 		});
 	}
@@ -116,13 +140,15 @@ class App {
 		});
 
 		window.addEventListener('userLoggedIn', () => {
-			console.log('User logged in event received, connecting socket...');
+			console.log('User logged in event received, connecting sockets...');
 			globalSocket.connect();
+			gameSocket.connect();
 		});
 
 		window.addEventListener('userLoggedOut', () => {
-			console.log('User logged out event received, disconnecting socket...');
+			console.log('User logged out event received, disconnecting sockets...');
 			globalSocket.disconnect();
+			gameSocket.disconnect();
 		});
 	}
 
@@ -196,9 +222,10 @@ class App {
 				this.currentUser = await getCurrentUser(this.token);
 				localStorage.setItem('userData', JSON.stringify(this.currentUser));
 				this.router.setAuthenticated(true);
-				/** Connect socket if user validation is successful */
+				/** Connect sockets if user validation is successful */
 				if (this.currentUser) {
 					globalSocket.connect();
+					gameSocket.connect();
 				}
 			} else {
 				this.router.setAuthenticated(false);

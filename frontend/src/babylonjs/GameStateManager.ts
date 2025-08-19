@@ -33,8 +33,12 @@ export class GameStateManager {
     private states: Map<string, GameState> = new Map();
     private systems: SystemReferences;
     private currentGameMode: GameMode = { type: 'local' };
+    private pongManager: any = null; // Reference to PongManager
+    private paused: boolean = false; // Simple pause flag
 
-    constructor(systems: Omit<SystemReferences, 'aiPlayer' | 'tournamentManager'>) {
+    constructor(systems: Omit<SystemReferences, 'aiPlayer' | 'tournamentManager'>, pongManager?: any) {
+        this.pongManager = pongManager;
+        
         // Initialize AI and Tournament systems
         const aiPlayer = new AIPlayer(systems.physicsSystem, systems.renderEngine);
         const tournamentManager = new TournamentManager();
@@ -101,6 +105,10 @@ export class GameStateManager {
 
     getTournamentManager(): TournamentManager {
         return this.systems.tournamentManager;
+    }
+
+    isPaused(): boolean {
+        return this.paused;
     }
 }
 
@@ -416,6 +424,7 @@ class PlayingState extends GameState {
 class PausedState extends GameState {
     enter(): void {
         console.log("⏸️ Entered Paused State");
+        (this.stateManager as any).paused = true;
         this.systems.uiManager.showPause({
             onResume: () => {
                 const playingState = this.stateManager.getState('playing') as PlayingState;
@@ -448,7 +457,7 @@ class PausedState extends GameState {
             if (pressed) {
                 const playingState = this.stateManager.getState('playing') as PlayingState;
                 if (playingState) playingState.setResumingFromPause(true);
-                this.stateManager.setState('playing', this.getCurrentMatchData());
+                this.stateManager.setState('playing');
             }
         });
 
@@ -486,6 +495,8 @@ class PausedState extends GameState {
     }
 
     exit(): void {
+        console.log("▶️ Exiting Paused State");
+        (this.stateManager as any).paused = false;
         this.systems.uiManager.hidePause();
         this.systems.inputManager.unregisterHandler(' ');
         this.systems.inputManager.unregisterHandler('escape');

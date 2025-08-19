@@ -37,7 +37,15 @@ try {
 
 const fastify = Fastify({
 	logger: {
-		level: process.env.LOG_LEVEL || 'info'
+		level: process.env.LOG_LEVEL || 'info',
+		transport: {
+			target: 'pino-pretty',
+			options: {
+				colorize: true,
+				translateTime: 'SYS:standard', /** Convert to Human readable time */
+				ignore: 'pid,hostname' /** Don't include pid & hostname stuff */
+			}
+		}
 	},
 	https: httpsOptions
 });
@@ -87,6 +95,16 @@ await fastify.register(fastifyStatic, {
     root: uploadDir,
     prefix: '/uploads/'
 });
+
+// Register static assets (for default avatar)
+const assetsDir = path.join(__dirname, 'assets');
+await fs.promises.mkdir(assetsDir, { recursive: true });
+await fastify.register(fastifyStatic, {
+    root: assetsDir,
+    prefix: '/assets/',
+    decorateReply: false
+});
+
 await fastify.register(userRoutes, { prefix: '/api/user'} );
 
 /** Gracefully shutdown */

@@ -1,7 +1,7 @@
 import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { fetchUserGameData } from '../utils/dashboard';
-import { generateAvatarUrl, showError, showNotification } from '../utils/ui';
+import { generateAvatarUrl, showNotification } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
 export class DashboardPage implements Page {
@@ -231,14 +231,30 @@ export class DashboardPage implements Page {
                 this.currentUser = JSON.parse(userDataStr);
             }
             if (token) {
-                // Fetch latest profile data with photo
-                await this.fetchLatestProfile(token);
-                // Fetch game data
-                this.gameData = await fetchUserGameData(token);
+                // Fetch latest profile data with photo (don't let this fail the whole process)
+                try {
+                    await this.fetchLatestProfile(token);
+                } catch (profileError) {
+                    console.warn('Could not fetch profile data:', profileError);
+                }
+                
+                // Fetch game data (don't let this fail the whole process)
+                try {
+                    this.gameData = await fetchUserGameData(token);
+                } catch (gameDataError) {
+                    console.warn('Could not fetch game data:', gameDataError);
+                    // Use default game data
+                    this.gameData = {
+                        stats: { rating: 1000, gamesPlayed: 0, wins: 0, losses: 0, winRate: 0 },
+                        recentGames: [],
+                        achievements: []
+                    };
+                }
             }
         } catch (error) {
             console.error('Failed to load user data:', error);
-            showError('Failed to load dashboard data. Please try refreshing the page.');
+            // Don't show error popup - just continue with what we have
+            console.warn('Continuing with default/cached data');
         }
     }
 
@@ -259,19 +275,30 @@ export class DashboardPage implements Page {
                     this.currentUser.name = profile.username;
                 }
             }
-            // Fetch photo data
-            const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            // Fetch photo data - handle gracefully if user has no photo
+            try {
+                const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (photoResponse.ok) {
+                    const photo = await photoResponse.json();
+                    // Store photo data for later use
+                    if (this.currentUser && photo && photo.path) {
+                        this.currentUser.photo = photo;
+                    }
+                } else if (photoResponse.status === 404) {
+                    console.log('User has no photo, will use default avatar');
+                    // Explicitly handle 404 - user simply has no photo
+                } else {
+                    console.warn('Photo request failed with status:', photoResponse.status);
                 }
-            });
-            if (photoResponse.ok) {
-                const photo = await photoResponse.json();
-                // Store photo data for later use
-                if (this.currentUser) {
-                    this.currentUser.photo = photo;
-                }
+                // If photo request fails or returns no photo, we'll use the fallback avatar in populateUserInterface
+            } catch (photoError) {
+                console.log('No user photo available, will use default avatar:', photoError);
+                // Don't set photo property, so fallback avatar will be used
             }
         } catch (error) {
             console.log('Could not fetch profile/photo data:', error);
