@@ -435,8 +435,25 @@ export class SharedGamePage implements Page {
             const confirmed = confirm('Are you sure you want to leave the game? Your progress will be lost.');
             if (!confirmed) return;
         }
+        
+        // Check if this is a tournament match
+        const urlParams = new URLSearchParams(window.location.search);
+        const tournamentId = urlParams.get('tournamentId');
+        
+        let navigationPath = '/game';
+        
+        if (tournamentId) {
+            // For now, go back to tournament setup - user can recreate or continue tournament
+            // TODO: Implement proper tournament state persistence for better UX
+            navigationPath = '/game/tournament/setup';
+            console.log('🏆 Returning to tournament setup from tournament match');
+            showNotification('Tournament match ended. You can create a new tournament or continue existing ones.', 'info');
+        } else {
+            console.log('🎮 Returning to game menu from regular match');
+        }
+        
         const event = new CustomEvent('navigate', {
-            detail: { path: '/game' }
+            detail: { path: navigationPath }
         });
         window.dispatchEvent(event);
     }

@@ -5,7 +5,6 @@ export class GUIManager {
     private startMenu: HTMLElement | null = null;
     private mainMenu: HTMLElement | null = null;
     private playerSetup: HTMLElement | null = null;
-    private tournamentSetup: HTMLElement | null = null;
     private tournamentBracket: HTMLElement | null = null;
     private gameUI: HTMLElement | null = null;
     private gameOver: HTMLElement | null = null;
@@ -401,105 +400,6 @@ export class GUIManager {
         }
     }
 
-    // =====================================
-    // TOURNAMENT SETUP
-    // =====================================
-    createTournamentSetup(options: {
-        onCreateTournament: (playerNames: string[]) => void;
-        onBack: () => void;
-    }): void {
-        this.removeTournamentSetup();
-
-        this.tournamentSetup = document.createElement('div');
-        this.tournamentSetup.id = 'tournamentSetup';
-        this.tournamentSetup.innerHTML = `
-            <div class="tron-container">
-                <div class="tron-grid-bg"></div>
-                <h2 class="tron-title" style="font-size: 2em;">Tournament Setup</h2>
-                <div style="margin: 20px 0;">
-                    <label style="color: #00ffff; font-weight: bold;">Number of Players:</label>
-                    <select id="playerCount" class="tron-input" style="width: auto; margin: 10px;">
-                        <option value="4">4 Players</option>
-                        <option value="8" selected>8 Players</option>
-                        <option value="16">16 Players</option>
-                    </select>
-                </div>
-                <div id="playerInputs" class="player-list">
-                    <!-- Player inputs will be generated here -->
-                </div>
-                <div style="margin-top: 30px;">
-                    <button id="createTournamentBtn" class="tron-button">Create Tournament</button>
-                    <button id="backBtn" class="tron-button">Back</button>
-                </div>
-            </div>
-        `;
-
-        this.tournamentSetup.style.cssText = `
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 9999;
-            overflow-y: auto;
-        `;
-
-        document.body.appendChild(this.tournamentSetup);
-
-        // Generate player inputs based on count
-        const generatePlayerInputs = (count: number) => {
-            const container = document.getElementById('playerInputs');
-            if (!container) return;
-
-            container.innerHTML = '';
-            for (let i = 1; i <= count; i++) {
-                const inputGroup = document.createElement('div');
-                inputGroup.className = 'player-input-group';
-                inputGroup.innerHTML = `
-                    <label style="color: #00ffff; font-weight: bold;">Player ${i}:</label>
-                    <input 
-                        type="text" 
-                        class="tron-input" 
-                        id="tournamentPlayer${i}"
-                        placeholder="Enter player ${i} name"
-                        value="Player ${i}"
-                        maxlength="20"
-                    />
-                `;
-                container.appendChild(inputGroup);
-            }
-        };
-
-        // Initial generation
-        generatePlayerInputs(8);
-
-        // Bind events
-        document.getElementById('playerCount')?.addEventListener('change', (e) => {
-            const count = parseInt((e.target as HTMLSelectElement).value);
-            generatePlayerInputs(count);
-        });
-
-        document.getElementById('createTournamentBtn')?.addEventListener('click', () => {
-            const playerCount = parseInt((document.getElementById('playerCount') as HTMLSelectElement).value);
-            const playerNames: string[] = [];
-            
-            for (let i = 1; i <= playerCount; i++) {
-                const input = document.getElementById(`tournamentPlayer${i}`) as HTMLInputElement;
-                const name = input?.value?.trim() || `Player ${i}`;
-                playerNames.push(name);
-            }
-            
-            options.onCreateTournament(playerNames);
-        });
-
-        document.getElementById('backBtn')?.addEventListener('click', options.onBack);
-    }
-
-    removeTournamentSetup(): void {
-        if (this.tournamentSetup) {
-            this.tournamentSetup.remove();
-            this.tournamentSetup = null;
-        }
-    }
 
     // =====================================
     // TOURNAMENT BRACKET
@@ -1059,7 +959,6 @@ export class GUIManager {
     dispose(): void {
         this.removeMainMenu();
         this.removePlayerSetup();
-        this.removeTournamentSetup();
         this.removeTournamentBracket();
         this.removeGameUI();
         this.removeGameOver();

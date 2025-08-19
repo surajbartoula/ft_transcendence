@@ -160,6 +160,9 @@ class RemoteTournamentService {
     }
 
     async getTournament(tournamentId: number): Promise<Tournament> {
+        console.log(`🌐 RemoteTournamentService: Getting tournament ${tournamentId}`);
+        console.log(`   Called from:`, new Error().stack?.split('\n')[2]?.trim());
+        
         try {
             const response = await fetch(`${this.baseUrl}/api/game/tournament/${tournamentId}`, {
                 headers: this.getAuthHeaders()
@@ -168,7 +171,7 @@ class RemoteTournamentService {
             const result = await this.handleResponse<{ tournament: Tournament }>(response);
             return result.tournament;
         } catch (error) {
-            console.error('Failed to get tournament:', error);
+            console.error(`❌ Failed to get tournament ${tournamentId}:`, error);
             throw error;
         }
     }
@@ -232,6 +235,9 @@ class RemoteTournamentService {
     // ================================
 
     async getTournamentMatches(tournamentId: number, round?: number): Promise<{ matches: TournamentMatch[]; grouped_matches: Record<number, TournamentMatch[]>; total_rounds: number }> {
+        console.log(`🎮 RemoteTournamentService: Getting tournament ${tournamentId} matches${round ? ` (round ${round})` : ''}`);
+        console.log(`   Called from:`, new Error().stack?.split('\n')[2]?.trim());
+        
         try {
             const params = round ? `?round=${round}` : '';
             const response = await fetch(`${this.baseUrl}/api/game/tournament/${tournamentId}/matches${params}`, {
@@ -240,7 +246,7 @@ class RemoteTournamentService {
             
             return await this.handleResponse<{ matches: TournamentMatch[]; grouped_matches: Record<number, TournamentMatch[]>; total_rounds: number }>(response);
         } catch (error) {
-            console.error('Failed to get tournament matches:', error);
+            console.error(`❌ Failed to get tournament ${tournamentId} matches:`, error);
             throw error;
         }
     }

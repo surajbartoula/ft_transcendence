@@ -56,21 +56,6 @@ export class UIManager {
         this.currentMenus.delete('playerSetup');
     }
 
-    // =====================================
-    // TOURNAMENT SETUP
-    // =====================================
-    showTournamentSetup(options: {
-        onCreateTournament: (playerNames: string[]) => void;
-        onBack: () => void;
-    }): void {
-        this.gui.createTournamentSetup(options);
-        this.currentMenus.add('tournamentSetup');
-    }
-
-    hideTournamentSetup(): void {
-        this.gui.removeTournamentSetup();
-        this.currentMenus.delete('tournamentSetup');
-    }
 
     // =====================================
     // TOURNAMENT BRACKET
@@ -218,7 +203,6 @@ export class UIManager {
             switch (menu) {
                 case 'mainMenu': this.hideMainMenu(); break;
                 case 'playerSetup': this.hidePlayerSetup(); break;
-                case 'tournamentSetup': this.hideTournamentSetup(); break;
                 case 'tournamentBracket': this.hideTournamentBracket(); break;
                 case 'gameUI': this.hideGameUI(); break;
                 case 'gameOver': this.hideGameOver(); break;

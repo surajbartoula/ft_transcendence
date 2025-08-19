@@ -55,7 +55,6 @@ export class GameStateManager {
     private initializeStates(): void {
         this.states.set('menu', new MenuState(this.systems, this));
         this.states.set('gameSetup', new GameSetupState(this.systems, this));
-        this.states.set('tournamentSetup', new TournamentSetupState(this.systems, this));
         this.states.set('playing', new PlayingState(this.systems, this));
         this.states.set('paused', new PausedState(this.systems, this));
         this.states.set('gameOver', new GameOverState(this.systems, this));
@@ -135,7 +134,13 @@ class MenuState extends GameState {
         this.systems.uiManager.showMainMenu({
             onLocalGame: () => this.stateManager.setState('gameSetup', { type: 'local' }),
             onAIGame: () => this.stateManager.setState('gameSetup', { type: 'ai' }),
-            onTournament: () => this.stateManager.setState('tournamentSetup'),
+            onTournament: () => {
+                console.log("🏆 Navigating to new tournament setup page");
+                const event = new CustomEvent('navigate', {
+                    detail: { path: '/game/tournament/setup' }
+                });
+                window.dispatchEvent(event);
+            },
             onExitToDashboard: () => {
                 console.log("🚪 Exit to Dashboard clicked");
                 const event = new CustomEvent('navigate', {
@@ -203,44 +208,6 @@ class GameSetupState extends GameState {
     update(deltaTime: number): void {}
 }
 
-// =====================================
-// TOURNAMENT SETUP STATE
-// =====================================
-class TournamentSetupState extends GameState {
-    enter(): void {
-        console.log("🏆 Entered Tournament Setup State");
-        
-        this.systems.uiManager.showTournamentSetup({
-            onCreateTournament: (playerNames) => {
-                const tournament = this.systems.tournamentManager.createTournament(playerNames);
-                this.stateManager.setGameMode({
-                    type: 'tournament',
-                    tournamentId: tournament.id
-                });
-                this.systems.uiManager.showTournamentBracket(tournament);
-                
-                // Start first match automatically
-                const nextMatch = this.systems.tournamentManager.getNextMatch(tournament.id);
-                if (nextMatch) {
-                    setTimeout(() => {
-                        this.stateManager.setState('playing', { 
-                            player1: nextMatch.player1, 
-                            player2: nextMatch.player2,
-                            matchId: nextMatch.id
-                        });
-                    }, 2000);
-                }
-            },
-            onBack: () => this.stateManager.setState('menu')
-        });
-    }
-
-    exit(): void {
-        this.systems.uiManager.hideTournamentSetup();
-    }
-
-    update(deltaTime: number): void {}
-}
 
 // =====================================
 // PLAYING STATE
@@ -579,7 +546,13 @@ class TournamentResultsState extends GameState {
                 this.systems.uiManager.showTournamentComplete({
                     tournament,
                     champion,
-                    onNewTournament: () => this.stateManager.setState('tournamentSetup'),
+                    onNewTournament: () => {
+                        console.log("🏆 Starting new tournament - navigating to setup page");
+                        const event = new CustomEvent('navigate', {
+                            detail: { path: '/game/tournament/setup' }
+                        });
+                        window.dispatchEvent(event);
+                    },
                     onMainMenu: () => this.stateManager.setState('menu')
                 });
             } else {

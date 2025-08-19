@@ -471,15 +471,28 @@ export class TournamentBracketPage implements Page {
     }
 
     private handleStartNextMatch(): void {
-        if (!this.currentMatch || !this.tournament) return;
+        console.log('🎮 TournamentBracketPage: Starting next match...');
+        console.log(`   Tournament: ${this.tournament?.id || 'null'}`);
+        console.log(`   Current match: ${this.currentMatch?.id || 'null'}`);
+        
+        if (!this.currentMatch || !this.tournament) {
+            console.error('   ❌ Cannot start match: missing tournament or current match');
+            showError('Cannot start match: tournament data missing');
+            return;
+        }
 
-        // Navigate to the shared game page for tournament match
+        console.log(`   Match details: ${this.currentMatch.player1.name} vs ${this.currentMatch.player2.name}`);
+        
+        // Navigate to the shared game page for local tournament match
+        const navigationPath = `/game/play?mode=local&player1=${encodeURIComponent(this.currentMatch.player1.name)}&player2=${encodeURIComponent(this.currentMatch.player2.name)}&tournamentId=${this.tournament.id}&matchId=${this.currentMatch.id}`;
+        
+        console.log(`   🎯 Navigating to: ${navigationPath}`);
+        
         const event = new CustomEvent('navigate', {
-            detail: { 
-                path: `/game/tournament/match?tournamentId=${this.tournament.id}&matchId=${this.currentMatch.id}&player1=${encodeURIComponent(this.currentMatch.player1.name)}&player2=${encodeURIComponent(this.currentMatch.player2.name)}` 
-            }
+            detail: { path: navigationPath }
         });
         window.dispatchEvent(event);
+        console.log('   ✅ Navigation event dispatched');
     }
 
     private handleNewTournament(): void {
