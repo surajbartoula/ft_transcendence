@@ -1,4 +1,4 @@
-import { GameDatabaseService } from './database.js';
+import { GameDatabaseService, db } from './database.js';
 
 const gameDb = new GameDatabaseService();
 

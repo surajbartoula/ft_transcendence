@@ -2,9 +2,12 @@ import sqlite3 from 'sqlite3';
 import path, { join } from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import dotenv from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 function getDatabasePath() {
 	const isDocker = process.env.DOCKER_ENV || fs.existsSync('/app');

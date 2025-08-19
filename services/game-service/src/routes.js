@@ -1,15 +1,23 @@
 import { GameDatabaseService, db } from './database.js';
 import axios from 'axios';
 
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 const gameDb = new GameDatabaseService();
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://localhost:3001';
-const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || 'https://localhost:3003';
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'https://user-service:3002';
+const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || 'https://chat-service:3003';
 
 // Helper function to get user profile from user-service
 async function getUserProfile(userId, token) {
     try {
         const response = await axios.get(`${USER_SERVICE_URL}/api/user/profile/${userId}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: token }
         });
         return response.data;
     } catch (error) {
@@ -70,9 +78,19 @@ export default async function gameRoutes(fastify, options) {
                     }
                 }
 
+                // Handle player2_id for different game modes
+                let finalPlayer2Id = player2_id;
+                if (game_mode === 'ai') {
+                    finalPlayer2Id = 'AI';
+                } else if (game_mode === 'local') {
+                    finalPlayer2Id = 'LOCAL_PLAYER_2';
+                } else if (!finalPlayer2Id) {
+                    finalPlayer2Id = null;
+                }
+
                 const gameSession = await gameDb.createGameSession({
                     player1_id: userId,
-                    player2_id: player2_id || null,
+                    player2_id: finalPlayer2Id,
                     game_mode,
                     tournament_id,
                     status: 'waiting'
@@ -596,6 +614,120 @@ export default async function gameRoutes(fastify, options) {
             } catch (error) {
                 req.log.error(error);
                 reply.code(500).send({ error: 'Failed to create announcement' });
+            }
+        }
+    });
+
+    // ========================================
+    // USER SEARCH AND MATCHMAKING
+    // ========================================
+
+    // Search users by username for matchmaking
+    fastify.get('/api/game/users/search', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const { q: query, limit = 10 } = req.query;
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+                const token = req.headers.authorization;
+
+                if (!query || query.trim().length < 2) {
+                    return reply.code(400).send({ error: 'Search query must be at least 2 characters' });
+                }
+
+                // Search users via user-service
+                const response = await axios.get(`${USER_SERVICE_URL}/api/user/search`, {
+                    headers: { Authorization: token },
+                    params: { q: query.trim(), limit }
+                });
+
+                const users = response.data.users || [];
+                
+                // Filter out current user and get their game stats
+                const filteredUsers = [];
+                for (const user of users.filter(u => u.id !== userId)) {
+                    try {
+                        // Check if blocked
+                        const isBlocked = await checkIfBlocked(userId, user.id, token);
+                        if (isBlocked) continue;
+
+                        // Get game stats
+                        const stats = await gameDb.getOrCreatePlayerStats(user.id);
+                        filteredUsers.push({
+                            ...user,
+                            game_stats: {
+                                total_games: stats.total_games,
+                                wins: stats.wins,
+                                losses: stats.losses,
+                                win_rate: stats.total_games > 0 ? Math.round((stats.wins / stats.total_games) * 100) : 0,
+                                ranking_points: stats.ranking_points
+                            }
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to get stats for user ${user.id}:`, error.message);
+                        filteredUsers.push(user);
+                    }
+                }
+
+                reply.send({ success: true, users: filteredUsers });
+            } catch (error) {
+                req.log.error(error);
+                if (error.response?.status === 404) {
+                    return reply.send({ success: true, users: [] });
+                }
+                reply.code(500).send({ error: 'Failed to search users' });
+            }
+        }
+    });
+
+    // Get online users for quick match
+    fastify.get('/api/game/users/online', {
+        preHandler: fastify.authenticate,
+        handler: async (req, reply) => {
+            try {
+                const userId = req.user.sub || req.user.user_id || req.user.id;
+                const token = req.headers.authorization;
+
+                // Get online friends from chat-service
+                const response = await axios.get(`${CHAT_SERVICE_URL}/api/friends/online`, {
+                    headers: { Authorization: token }
+                });
+
+                const onlineUsers = response.data.users || [];
+                
+                // Filter and enhance with game stats
+                const availableUsers = [];
+                for (const user of onlineUsers.filter(u => u.id !== userId)) {
+                    try {
+                        // Check if blocked
+                        const isBlocked = await checkIfBlocked(userId, user.id, token);
+                        if (isBlocked) continue;
+
+                        // Get game stats
+                        const stats = await gameDb.getOrCreatePlayerStats(user.id);
+                        availableUsers.push({
+                            ...user,
+                            game_stats: {
+                                total_games: stats.total_games,
+                                wins: stats.wins,
+                                losses: stats.losses,
+                                win_rate: stats.total_games > 0 ? Math.round((stats.wins / stats.total_games) * 100) : 0,
+                                ranking_points: stats.ranking_points
+                            }
+                        });
+                    } catch (error) {
+                        console.warn(`Failed to get stats for user ${user.id}:`, error.message);
+                        availableUsers.push(user);
+                    }
+                }
+
+                reply.send({ success: true, users: availableUsers });
+            } catch (error) {
+                req.log.error(error);
+                if (error.response?.status === 404) {
+                    return reply.send({ success: true, users: [] });
+                }
+                reply.code(500).send({ error: 'Failed to fetch online users' });
             }
         }
     });

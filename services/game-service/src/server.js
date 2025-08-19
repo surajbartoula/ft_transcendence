@@ -7,6 +7,14 @@ import gameRoutes from './routes.js';
 import { setupSocketHandlers } from './socketHandlers.js';
 import fs from 'fs';
 
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
 	console.error('SSL_CERT and SSL_KEY environment variables are required');
 	process.exit(1);
