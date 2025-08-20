@@ -180,7 +180,8 @@ class RemoteTournamentService {
         try {
             const response = await fetch(`${this.baseUrl}/api/game/tournament/${tournamentId}/join`, {
                 method: 'POST',
-                headers: this.getAuthHeaders()
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({})
             });
             
             const result = await this.handleResponse<{ tournament: Tournament; participants: TournamentParticipant[] }>(response);
@@ -188,7 +189,18 @@ class RemoteTournamentService {
             return result;
         } catch (error) {
             console.error('Failed to join tournament:', error);
-            showError(`Failed to join tournament: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            
+            // Handle specific error cases
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            if (errorMessage.includes('UNIQUE constraint failed') || errorMessage.includes('already participant')) {
+                showError('You are already registered for this tournament');
+            } else if (errorMessage.includes('tournament is full')) {
+                showError('Tournament is full - no more spots available');
+            } else if (errorMessage.includes('tournament has started') || errorMessage.includes('registration closed')) {
+                showError('Tournament registration is closed');
+            } else {
+                showError(`Failed to join tournament: ${errorMessage}`);
+            }
             throw error;
         }
     }

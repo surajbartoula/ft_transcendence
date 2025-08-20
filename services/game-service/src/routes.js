@@ -353,8 +353,14 @@ export default async function gameRoutes(fastify, options) {
                 reply.send({ success: true, tournament, participants });
             } catch (error) {
                 req.log.error(error);
-                if (error.message.includes('already joined')) {
-                    return reply.code(409).send({ error: error.message });
+                if (error.message.includes('already joined') || error.message.includes('Already joined') || error.code === 'SQLITE_CONSTRAINT' || error.errno === 19) {
+                    return reply.code(409).send({ error: 'You are already registered for this tournament' });
+                }
+                if (error.message.includes('Tournament is full')) {
+                    return reply.code(400).send({ error: 'Tournament is full - no more spots available' });
+                }
+                if (error.message.includes('not accepting registrations')) {
+                    return reply.code(400).send({ error: 'Tournament registration is closed' });
                 }
                 reply.code(500).send({ error: error.message || 'Failed to join tournament' });
             }
