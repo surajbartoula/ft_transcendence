@@ -209,23 +209,41 @@ export class TournamentManager {
     }
 
     completeMatch(tournamentId: string, matchId: string, winnerName: string, score?: { player1: number, player2: number }): void {
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: completeMatch called`);
+        console.log(`   Tournament ID: ${tournamentId}`);
+        console.log(`   Match ID: ${matchId}`);
+        console.log(`   Winner: ${winnerName}`);
+        console.log(`   Score:`, score);
+        
         const tournament = this.tournaments.get(tournamentId);
         if (!tournament) {
+            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Tournament not found: ${tournamentId}`);
+            console.error(`   Available tournaments:`, Array.from(this.tournaments.keys()));
             throw new Error('Tournament not found');
         }
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Tournament found`);
+        console.log(`   Tournament has ${tournament.matches.length} matches`);
 
         const match = tournament.matches.find(m => m.id === matchId);
         if (!match) {
+            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Match not found: ${matchId}`);
+            console.error(`   Available matches:`, tournament.matches.map(m => m.id));
             throw new Error('Match not found');
         }
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Match found: ${match.player1.name} vs ${match.player2.name}`);
 
         if (match.isComplete) {
+            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Match already completed!`);
             throw new Error('Match already completed');
         }
 
         // Determine winner
         const winner = match.player1.name === winnerName ? match.player1 : match.player2;
         const loser = match.player1.name === winnerName ? match.player2 : match.player1;
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Winner: ${winner.name}, Loser: ${loser.name}`);
 
         match.winner = winner;
         match.isComplete = true;
@@ -233,25 +251,43 @@ export class TournamentManager {
 
         // Eliminate loser
         loser.isEliminated = true;
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Match completed and loser eliminated`);
 
         console.log(`🏆 Match completed: ${winner.name} defeats ${loser.name}`);
 
         // Check if round is complete
         const currentRoundMatches = tournament.matches.filter(m => m.roundNumber === tournament.currentRound);
         const completedMatches = currentRoundMatches.filter(m => m.isComplete);
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round completion check`);
+        console.log(`   Current round: ${tournament.currentRound}`);
+        console.log(`   Matches in round: ${currentRoundMatches.length}`);
+        console.log(`   Completed matches: ${completedMatches.length}`);
 
         if (completedMatches.length === currentRoundMatches.length) {
+            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round complete! Advancing...`);
+            
             // Round complete - generate next round
             tournament.currentRound++;
             
+            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: New round: ${tournament.currentRound}/${tournament.totalRounds}`);
+            
             if (tournament.currentRound <= tournament.totalRounds) {
+                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Generating next round matches...`);
                 this.generateRoundMatches(tournament, tournament.currentRound);
+                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Next round matches generated`);
             } else {
                 tournament.isComplete = true;
                 tournament.winner = winner;
+                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: TOURNAMENT COMPLETE!`);
                 console.log(`🏆 Tournament complete! Winner: ${winner.name}`);
             }
+        } else {
+            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round not complete yet, waiting for more matches`);
         }
+        
+        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: completeMatch finished successfully`);
     }
 
     getNextMatch(tournamentId: string): TournamentMatch | null {
@@ -367,6 +403,32 @@ export class TournamentManager {
     // Get all tournaments (for management)
     getAllTournaments(): Tournament[] {
         return Array.from(this.tournaments.values());
+    }
+
+    // Find existing tournament by players
+    findTournamentByPlayers(playerNames: string[]): Tournament | null {
+        const sortedPlayerNames = playerNames.slice().sort();
+        console.log(`🔍 Looking for tournament with players: [${sortedPlayerNames.join(', ')}]`);
+        
+        for (const tournament of this.tournaments.values()) {
+            // Filter out "Bye" players and sort names for comparison
+            const tournamentPlayerNames = tournament.players
+                .filter(p => p.name !== 'Bye')
+                .map(p => p.name)
+                .sort();
+                
+            console.log(`   Checking tournament ${tournament.id}: [${tournamentPlayerNames.join(', ')}]`);
+            
+            // Check if player lists match
+            if (tournamentPlayerNames.length === sortedPlayerNames.length &&
+                tournamentPlayerNames.every((name, index) => name === sortedPlayerNames[index])) {
+                console.log(`   ✅ Found matching tournament: ${tournament.id}`);
+                return tournament;
+            }
+        }
+        
+        console.log(`   ❌ No matching tournament found`);
+        return null;
     }
 
     // Export tournament data for saving

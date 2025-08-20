@@ -241,15 +241,27 @@ export class TournamentBracketPage implements Page {
             const players = JSON.parse(decodeURIComponent(playersParam));
             console.log(`   📊 Parsed players (${players.length}): [${players.join(', ')}]`);
             
-            console.log('   🏗️ Creating tournament with TournamentManager...');
-            this.tournament = this.tournamentManager.createTournament(players);
+            // Check if a tournament already exists for these players
+            console.log('   🔍 Checking for existing tournament...');
+            const existingTournament = this.tournamentManager.findTournamentByPlayers(players);
             
-            console.log(`   ✅ Tournament created:`);
-            console.log(`     ID: ${this.tournament.id}`);
-            console.log(`     Players: ${this.tournament.players.length}`);
-            console.log(`     Matches: ${this.tournament.matches.length}`);
-            console.log(`     Rounds: ${this.tournament.totalRounds}`);
-            console.log(`     Current round: ${this.tournament.currentRound}`);
+            if (existingTournament) {
+                console.log(`   ♻️ Found existing tournament: ${existingTournament.id}`);
+                console.log(`     Completed matches: ${existingTournament.matches.filter((m: TournamentMatch) => m.isComplete).length}/${existingTournament.matches.length}`);
+                console.log(`     Current round: ${existingTournament.currentRound}/${existingTournament.totalRounds}`);
+                console.log(`     Is complete: ${existingTournament.isComplete}`);
+                this.tournament = existingTournament;
+            } else {
+                console.log('   🏗️ No existing tournament found, creating new tournament...');
+                this.tournament = this.tournamentManager.createTournament(players);
+            }
+            
+            console.log(`   ✅ Tournament loaded/created:`);
+            console.log(`     ID: ${this.tournament?.id || 'null'}`);
+            console.log(`     Players: ${this.tournament?.players?.length || 0}`);
+            console.log(`     Matches: ${this.tournament?.matches?.length || 0}`);
+            console.log(`     Rounds: ${this.tournament?.totalRounds || 0}`);
+            console.log(`     Current round: ${this.tournament?.currentRound || 0}`);
             
             // Update tournament title
             const titleElement = document.getElementById('tournamentTitle');
@@ -278,7 +290,19 @@ export class TournamentBracketPage implements Page {
     private updateTournamentInfo(): void {
         if (!this.tournament) return;
 
+        console.log(`🏆 📊 BRACKET DEBUG: updateTournamentInfo called`);
+        console.log(`   Tournament ID: ${this.tournament.id}`);
+        console.log(`   Tournament complete: ${this.tournament.isComplete}`);
+        console.log(`   Tournament winner: ${this.tournament.winner?.name || 'none'}`);
+        
         const stats = this.tournamentManager.getTournamentStats(this.tournament.id);
+        
+        console.log(`🏆 📊 BRACKET DEBUG: Tournament stats:`);
+        console.log(`   Current round: ${stats.currentRound}`);
+        console.log(`   Total rounds: ${stats.totalRounds}`);
+        console.log(`   Completed matches: ${stats.completedMatches}`);
+        console.log(`   Total matches: ${stats.totalMatches}`);
+        console.log(`   Remaining players: ${stats.remainingPlayers}`);
         
         const currentRound = document.getElementById('currentRound');
         const totalRounds = document.getElementById('totalRounds');
@@ -293,6 +317,8 @@ export class TournamentBracketPage implements Page {
         if (remainingPlayers) remainingPlayers.textContent = stats.remainingPlayers.toString();
         
         const progress = (stats.completedMatches / stats.totalMatches) * 100;
+        console.log(`🏆 📊 BRACKET DEBUG: Progress calculation: ${stats.completedMatches}/${stats.totalMatches} = ${Math.round(progress)}%`);
+        
         if (tournamentProgress) {
             tournamentProgress.textContent = `${Math.round(progress)}%`;
         }
@@ -303,7 +329,10 @@ export class TournamentBracketPage implements Page {
 
         // Check if tournament is complete
         if (this.tournament.isComplete && this.tournament.winner) {
+            console.log(`🏆 📊 BRACKET DEBUG: Tournament is complete, showing winner: ${this.tournament.winner.name}`);
             this.showTournamentWinner(this.tournament.winner);
+        } else {
+            console.log(`🏆 📊 BRACKET DEBUG: Tournament not complete yet`);
         }
     }
 
