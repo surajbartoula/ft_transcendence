@@ -453,6 +453,13 @@ export class SharedGamePage implements Page {
         if (!this.gameManager || this.isGameCompleted) return;
         
         try {
+            // Check if GameStateManager is handling game over states
+            const gameStateManager = (this.gameManager as any).gameState;
+            if (gameStateManager) {
+                // GameStateManager will handle game over state, don't duplicate
+                return;
+            }
+            
             const score = this.gameManager.getScore();
             const winningScore = 11; // Standard pong winning score
             
