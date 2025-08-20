@@ -11,7 +11,7 @@ export class TournamentBracketPage implements Page {
     private currentMatch: TournamentMatch | null = null;
 
     constructor() {
-        this.tournamentManager = new TournamentManager();
+        this.tournamentManager = TournamentManager.getInstance();
     }
 
     public render(): string {

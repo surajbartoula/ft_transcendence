@@ -39,9 +39,9 @@ export class GameStateManager {
     constructor(systems: Omit<SystemReferences, 'aiPlayer' | 'tournamentManager'>, pongManager?: any) {
         this.pongManager = pongManager;
         
-        // Initialize AI and Tournament systems
+        // Initialize AI and get Tournament singleton instance
         const aiPlayer = new AIPlayer(systems.physicsSystem, systems.renderEngine);
-        const tournamentManager = new TournamentManager();
+        const tournamentManager = TournamentManager.getInstance(); // Use singleton pattern
         
         this.systems = {
             ...systems,

@@ -1112,8 +1112,9 @@ export class GameDatabaseService {
     async respondToGameInvitation(invitationId, response, userId) {
         try {
             const invitation = await this.getGameInvitation(invitationId);
+            console.log(`🔍 Authorization check - Invitation receiver: "${invitation?.receiver_id}" (${typeof invitation?.receiver_id}), User: "${userId}" (${typeof userId}), String(User): "${String(userId)}"`);
             if (!invitation) throw new Error('Invitation not found');
-            if (invitation.receiver_id !== userId) throw new Error('Not authorized');
+            if (invitation.receiver_id !== String(userId)) throw new Error('Not authorized');
             if (invitation.status !== 'pending') throw new Error('Invitation already responded to');
             
             if (new Date() > new Date(invitation.expires_at)) {
@@ -1145,16 +1146,12 @@ export class GameDatabaseService {
     getUserGameInvitations(userId, status = null) {
         return new Promise((resolve, reject) => {
             let query = `
-                SELECT gi.*, 
-                       sender.username as sender_username,
-                       receiver.username as receiver_username
+                SELECT gi.*
                 FROM game_invitations gi
-                LEFT JOIN tournament_participants sender ON gi.sender_id = sender.user_id
-                LEFT JOIN tournament_participants receiver ON gi.receiver_id = receiver.user_id
-                WHERE gi.receiver_id = ?
+                WHERE gi.receiver_id = ? OR gi.sender_id = ?
             `;
             
-            const params = [userId];
+            const params = [userId, userId];
             if (status) {
                 query += ' AND gi.status = ?';
                 params.push(status);
@@ -1164,7 +1161,7 @@ export class GameDatabaseService {
             
             db.all(query, params, (err, rows) => {
                 if (err) return reject(err);
-                resolve(rows);
+                resolve(rows || []);
             });
         });
     }

@@ -1,5 +1,6 @@
 import { Page } from '../router/Router';
 import { PongGameManager } from '../babylonjs/PongManager';
+import { TournamentManager } from '../babylonjs/TournamentManager';
 import { showNotification, showError } from '../utils/ui';
 
 export class SharedGamePage implements Page {
@@ -16,6 +17,12 @@ export class SharedGamePage implements Page {
     private gameMode: 'local' | 'ai' | 'remote' = 'local';
     private player1Name: string = 'Player 1';
     private player2Name: string = 'Player 2';
+    
+    // Tournament support
+    private tournamentId: string | null = null;
+    private matchId: string | null = null;
+    private tournamentManager: TournamentManager | null = null;
+    private isGameCompleted: boolean = false;
 
     public render(): string {
         return `
@@ -105,6 +112,7 @@ export class SharedGamePage implements Page {
 
 
                     <!-- Game Over Overlay -->
+                    <!-- Game Over Overlay -->
                     <div id="gameOverOverlay" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 z-20" style="display: none;">
                         <div class="text-center max-w-md mx-auto p-6">
                             <h2 class="text-white text-3xl font-bold mb-4">Game Over!</h2>
@@ -116,6 +124,24 @@ export class SharedGamePage implements Page {
                                 </button>
                                 <button id="backToMenuFromGameOver" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded">
                                     Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tournament Complete Overlay -->
+                    <div id="tournamentCompleteOverlay" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 z-20" style="display: none;">
+                        <div class="text-center max-w-md mx-auto p-8">
+                            <div class="text-6xl mb-4">🏆</div>
+                            <h2 class="text-white text-3xl font-bold mb-4">Tournament Complete!</h2>
+                            <div id="championDisplay" class="text-2xl font-semibold text-yellow-400 mb-4"></div>
+                            <div id="tournamentFinalScore" class="text-lg text-gray-300 mb-6"></div>
+                            <div class="space-y-3">
+                                <button id="newTournamentButton" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold">
+                                    New Tournament
+                                </button>
+                                <button id="backToTournamentSetup" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                                    Tournament Setup
                                 </button>
                             </div>
                         </div>
@@ -178,6 +204,15 @@ export class SharedGamePage implements Page {
         const player1 = urlParams.get('player1') || 'Player 1';
         const player2 = urlParams.get('player2') || (mode === 'ai' ? 'AI' : mode === 'remote' ? 'Finding opponent...' : 'Player 2');
 
+        // Parse tournament parameters
+        this.tournamentId = urlParams.get('tournamentId');
+        this.matchId = urlParams.get('matchId');
+        
+        if (this.tournamentId) {
+            this.tournamentManager = TournamentManager.getInstance();
+            console.log(`🏆 Tournament match detected - ID: ${this.tournamentId}, Match: ${this.matchId}`);
+        }
+
         this.gameMode = mode || 'local';
         this.player1Name = player1;
         this.player2Name = player2;
@@ -223,6 +258,17 @@ export class SharedGamePage implements Page {
         const backToMenuFromGameOver = document.getElementById('backToMenuFromGameOver');
         if (backToMenuFromGameOver) {
             backToMenuFromGameOver.addEventListener('click', this.handleBackClick.bind(this));
+        }
+        
+        // Tournament complete buttons
+        const newTournamentButton = document.getElementById('newTournamentButton');
+        if (newTournamentButton) {
+            newTournamentButton.addEventListener('click', this.navigateToTournamentSetup.bind(this));
+        }
+
+        const backToTournamentSetup = document.getElementById('backToTournamentSetup');
+        if (backToTournamentSetup) {
+            backToTournamentSetup.addEventListener('click', this.navigateToTournamentSetup.bind(this));
         }
 
         // System events
@@ -345,7 +391,76 @@ export class SharedGamePage implements Page {
 
         setInterval(() => {
             this.updateGameStatusDisplay();
+            this.checkForGameCompletion();
         }, 1000);
+    }
+    
+    private checkForGameCompletion(): void {
+        if (!this.gameManager || this.isGameCompleted) return;
+        
+        try {
+            const score = this.gameManager.getScore();
+            const winningScore = 11; // Standard pong winning score
+            
+            if (score.left >= winningScore || score.right >= winningScore) {
+                this.isGameCompleted = true;
+                const winner = score.left >= winningScore ? this.player1Name : this.player2Name;
+                const finalScore = { player1: score.left, player2: score.right };
+                
+                console.log(`🏆 Game completed: ${winner} wins ${finalScore.player1} - ${finalScore.player2}`);
+                
+                if (this.tournamentId && this.matchId && this.tournamentManager) {
+                    this.handleTournamentMatchCompletion(winner, finalScore);
+                } else {
+                    this.showGameOver(winner, finalScore);
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Error checking game completion:', error);
+        }
+    }
+    
+    private handleTournamentMatchCompletion(winner: string, score: {player1: number, player2: number}): void {
+        if (!this.tournamentId || !this.matchId || !this.tournamentManager) return;
+        
+        try {
+            console.log(`🏆 Completing tournament match: ${this.matchId} in tournament ${this.tournamentId}`);
+            
+            // Complete the match in tournament manager
+            this.tournamentManager.completeMatch(this.tournamentId, this.matchId, winner, score);
+            
+            const tournament = this.tournamentManager.getTournament(this.tournamentId);
+            if (tournament) {
+                if (tournament.isComplete) {
+                    // Tournament is finished!
+                    console.log(`🏆 Tournament complete! Winner: ${tournament.winner?.name}`);
+                    showNotification(`Tournament complete! ${tournament.winner?.name} is the champion!`, 'success', 8000);
+                    
+                    setTimeout(() => {
+                        this.showTournamentCompleteOverlay(tournament.winner?.name || 'Unknown', score);
+                    }, 2000);
+                } else {
+                    // More matches to play
+                    const nextMatch = this.tournamentManager.getNextMatch(this.tournamentId);
+                    console.log(`🎮 Match completed, next match: ${nextMatch ? `${nextMatch.player1.name} vs ${nextMatch.player2.name}` : 'None'}`);
+                    
+                    showNotification(`${winner} wins! Returning to tournament bracket.`, 'success', 3000);
+                    
+                    setTimeout(() => {
+                        this.returnToTournamentBracket();
+                    }, 3000);
+                }
+            } else {
+                console.error('❌ Tournament not found:', this.tournamentId);
+                this.showGameOver(winner, score);
+            }
+        } catch (error) {
+            console.error('❌ Error completing tournament match:', error);
+            showError('Error updating tournament. Returning to tournament setup.');
+            setTimeout(() => {
+                this.navigateToTournamentSetup();
+            }, 2000);
+        }
     }
 
     private updateGameStatusDisplay(): void {
@@ -436,26 +551,16 @@ export class SharedGamePage implements Page {
             if (!confirmed) return;
         }
         
-        // Check if this is a tournament match
-        const urlParams = new URLSearchParams(window.location.search);
-        const tournamentId = urlParams.get('tournamentId');
-        
-        let navigationPath = '/game';
-        
-        if (tournamentId) {
-            // For now, go back to tournament setup - user can recreate or continue tournament
-            // TODO: Implement proper tournament state persistence for better UX
-            navigationPath = '/game/tournament/setup';
-            console.log('🏆 Returning to tournament setup from tournament match');
-            showNotification('Tournament match ended. You can create a new tournament or continue existing ones.', 'info');
+        if (this.tournamentId) {
+            // Navigate back to tournament bracket (tournament state is preserved in TournamentManager)
+            this.returnToTournamentBracket();
         } else {
             console.log('🎮 Returning to game menu from regular match');
+            const event = new CustomEvent('navigate', {
+                detail: { path: '/game' }
+            });
+            window.dispatchEvent(event);
         }
-        
-        const event = new CustomEvent('navigate', {
-            detail: { path: navigationPath }
-        });
-        window.dispatchEvent(event);
     }
 
     private handleFullscreenClick(): void {
@@ -525,5 +630,62 @@ export class SharedGamePage implements Page {
         setTimeout(() => {
             this.initializeGame();
         }, 500);
+    }
+    
+    private showGameOver(winner: string, score: {player1: number, player2: number}): void {
+        const overlay = document.getElementById('gameOverOverlay');
+        const winnerDisplay = document.getElementById('winnerDisplay');
+        const finalScore = document.getElementById('finalScore');
+        
+        if (overlay && winnerDisplay && finalScore) {
+            winnerDisplay.textContent = `${winner} wins!`;
+            finalScore.textContent = `Final Score: ${score.player1} - ${score.player2}`;
+            overlay.style.display = 'flex';
+        }
+    }
+    
+    private showTournamentCompleteOverlay(champion: string, score: {player1: number, player2: number}): void {
+        const overlay = document.getElementById('tournamentCompleteOverlay');
+        const championDisplay = document.getElementById('championDisplay');
+        const finalScore = document.getElementById('tournamentFinalScore');
+        
+        if (overlay && championDisplay && finalScore) {
+            championDisplay.textContent = `${champion} is the Champion!`;
+            finalScore.textContent = `Tournament Winner with final match: ${score.player1} - ${score.player2}`;
+            overlay.style.display = 'flex';
+        }
+    }
+    
+    private returnToTournamentBracket(): void {
+        if (!this.tournamentId) {
+            console.warn('⚠️ No tournament ID available for navigation');
+            this.navigateToTournamentSetup();
+            return;
+        }
+        
+        console.log('🏆 Returning to tournament bracket with updated state');
+        
+        // Navigate back to tournament bracket with updated tournament state
+        const tournament = this.tournamentManager?.getTournament(this.tournamentId);
+        if (tournament) {
+            const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map(p => p.name)));
+            const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent('Tournament')}`;
+            
+            console.log('🏆 Navigating to:', navigationPath);
+            const event = new CustomEvent('navigate', {
+                detail: { path: navigationPath }
+            });
+            window.dispatchEvent(event);
+        } else {
+            console.error('❌ Tournament not found, returning to setup');
+            this.navigateToTournamentSetup();
+        }
+    }
+    
+    private navigateToTournamentSetup(): void {
+        const event = new CustomEvent('navigate', {
+            detail: { path: '/game/tournament/setup' }
+        });
+        window.dispatchEvent(event);
     }
 }

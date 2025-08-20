@@ -32,8 +32,20 @@ export interface Tournament {
 }
 
 export class TournamentManager {
+    private static instance: TournamentManager;
     private tournaments: Map<string, Tournament> = new Map();
-    private currentTournamentId: string | null = null;
+    
+    // Singleton pattern
+    public static getInstance(): TournamentManager {
+        if (!TournamentManager.instance) {
+            TournamentManager.instance = new TournamentManager();
+        }
+        return TournamentManager.instance;
+    }
+    
+    private constructor() {
+        // Private constructor for singleton
+    }
 
     createTournament(playerNames: string[]): Tournament {
         console.log('🏗️ TournamentManager: Creating tournament...');
@@ -110,7 +122,6 @@ export class TournamentManager {
         
         console.log(`   💾 Storing tournament (ID: ${tournamentId})`);
         this.tournaments.set(tournamentId, tournament);
-        this.currentTournamentId = tournamentId;
         
         console.log(`✅ Tournament created successfully:`);
         console.log(`   Players: ${players.length}, Rounds: ${totalRounds}, Matches: ${tournament.matches.length}`);

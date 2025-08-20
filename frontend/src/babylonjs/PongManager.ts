@@ -276,22 +276,38 @@ export class PongGameManager {
     /**
      * Initialize game session with backend
      */
-    public async initializeGameSession(gameMode: 'local' | 'ai' | 'remote' | 'tournament', player2Id?: string): Promise<void> {
+    public async initializeGameSession(gameMode: 'local' | 'ai' | 'remote' | 'tournament', player2Id?: string, existingSessionId?: string): Promise<void> {
         try {
-            // Use game-service directly instead of gateway
-            const response = await fetch('https://localhost:3004/api/game/session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    game_mode: gameMode,
-                    player2_id: player2Id
-                })
-            });
+            let response: Response;
+            
+            if (existingSessionId) {
+                // Fetch existing session (for remote games from invitations)
+                console.log(`🔄 Fetching existing game session: ${existingSessionId}`);
+                response = await fetch(`https://localhost:3004/api/game/session/${existingSessionId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+            } else {
+                // Create new session (for local/AI games)
+                console.log(`🆕 Creating new game session - Mode: ${gameMode}, Player2: ${player2Id}`);
+                response = await fetch('https://localhost:3004/api/game/session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        game_mode: gameMode,
+                        player2_id: player2Id
+                    })
+                });
+            }
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ Game session API error (${response.status}):`, errorText);
                 console.warn('⚠️ Game service not available, playing offline mode');
                 return;
             }
@@ -303,6 +319,7 @@ export class PongGameManager {
             }
 
             const data = JSON.parse(text);
+            console.log('✅ Game session response:', data);
             // Store session ID for later use
             this.currentGameSessionId = data.game_session?.id || null;
             
@@ -397,6 +414,48 @@ export class PongGameManager {
         }
     }
 
+    // =====================================
+    // REMOTE MULTIPLAYER SYNC METHODS
+    // =====================================
+    
+    /**
+     * Set camera perspective for multiplayer game
+     */
+    public setPlayerCameraPerspective(isPlayer1: boolean): void {
+        if (this.renderEngine) {
+            this.renderEngine.setCameraForPlayer(isPlayer1);
+        }
+    }
+    
+    /**
+     * Sync backend game state to frontend 3D engine for remote multiplayer
+     */
+    public syncRemoteGameState(ball: any, paddle1: any, paddle2: any): void {
+        try {
+            // Debug paddle positions received from backend
+            console.log(`🔄 SYNC: Received paddle positions - P1 Y: ${paddle1?.y}, P2 Y: ${paddle2?.y}`);
+            
+            // Update ball position and velocity in render engine
+            if (this.renderEngine && ball) {
+                this.renderEngine.updateBallPosition(ball.x, ball.y, ball.vx, ball.vy);
+            }
+            
+            // Update paddle positions in render engine  
+            if (this.renderEngine && paddle1 && paddle2) {
+                console.log(`🔄 SYNC: Updating 3D paddle positions - Left paddle (P1): ${paddle1.y}, Right paddle (P2): ${paddle2.y}`);
+                this.renderEngine.updatePaddlePositions(paddle1.y, paddle2.y);
+            }
+            
+            // Update physics system state to match backend
+            if (this.physicsSystem && ball) {
+                this.physicsSystem.syncRemoteState(ball, paddle1, paddle2);
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Error syncing remote game state:', error);
+        }
+    }
+    
     // =====================================
     // DEBUG METHODS
     // =====================================

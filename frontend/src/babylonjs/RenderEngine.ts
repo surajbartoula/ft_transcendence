@@ -85,6 +85,26 @@ export class RenderEngine {
 		this.scene.activeCamera = this.camera;
 		console.log("📷 Camera locked at desired position");
 	}
+	
+	/**
+	 * Set camera perspective for multiplayer - Player 1 sees from left side, Player 2 from right side
+	 */
+	public setCameraForPlayer(isPlayer1: boolean): void {
+		if (!this.camera) return;
+		
+		// Keep the same camera position for all players to maintain game layout
+		// The difference should be in the UI/HUD, not camera position
+		this.camera.alpha = -1.569; // Original position
+		this.camera.beta = 0.593;
+		this.camera.radius = 43.461;
+		this.camera.setTarget(BABYLON.Vector3.Zero());
+		
+		if (isPlayer1) {
+			console.log("📷 Camera maintained at original position - You are Player 1 (GREEN paddle on LEFT)");
+		} else {
+			console.log("📷 Camera maintained at original position - You are Player 2 (RED paddle on RIGHT)");
+		}
+	}
 
 	private setupLighting(): void {
 		this.setupStrongLightSystem();
@@ -975,6 +995,57 @@ private debugVisualizeFloorBounds(): void {
 		if (!ball) {
 			console.warn("⚠️ Ball not found in scene");
 			return;
+		}
+	}
+
+	/**
+	 * Update ball position and velocity for remote multiplayer sync
+	 */
+	public updateBallPosition(x: number, y: number, vx: number, vy: number): void {
+		const ballObject = this.gameObjects.get('ball');
+		if (!ballObject || !ballObject.mesh) return;
+
+		// Convert backend 2D coordinates to 3D coordinates
+		// Backend uses 0-800 (x) and 0-600 (y), we need to map to our 3D space
+		const ballMesh = ballObject.mesh;
+		
+		// Map backend coordinates to 3D space
+		// Backend: x=0-800 maps to X=-20 to +20 in 3D
+		// Backend: y=0-600 maps to Z=+15 to -15 in 3D (INVERTED for correct orientation)
+		ballMesh.position.x = ((x / 800) * 40) - 20; // Map 0-800 to -20 to +20
+		ballMesh.position.z = 15 - ((y / 600) * 30); // Map 0-600 to +15 to -15 (INVERTED)
+		
+		// Update velocity for future predictions/smoothing
+		this.ballVelocity.x = (vx / 800) * 40; // Scale velocity accordingly
+		this.ballVelocity.z = -(vy / 600) * 30; // Invert Z velocity to match coordinate system
+	}
+
+	/**
+	 * Update paddle positions for remote multiplayer sync
+	 */
+	public updatePaddlePositions(paddle1Y: number, paddle2Y: number): void {
+		const leftPaddle = this.gameObjects.get('leftPaddle');
+		const rightPaddle = this.gameObjects.get('rightPaddle');
+		
+		console.log(`🎮 3D ENGINE: Updating paddle positions - P1(${paddle1Y}) -> Left paddle, P2(${paddle2Y}) -> Right paddle`);
+		
+		if (leftPaddle && leftPaddle.mesh) {
+			// Map backend paddle Y (0-600) to 3D Z (+15 to -15) - INVERTED for correct controls
+			// Backend Y=0 (top) should map to Z=+15 (back), Y=600 (bottom) to Z=-15 (front)
+			const newLeftZ = 15 - ((paddle1Y / 600) * 30);
+			console.log(`🏓 3D ENGINE: Left paddle (P1) - Backend Y: ${paddle1Y}, 3D Z: ${newLeftZ.toFixed(2)} (was ${leftPaddle.mesh.position.z.toFixed(2)})`);
+			leftPaddle.mesh.position.z = newLeftZ;
+		} else {
+			console.warn('⚠️ 3D ENGINE: Left paddle not found or no mesh');
+		}
+		
+		if (rightPaddle && rightPaddle.mesh) {
+			// Map backend paddle Y (0-600) to 3D Z (+15 to -15) - INVERTED for correct controls
+			const newRightZ = 15 - ((paddle2Y / 600) * 30);
+			console.log(`🏓 3D ENGINE: Right paddle (P2) - Backend Y: ${paddle2Y}, 3D Z: ${newRightZ.toFixed(2)} (was ${rightPaddle.mesh.position.z.toFixed(2)})`);
+			rightPaddle.mesh.position.z = newRightZ;
+		} else {
+			console.warn('⚠️ 3D ENGINE: Right paddle not found or no mesh');
 		}
 	}
 

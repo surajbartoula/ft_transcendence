@@ -15,6 +15,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+// Add global error handlers to prevent service crashes
+process.on('uncaughtException', (error) => {
+    console.error('🚨 Uncaught Exception:', error);
+    console.error('🚨 Stack:', error.stack);
+    // Don't exit - keep the service running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit - keep the service running
+});
+
+console.log('🛡️ Global error handlers installed to prevent service crashes');
+
 if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
 	console.error('SSL_CERT and SSL_KEY environment variables are required');
 	process.exit(1);

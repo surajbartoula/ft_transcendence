@@ -19,7 +19,20 @@ async function getUserProfile(userId, token) {
         const response = await axios.get(`${USER_SERVICE_URL}/api/user/profile/${userId}`, {
             headers: { Authorization: token }
         });
-        return response.data;
+        // User service returns { success: true, user_id, username, bio, photo }
+        const data = response.data;
+        if (data.success) {
+            return {
+                username: data.username,
+                display_name: data.username, // Use username as display_name
+                bio: data.bio,
+                user_id: data.user_id,
+                photo: data.photo
+            };
+        }
+		console.log("The username is working and the name is", data.username);
+		console.log("\n");
+        return null;
     } catch (error) {
         console.error('Failed to fetch user profile:', error.message);
         return null;
@@ -65,6 +78,8 @@ export default async function gameRoutes(fastify, options) {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const { player2_id, game_mode, tournament_id } = req.body;
                 const token = req.headers.authorization;
+                
+                console.log(`🎮 Creating game session - User: ${userId}, Player2: ${player2_id}, Mode: ${game_mode}, Tournament: ${tournament_id}`);
 
                 const validModes = ['local', 'remote', 'ai', 'tournament'];
                 if (!validModes.includes(game_mode)) {
@@ -123,7 +138,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
+                if (gameSession.player1_id !== String(userId) && gameSession.player2_id !== String(userId)) {
                     return reply.code(403).send({ error: 'Not authorized to view this game' });
                 }
 
@@ -771,6 +786,12 @@ export default async function gameRoutes(fastify, options) {
                     message: message || `${senderProfile.username} invites you to play Pong!`
                 });
 
+                console.log(`📨 DEBUG: Sending game_invitation to user_${receiver_id}`, {
+                    invitation_id: invitation.id,
+                    sender_username: senderProfile.username,
+                    receiver_id: receiver_id
+                });
+                
                 fastify.io.to(`user_${receiver_id}`).emit('game_invitation', {
                     invitation,
                     sender: senderProfile,
@@ -799,6 +820,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(400).send({ error: 'Response must be "accepted" or "declined"' });
                 }
 
+                console.log(`🎯 Responding to invitation ${invitationId} - User: ${userId} (${typeof userId}), Response: ${response}`);
                 const updatedInvitation = await gameDb.respondToGameInvitation(invitationId, response, userId);
                 
                 const userProfile = await getUserProfile(userId, token);
@@ -826,8 +848,23 @@ export default async function gameRoutes(fastify, options) {
                         room_id: roomId
                     };
 
+                    console.log(`🚀 DEBUG: Emitting game_ready to both players:`);
+                    console.log(`  - Sender: user_${updatedInvitation.sender_id}`);
+                    console.log(`  - Receiver: user_${userId}`);
+                    console.log(`  - Game data:`, gameData);
+                    
+                    // Check if users are in their rooms
+                    const senderRoom = `user_${updatedInvitation.sender_id}`;
+                    const receiverRoom = `user_${userId}`;
+                    
+                    console.log(`🔍 DEBUG: Checking room memberships:`);
+                    console.log(`  - Sender room (${senderRoom}) clients:`, fastify.io.sockets.adapter.rooms.get(senderRoom)?.size || 0);
+                    console.log(`  - Receiver room (${receiverRoom}) clients:`, fastify.io.sockets.adapter.rooms.get(receiverRoom)?.size || 0);
+                    
                     fastify.io.to(`user_${updatedInvitation.sender_id}`).emit('game_ready', gameData);
                     fastify.io.to(`user_${userId}`).emit('game_ready', gameData);
+                    
+                    console.log(`✅ DEBUG: game_ready events emitted to both players`);
                 }
 
                 reply.send({ success: true, invitation: updatedInvitation });
@@ -845,9 +882,43 @@ export default async function gameRoutes(fastify, options) {
             try {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const { status } = req.query;
+                const token = req.headers.authorization;
 
                 const invitations = await gameDb.getUserGameInvitations(userId, status);
-                reply.send({ success: true, invitations });
+                
+                // Enhance invitations with user profiles
+                const enhancedInvitations = await Promise.all(
+                    invitations.map(async (invitation) => {
+                        try {
+                            // Get sender profile if not current user
+                            let senderProfile = null;
+                            if (invitation.sender_id !== userId) {
+                                senderProfile = await getUserProfile(invitation.sender_id, token);
+                            }
+                            
+                            // Get receiver profile if not current user
+                            let receiverProfile = null;
+                            if (invitation.receiver_id !== userId) {
+                                receiverProfile = await getUserProfile(invitation.receiver_id, token);
+                            }
+                            
+                            return {
+                                ...invitation,
+                                sender_username: senderProfile?.username || 'Unknown',
+                                receiver_username: receiverProfile?.username || 'Unknown'
+                            };
+                        } catch (error) {
+                            console.warn(`Failed to get profile for invitation ${invitation.id}:`, error.message);
+                            return {
+                                ...invitation,
+                                sender_username: 'Unknown',
+                                receiver_username: 'Unknown'
+                            };
+                        }
+                    })
+                );
+                
+                reply.send({ success: true, invitations: enhancedInvitations });
             } catch (error) {
                 req.log.error(error);
                 reply.code(500).send({ error: 'Failed to fetch invitations' });

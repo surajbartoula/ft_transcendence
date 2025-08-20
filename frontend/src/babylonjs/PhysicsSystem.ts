@@ -325,6 +325,30 @@ import { ScoreManager } from "./ScoreManager";
 		return this.ballActive;
 	}
 
+	/**
+	 * Sync physics state with remote backend for multiplayer
+	 */
+	syncRemoteState(ball: any, paddle1: any, paddle2: any): void {
+		try {
+			// Update internal ball velocity to match backend
+			if (ball) {
+				// Convert backend 2D velocity to 3D velocity
+				this.ballVelocity.x = (ball.vx / 800) * 40; // Scale to 3D space
+				this.ballVelocity.z = (ball.vy / 600) * 30; // Scale to 3D space
+				this.ballVelocity.y = 0; // Keep Y velocity at 0 for 2D-style gameplay
+				
+				// Update ball active state
+				this.ballActive = true;
+			}
+			
+			// Physics system now follows backend state instead of calculating locally
+			// Local physics calculations are disabled during remote multiplayer
+			
+		} catch (error) {
+			console.warn('⚠️ PhysicsSystem: Error syncing remote state:', error);
+		}
+	}
+
 	dispose(): void {
 		this.ballActive = false;
 	}
