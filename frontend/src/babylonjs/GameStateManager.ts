@@ -350,32 +350,13 @@ class PlayingState extends GameState {
         const winner = score.left > score.right ? 'left' : 'right';
         const gameMode = this.stateManager.getGameMode();
         
-        console.log(`🏆 📊 GAME END DEBUG: handleGameEnd called`);
-        console.log(`   Score: ${score.left} - ${score.right}`);
-        console.log(`   Winner: ${winner}`);
-        console.log(`   Game mode: ${gameMode.type}`);
-        console.log(`   Tournament ID: ${gameMode.tournamentId || 'none'}`);
-        console.log(`   Match data:`, this.matchData);
-        
         if (gameMode.type === 'tournament' && gameMode.tournamentId) {
-            console.log(`🏆 📊 GAME END DEBUG: Tournament match detected, processing...`);
-            
             // Handle tournament match end
             const tournament = this.systems.tournamentManager.getTournament(gameMode.tournamentId);
-            console.log(`🏆 📊 GAME END DEBUG: Tournament found:`, !!tournament);
             
             if (tournament && this.matchData) {
-                console.log(`🏆 📊 GAME END DEBUG: Tournament state before match completion:`);
-                console.log(`   Tournament complete: ${tournament.isComplete}`);
-                console.log(`   Current round: ${tournament.currentRound}`);
-                console.log(`   Total matches: ${tournament.matches.length}`);
-                console.log(`   Completed matches: ${tournament.matches.filter(m => m.isComplete).length}`);
-                
                 const winnerName = winner === 'left' ? 
                     this.matchData.player1.name : this.matchData.player2.name;
-                
-                console.log(`🏆 📊 GAME END DEBUG: Winner name: ${winnerName}`);
-                console.log(`🏆 📊 GAME END DEBUG: Calling completeMatch...`);
                 
                 this.systems.tournamentManager.completeMatch(
                     gameMode.tournamentId, 
@@ -384,31 +365,13 @@ class PlayingState extends GameState {
                     { player1: score.left, player2: score.right }
                 );
                 
-                console.log(`🏆 📊 GAME END DEBUG: Tournament state after match completion:`);
-                const updatedTournament = this.systems.tournamentManager.getTournament(gameMode.tournamentId);
-                if (updatedTournament) {
-                    console.log(`   Tournament complete: ${updatedTournament.isComplete}`);
-                    console.log(`   Current round: ${updatedTournament.currentRound}`);
-                    console.log(`   Completed matches: ${updatedTournament.matches.filter(m => m.isComplete).length}`);
-                    console.log(`   Winner: ${updatedTournament.winner?.name || 'none'}`);
-                }
-                
-                console.log(`🏆 📊 GAME END DEBUG: Setting tournamentResults state...`);
-                
                 this.stateManager.setState('tournamentResults', {
                     tournamentId: gameMode.tournamentId,
                     lastMatch: this.matchData,
                     winner: winnerName
                 });
-                
-                console.log(`🏆 📊 GAME END DEBUG: tournamentResults state set successfully`);
-            } else {
-                console.error(`🏆 📊 GAME END DEBUG: Missing tournament or match data!`);
-                console.error(`   Tournament:`, !!tournament);
-                console.error(`   Match data:`, this.matchData);
             }
         } else {
-            console.log(`🏆 📊 GAME END DEBUG: Regular game end, setting gameOver state`);
             // Regular game end
             this.stateManager.setState('gameOver', {
                 winner,
@@ -575,7 +538,6 @@ class TournamentResultsState extends GameState {
     private celebrationTimer: NodeJS.Timeout | null = null;
 
     enter(data: { tournamentId: string, lastMatch: any, winner: string }): void {
-        console.log("🏆 Entered Tournament Results State");
         
         const tournament = this.systems.tournamentManager.getTournament(data.tournamentId);
         if (!tournament) return;
@@ -592,7 +554,6 @@ class TournamentResultsState extends GameState {
 
         // Auto-continue after showing celebration
         this.celebrationTimer = setTimeout(() => {
-            console.log(`🎉 Tournament match celebration complete`);
             this.navigateToTournamentBracket(tournament, data);
         }, 3000);
     }
@@ -606,44 +567,14 @@ class TournamentResultsState extends GameState {
         // Hide game over screen
         this.systems.uiManager.hideGameOver();
 
-        if (tournament.isComplete) {
-            // Tournament is finished - navigate back to tournament bracket to show winner
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Tournament complete! Champion: ${tournament.winner?.name}`);
-            console.log('🏆 📊 TOURNAMENT RESULTS DEBUG: Navigating to tournament bracket to show winner');
-            
-            // Navigate back to tournament bracket with updated tournament state
-            const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map((p: any) => p.name)));
-            const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent(tournament.name || 'Tournament')}`;
-            
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Navigation path: ${navigationPath}`);
-            
-            const event = new CustomEvent('navigate', {
-                detail: { path: navigationPath }
-            });
-            window.dispatchEvent(event);
-            
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Navigation event dispatched`);
-        } else {
-            // Match completed but tournament continues - navigate back to bracket for next match
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Match completed. Winner: ${data.winner}`);
-            console.log('🏆 📊 TOURNAMENT RESULTS DEBUG: Navigating back to tournament bracket for next match');
-            
-            const nextMatch = this.systems.tournamentManager.getNextMatch(data.tournamentId);
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Next match:`, nextMatch ? `${nextMatch.player1.name} vs ${nextMatch.player2.name}` : 'None');
-            
-            // Navigate back to tournament bracket with updated tournament state  
-            const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map((p: any) => p.name)));
-            const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent(tournament.name || 'Tournament')}`;
-            
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Navigation path: ${navigationPath}`);
-            
-            const event = new CustomEvent('navigate', {
-                detail: { path: navigationPath }
-            });
-            window.dispatchEvent(event);
-            
-            console.log(`🏆 📊 TOURNAMENT RESULTS DEBUG: Navigation event dispatched`);
-        }
+        // Navigate back to tournament bracket with updated tournament state
+        const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map((p: any) => p.name)));
+        const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent(tournament.name || 'Tournament')}`;
+        
+        const event = new CustomEvent('navigate', {
+            detail: { path: navigationPath }
+        });
+        window.dispatchEvent(event);
     }
 
     exit(): void {

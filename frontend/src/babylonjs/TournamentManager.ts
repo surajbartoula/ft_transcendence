@@ -48,12 +48,8 @@ export class TournamentManager {
     }
 
     createTournament(playerNames: string[]): Tournament {
-        console.log('🏗️ TournamentManager: Creating tournament...');
-        console.log(`   Input players (${playerNames.length}): [${playerNames.join(', ')}]`);
-        
         // Validate minimum players
         if (playerNames.length < 2) {
-            console.error('   ❌ Cannot create tournament: need at least 2 players');
             throw new Error('Tournament requires at least 2 players');
         }
 
@@ -61,13 +57,9 @@ export class TournamentManager {
         const validPlayerCounts = [2, 4, 8, 16];
         let actualPlayerCount = playerNames.length;
         
-        console.log(`   Valid bracket sizes: [${validPlayerCounts.join(', ')}]`);
-        console.log(`   Current player count: ${actualPlayerCount}`);
-        
         // Find next valid player count or pad with "Bye" players
         if (!validPlayerCounts.includes(actualPlayerCount)) {
             actualPlayerCount = validPlayerCounts.find(count => count > playerNames.length) || 8;
-            console.log(`   🔧 Adjusting to valid bracket size: ${actualPlayerCount}`);
         }
 
         // Create players
@@ -77,32 +69,18 @@ export class TournamentManager {
             isEliminated: false
         }));
 
-        console.log(`   Created ${players.length} player objects`);
-
         // Add bye players if needed
-        let byeCount = 0;
         while (players.length < actualPlayerCount) {
             players.push({
                 id: `bye_${players.length}`,
                 name: 'Bye',
                 isEliminated: false
             });
-            byeCount++;
         }
-        
-        if (byeCount > 0) {
-            console.log(`   🤖 Added ${byeCount} "Bye" players for balanced bracket`);
-        }
-        
-        console.log(`   Final player list (${players.length}): [${players.map(p => p.name).join(', ')}]`);
 
         // Calculate tournament structure
         const totalRounds = Math.log2(actualPlayerCount);
         const tournamentId = `tournament_${Date.now()}`;
-
-        console.log(`   📊 Tournament structure:`);
-        console.log(`     Total rounds: ${totalRounds}`);
-        console.log(`     Tournament ID: ${tournamentId}`);
 
         const tournament: Tournament = {
             id: tournamentId,
@@ -116,28 +94,18 @@ export class TournamentManager {
             createdAt: new Date()
         };
 
-        console.log(`   🎯 Generating first round matches...`);
         // Generate first round matches
         this.generateRoundMatches(tournament, 1);
         
-        console.log(`   💾 Storing tournament (ID: ${tournamentId})`);
         this.tournaments.set(tournamentId, tournament);
         
-        console.log(`✅ Tournament created successfully:`);
-        console.log(`   Players: ${players.length}, Rounds: ${totalRounds}, Matches: ${tournament.matches.length}`);
         return tournament;
     }
 
     private generateRoundMatches(tournament: Tournament, roundNumber: number): void {
-        console.log(`🎮 TournamentManager: Generating round ${roundNumber} matches...`);
-        
         if (roundNumber === 1) {
             // First round - pair up all players
             const activePlayers = tournament.players.filter(p => !p.isEliminated);
-            console.log(`   Active players for round 1 (${activePlayers.length}): [${activePlayers.map(p => p.name).join(', ')}]`);
-            
-            let matchCount = 0;
-            let byeMatchCount = 0;
             
             for (let i = 0; i < activePlayers.length; i += 2) {
                 const player1 = activePlayers[i];
@@ -145,8 +113,6 @@ export class TournamentManager {
                 
                 const matchId = `match_${roundNumber}_${Math.floor(i / 2)}`;
                 const matchNumber = Math.floor(i / 2) + 1;
-                
-                console.log(`   Creating match ${matchNumber}: ${player1.name} vs ${player2?.name || 'undefined'}`);
                 
                 const match: TournamentMatch = {
                     id: matchId,
@@ -162,17 +128,10 @@ export class TournamentManager {
                     match.winner = player1;
                     match.isComplete = true;
                     match.score = { player1: 11, player2: 0 };
-                    byeMatchCount++;
-                    console.log(`     ✅ Auto-completed bye match: ${player1.name} advances`);
-                } else {
-                    console.log(`     ⚔️ Regular match created: ${player1.name} vs ${player2.name}`);
                 }
 
                 tournament.matches.push(match);
-                matchCount++;
             }
-            
-            console.log(`   Round 1 complete: ${matchCount} matches created (${byeMatchCount} bye matches)`);
         } else {
             // Subsequent rounds - pair up winners from previous round
             const previousRoundMatches = tournament.matches.filter(
@@ -209,41 +168,23 @@ export class TournamentManager {
     }
 
     completeMatch(tournamentId: string, matchId: string, winnerName: string, score?: { player1: number, player2: number }): void {
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: completeMatch called`);
-        console.log(`   Tournament ID: ${tournamentId}`);
-        console.log(`   Match ID: ${matchId}`);
-        console.log(`   Winner: ${winnerName}`);
-        console.log(`   Score:`, score);
-        
         const tournament = this.tournaments.get(tournamentId);
         if (!tournament) {
-            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Tournament not found: ${tournamentId}`);
-            console.error(`   Available tournaments:`, Array.from(this.tournaments.keys()));
             throw new Error('Tournament not found');
         }
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Tournament found`);
-        console.log(`   Tournament has ${tournament.matches.length} matches`);
 
         const match = tournament.matches.find(m => m.id === matchId);
         if (!match) {
-            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Match not found: ${matchId}`);
-            console.error(`   Available matches:`, tournament.matches.map(m => m.id));
             throw new Error('Match not found');
         }
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Match found: ${match.player1.name} vs ${match.player2.name}`);
 
         if (match.isComplete) {
-            console.error(`🏆 📊 TOURNAMENT MANAGER ERROR: Match already completed!`);
             throw new Error('Match already completed');
         }
 
         // Determine winner
         const winner = match.player1.name === winnerName ? match.player1 : match.player2;
         const loser = match.player1.name === winnerName ? match.player2 : match.player1;
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Winner: ${winner.name}, Loser: ${loser.name}`);
 
         match.winner = winner;
         match.isComplete = true;
@@ -251,43 +192,22 @@ export class TournamentManager {
 
         // Eliminate loser
         loser.isEliminated = true;
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Match completed and loser eliminated`);
-
-        console.log(`🏆 Match completed: ${winner.name} defeats ${loser.name}`);
 
         // Check if round is complete
         const currentRoundMatches = tournament.matches.filter(m => m.roundNumber === tournament.currentRound);
         const completedMatches = currentRoundMatches.filter(m => m.isComplete);
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round completion check`);
-        console.log(`   Current round: ${tournament.currentRound}`);
-        console.log(`   Matches in round: ${currentRoundMatches.length}`);
-        console.log(`   Completed matches: ${completedMatches.length}`);
 
         if (completedMatches.length === currentRoundMatches.length) {
-            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round complete! Advancing...`);
-            
             // Round complete - generate next round
             tournament.currentRound++;
             
-            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: New round: ${tournament.currentRound}/${tournament.totalRounds}`);
-            
             if (tournament.currentRound <= tournament.totalRounds) {
-                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Generating next round matches...`);
                 this.generateRoundMatches(tournament, tournament.currentRound);
-                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Next round matches generated`);
             } else {
                 tournament.isComplete = true;
                 tournament.winner = winner;
-                console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: TOURNAMENT COMPLETE!`);
-                console.log(`🏆 Tournament complete! Winner: ${winner.name}`);
             }
-        } else {
-            console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: Round not complete yet, waiting for more matches`);
         }
-        
-        console.log(`🏆 📊 TOURNAMENT MANAGER DEBUG: completeMatch finished successfully`);
     }
 
     getNextMatch(tournamentId: string): TournamentMatch | null {
@@ -391,8 +311,6 @@ export class TournamentManager {
 
         // Regenerate first round
         this.generateRoundMatches(tournament, 1);
-        
-        console.log(`🏆 Tournament ${tournamentId} reset`);
     }
 
     // Delete tournament
@@ -408,7 +326,6 @@ export class TournamentManager {
     // Find existing tournament by players
     findTournamentByPlayers(playerNames: string[]): Tournament | null {
         const sortedPlayerNames = playerNames.slice().sort();
-        console.log(`🔍 Looking for tournament with players: [${sortedPlayerNames.join(', ')}]`);
         
         for (const tournament of this.tournaments.values()) {
             // Filter out "Bye" players and sort names for comparison
@@ -416,18 +333,14 @@ export class TournamentManager {
                 .filter(p => p.name !== 'Bye')
                 .map(p => p.name)
                 .sort();
-                
-            console.log(`   Checking tournament ${tournament.id}: [${tournamentPlayerNames.join(', ')}]`);
             
             // Check if player lists match
             if (tournamentPlayerNames.length === sortedPlayerNames.length &&
                 tournamentPlayerNames.every((name, index) => name === sortedPlayerNames[index])) {
-                console.log(`   ✅ Found matching tournament: ${tournament.id}`);
                 return tournament;
             }
         }
         
-        console.log(`   ❌ No matching tournament found`);
         return null;
     }
 

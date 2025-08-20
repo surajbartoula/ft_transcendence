@@ -169,11 +169,9 @@ export class TournamentBracketPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('🏆 TournamentBracketPage: Initializing...');
         this.bindElements();
         this.attachEventListeners();
         await this.loadTournament();
-        console.log('✅ TournamentBracketPage: Initialization complete');
     }
 
     public cleanup(): void {
@@ -222,66 +220,39 @@ export class TournamentBracketPage implements Page {
 
     private async loadTournament(): Promise<void> {
         try {
-            console.log('📋 TournamentBracketPage: Loading tournament from URL parameters...');
-            
             const urlParams = new URLSearchParams(window.location.search);
             const playersParam = urlParams.get('players');
             const tournamentName = urlParams.get('name') || 'Tournament';
 
-            console.log(`   Tournament name: "${tournamentName}"`);
-            console.log(`   Players parameter: ${playersParam ? 'found' : 'missing'}`);
-
             if (!playersParam) {
-                console.error('   ❌ No players parameter found in URL');
                 showError('No tournament data found');
                 this.handleBackClick();
                 return;
             }
 
             const players = JSON.parse(decodeURIComponent(playersParam));
-            console.log(`   📊 Parsed players (${players.length}): [${players.join(', ')}]`);
             
             // Check if a tournament already exists for these players
-            console.log('   🔍 Checking for existing tournament...');
             const existingTournament = this.tournamentManager.findTournamentByPlayers(players);
             
             if (existingTournament) {
-                console.log(`   ♻️ Found existing tournament: ${existingTournament.id}`);
-                console.log(`     Completed matches: ${existingTournament.matches.filter((m: TournamentMatch) => m.isComplete).length}/${existingTournament.matches.length}`);
-                console.log(`     Current round: ${existingTournament.currentRound}/${existingTournament.totalRounds}`);
-                console.log(`     Is complete: ${existingTournament.isComplete}`);
                 this.tournament = existingTournament;
             } else {
-                console.log('   🏗️ No existing tournament found, creating new tournament...');
                 this.tournament = this.tournamentManager.createTournament(players);
             }
-            
-            console.log(`   ✅ Tournament loaded/created:`);
-            console.log(`     ID: ${this.tournament?.id || 'null'}`);
-            console.log(`     Players: ${this.tournament?.players?.length || 0}`);
-            console.log(`     Matches: ${this.tournament?.matches?.length || 0}`);
-            console.log(`     Rounds: ${this.tournament?.totalRounds || 0}`);
-            console.log(`     Current round: ${this.tournament?.currentRound || 0}`);
             
             // Update tournament title
             const titleElement = document.getElementById('tournamentTitle');
             if (titleElement) {
                 titleElement.textContent = tournamentName;
-                console.log(`   📝 Tournament title updated: "${tournamentName}"`);
-            } else {
-                console.warn('   ⚠️ Tournament title element not found');
             }
 
-            console.log('   🔄 Updating UI components...');
             this.updateTournamentInfo();
             this.renderBracket();
             this.updateUpcomingMatches();
             this.checkForNextMatch();
-
-            showNotification('Tournament loaded successfully!', 'success');
-
+            // showNotification('Tournament loaded successfully!', 'success');
         } catch (error) {
-            console.error('❌ Failed to load tournament:', error);
             showError('Failed to load tournament data');
             this.handleBackClick();
         }
@@ -290,19 +261,7 @@ export class TournamentBracketPage implements Page {
     private updateTournamentInfo(): void {
         if (!this.tournament) return;
 
-        console.log(`🏆 📊 BRACKET DEBUG: updateTournamentInfo called`);
-        console.log(`   Tournament ID: ${this.tournament.id}`);
-        console.log(`   Tournament complete: ${this.tournament.isComplete}`);
-        console.log(`   Tournament winner: ${this.tournament.winner?.name || 'none'}`);
-        
         const stats = this.tournamentManager.getTournamentStats(this.tournament.id);
-        
-        console.log(`🏆 📊 BRACKET DEBUG: Tournament stats:`);
-        console.log(`   Current round: ${stats.currentRound}`);
-        console.log(`   Total rounds: ${stats.totalRounds}`);
-        console.log(`   Completed matches: ${stats.completedMatches}`);
-        console.log(`   Total matches: ${stats.totalMatches}`);
-        console.log(`   Remaining players: ${stats.remainingPlayers}`);
         
         const currentRound = document.getElementById('currentRound');
         const totalRounds = document.getElementById('totalRounds');
@@ -317,7 +276,6 @@ export class TournamentBracketPage implements Page {
         if (remainingPlayers) remainingPlayers.textContent = stats.remainingPlayers.toString();
         
         const progress = (stats.completedMatches / stats.totalMatches) * 100;
-        console.log(`🏆 📊 BRACKET DEBUG: Progress calculation: ${stats.completedMatches}/${stats.totalMatches} = ${Math.round(progress)}%`);
         
         if (tournamentProgress) {
             tournamentProgress.textContent = `${Math.round(progress)}%`;
@@ -329,10 +287,7 @@ export class TournamentBracketPage implements Page {
 
         // Check if tournament is complete
         if (this.tournament.isComplete && this.tournament.winner) {
-            console.log(`🏆 📊 BRACKET DEBUG: Tournament is complete, showing winner: ${this.tournament.winner.name}`);
             this.showTournamentWinner(this.tournament.winner);
-        } else {
-            console.log(`🏆 📊 BRACKET DEBUG: Tournament not complete yet`);
         }
     }
 
@@ -489,7 +444,7 @@ export class TournamentBracketPage implements Page {
         this.renderBracket();
         this.updateUpcomingMatches();
         this.checkForNextMatch();
-        showNotification('Bracket refreshed', 'info');
+        // showNotification('Bracket refreshed', 'info');
     }
 
     private handleBackClick(): void {
@@ -500,31 +455,27 @@ export class TournamentBracketPage implements Page {
     }
 
     private handleStartNextMatch(): void {
-        console.log('🎮 TournamentBracketPage: Starting next match...');
-        console.log(`   Tournament: ${this.tournament?.id || 'null'}`);
-        console.log(`   Current match: ${this.currentMatch?.id || 'null'}`);
-        
         if (!this.currentMatch || !this.tournament) {
-            console.error('   ❌ Cannot start match: missing tournament or current match');
             showError('Cannot start match: tournament data missing');
             return;
         }
 
-        console.log(`   Match details: ${this.currentMatch.player1.name} vs ${this.currentMatch.player2.name}`);
-        
         // Navigate to the shared game page for local tournament match
         const navigationPath = `/game/play?mode=local&player1=${encodeURIComponent(this.currentMatch.player1.name)}&player2=${encodeURIComponent(this.currentMatch.player2.name)}&tournamentId=${this.tournament.id}&matchId=${this.currentMatch.id}`;
-        
-        console.log(`   🎯 Navigating to: ${navigationPath}`);
         
         const event = new CustomEvent('navigate', {
             detail: { path: navigationPath }
         });
         window.dispatchEvent(event);
-        console.log('   ✅ Navigation event dispatched');
     }
 
     private handleNewTournament(): void {
+        // Clear/delete the current tournament to ensure fresh start
+        if (this.tournament) {
+            this.tournamentManager.deleteTournament(this.tournament.id);
+            this.tournament = null;
+        }
+        
         const event = new CustomEvent('navigate', {
             detail: { path: '/game/tournament/setup' }
         });

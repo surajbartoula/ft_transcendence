@@ -345,29 +345,14 @@ export class SharedGamePage implements Page {
 
         if (this.tournamentId && this.matchId) {
             // Tournament match - set up proper tournament mode
-            console.log(`🏆 📊 TOURNAMENT DEBUG: Starting tournament match`);
-            console.log(`   Tournament ID: ${this.tournamentId}`);
-            console.log(`   Match ID: ${this.matchId}`);
-            console.log(`   Player 1: ${this.player1Name}`);
-            console.log(`   Player 2: ${this.player2Name}`);
             
             // Set tournament game mode in PongManager's GameStateManager
             const gameStateManager = (this.gameManager as any).gameState;
             if (gameStateManager) {
-                console.log(`🏆 📊 TOURNAMENT DEBUG: GameStateManager found, setting tournament mode`);
-                
                 const tournamentManager = gameStateManager.getTournamentManager();
-                console.log(`🏆 📊 TOURNAMENT DEBUG: TournamentManager instance:`, !!tournamentManager);
                 
                 if (tournamentManager) {
                     const tournament = tournamentManager.getTournament(this.tournamentId!);
-                    console.log(`🏆 📊 TOURNAMENT DEBUG: Tournament found:`, !!tournament);
-                    if (tournament) {
-                        console.log(`   Tournament players: ${tournament.players.length}`);
-                        console.log(`   Tournament matches: ${tournament.matches.length}`);
-                        console.log(`   Current round: ${tournament.currentRound}`);
-                        console.log(`   Is complete: ${tournament.isComplete}`);
-                    }
                 }
                 
                 gameStateManager.setGameMode({
@@ -377,16 +362,12 @@ export class SharedGamePage implements Page {
                     tournamentId: this.tournamentId
                 });
                 
-                console.log(`🏆 📊 TOURNAMENT DEBUG: Game mode set, starting playing state`);
-                
                 // Start tournament match with proper match data
                 await gameStateManager.setState('playing', {
                     player1: { name: this.player1Name },
                     player2: { name: this.player2Name },
                     matchId: this.matchId
                 });
-                
-                console.log(`🏆 📊 TOURNAMENT DEBUG: Playing state started successfully`);
             } else {
                 console.warn('⚠️ GameStateManager not available, falling back to local game');
                 await this.gameManager.startLocalGame(this.player1Name, this.player2Name);
@@ -434,7 +415,6 @@ export class SharedGamePage implements Page {
                         
                         // Add detailed score debugging
                         if (!this.lastScore || this.lastScore.left !== score.left || this.lastScore.right !== score.right) {
-                            console.log(`🏆 📊 SCORE CHANGE: ${this.lastScore?.left || 0}-${this.lastScore?.right || 0} → ${score.left}-${score.right}`);
                             this.lastScore = {left: score.left, right: score.right};
                             
                             // Debug score manager state whenever score changes
@@ -442,25 +422,21 @@ export class SharedGamePage implements Page {
                             if (gameStateManager && gameStateManager.systems && gameStateManager.systems.scoreManager) {
                                 const scoreManager = gameStateManager.systems.scoreManager;
                                 const internalScore = scoreManager.getScore();
-                                console.log(`🏆 📊 SCORE MANAGER: Internal: ${internalScore.left}-${internalScore.right}, PongManager: ${score.left}-${score.right}`);
                                 
                                 // Check if there's a mismatch
                                 if (internalScore.left !== score.left || internalScore.right !== score.right) {
-                                    console.error(`🏆 📊 SCORE MISMATCH: ScoreManager has ${internalScore.left}-${internalScore.right}, PongManager has ${score.left}-${score.right}`);
                                 }
                             }
                         }
                         
                         // Reduce logging frequency - only log every 10th check
                         if (Math.random() < 0.1) {
-                            console.log(`🏆 📊 TOURNAMENT MONITOR: Score: ${score.left}-${score.right}, Mode: ${gameMode.type}, Round: ${tournament.currentRound}`);
-                        }
+                                                    }
                         
                         // Check if game should have ended
                         if (score.left >= 11 || score.right >= 11) {
                             if (!this.isGameCompleted) {
-                                console.log(`🏆 📊 TOURNAMENT MONITOR: Game should end! Winner score reached but game not completed yet`);
-                            }
+                                                            }
                         }
                     }
                 }
