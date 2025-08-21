@@ -247,7 +247,7 @@ export class RemoteTournamentGamePage implements Page {
         // System events
         document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
         window.addEventListener('resize', this.handleWindowResize.bind(this));
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+
         
         if (this.gameCanvas) {
             this.gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -257,7 +257,7 @@ export class RemoteTournamentGamePage implements Page {
     private removeEventListeners(): void {
         document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
         window.removeEventListener('resize', this.handleWindowResize);
-        document.removeEventListener('keydown', this.handleKeyDown);
+
     }
 
     private async initializeMatch(): Promise<void> {
@@ -565,11 +565,7 @@ export class RemoteTournamentGamePage implements Page {
         }
     }
 
-    private handleKeyDown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            this.handleBackClick();
-        }
-    }
+
 
 
     private handleContinueTournament(): void {

@@ -492,8 +492,8 @@ export class RenderEngine {
 
 		// Add keyboard shortcut to log all coordinates
 		window.addEventListener('keydown', (event) => {
-			// Skip keyboard shortcuts when paused (except escape which is handled elsewhere)
-			if (this.isPaused && event.key !== 'Escape') return;
+			// Skip keyboard shortcuts when paused
+			if (this.isPaused) return;
 			
 			if (event.key === 'c' || event.key === 'C') {
 				this.logAllObjectCoordinates();
@@ -511,7 +511,7 @@ export class RenderEngine {
 		if (this.isPaused) {
 			this.guiManager.createPauseMenu();
 			this.playPauseSound();
-			console.log("⏸️ Game paused - Press ESC to resume");
+			console.log("⏸️ Game paused");
 		} else {
 			this.guiManager.removePauseMenu();
 			this.playPauseSound();

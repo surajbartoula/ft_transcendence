@@ -307,11 +307,7 @@ class PlayingState extends GameState {
             }
         });
 
-        this.systems.inputManager.registerHandler('escape', (pressed) => {
-            if (pressed) {
-                this.stateManager.setState('paused');
-            }
-        });
+
     }
 
     private updatePaddleMovement(deltaTime: number): void {
@@ -383,7 +379,6 @@ class PlayingState extends GameState {
 
     private cleanupInputHandlers(): void {
         this.systems.inputManager.unregisterHandler(' ');
-        this.systems.inputManager.unregisterHandler('escape');
     }
 }
 
@@ -430,16 +425,7 @@ class PausedState extends GameState {
             }
         });
 
-        this.systems.inputManager.registerHandler('escape', (pressed) => {
-            if (pressed) {
-                this.systems.scoreManager.reset();
-                // Navigate back to dashboard
-                const event = new CustomEvent('navigate', {
-                    detail: { path: '/dashboard' }
-                });
-                window.dispatchEvent(event);
-            }
-        });
+
 
         this.systems.inputManager.registerHandler('r', (pressed) => {
             if (pressed) {
@@ -468,7 +454,6 @@ class PausedState extends GameState {
         (this.stateManager as any).paused = false;
         this.systems.uiManager.hidePause();
         this.systems.inputManager.unregisterHandler(' ');
-        this.systems.inputManager.unregisterHandler('escape');
         this.systems.inputManager.unregisterHandler('r');
         this.systems.inputManager.unregisterHandler('q');
     }
@@ -514,18 +499,12 @@ class GameOverState extends GameState {
             }
         });
 
-        this.systems.inputManager.registerHandler('escape', (pressed) => {
-            if (pressed) {
-                this.systems.scoreManager.reset();
-                this.stateManager.setState('menu');
-            }
-        });
+
     }
 
     exit(): void {
         this.systems.uiManager.hideGameOver();
         this.systems.inputManager.unregisterHandler('r');
-        this.systems.inputManager.unregisterHandler('escape');
     }
 
     update(deltaTime: number): void {}

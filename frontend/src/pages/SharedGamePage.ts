@@ -253,8 +253,7 @@ export class SharedGamePage implements Page {
         document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
         window.addEventListener('resize', this.handleWindowResize.bind(this));
         
-        // Keyboard events for pause
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+
         
         if (this.gameCanvas) {
             this.gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -270,7 +269,7 @@ export class SharedGamePage implements Page {
         }
         document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
         window.removeEventListener('resize', this.handleWindowResize);
-        document.removeEventListener('keydown', this.handleKeyDown);
+
     }
 
     private async initializeGame(): Promise<void> {
@@ -617,11 +616,7 @@ export class SharedGamePage implements Page {
         }
     }
 
-    private handleKeyDown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            this.handleBackClick();
-        }
-    }
+
 
 
     private handlePlayAgain(): void {
