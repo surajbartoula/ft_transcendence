@@ -1,8 +1,33 @@
 import Fastify from 'fastify';
-import { readFile, writeFile, mkdir, access } from 'fs/promises';
-import { join } from 'path';
-import { randomUUID } from 'crypto';
+import cors from '@fastify/cors';
+import jwt from '@fastify/jwt';
+import socketio from 'fastify-socket.io';
+import { initializeDatabase } from './database.js';
+import gameRoutes from './routes.js';
+import { setupSocketHandlers } from './socketHandlers.js';
 import fs from 'fs';
+
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// Add global error handlers to prevent service crashes
+process.on('uncaughtException', (error) => {
+    console.error('🚨 Uncaught Exception:', error);
+    console.error('🚨 Stack:', error.stack);
+    // Don't exit - keep the service running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit - keep the service running
+});
+
+console.log('🛡️ Global error handlers installed to prevent service crashes');
 
 if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
 	console.error('SSL_CERT and SSL_KEY environment variables are required');
@@ -23,7 +48,7 @@ try {
 		cert: fs.readFileSync(process.env.SSL_CERT)
 	};
 	
-	console.log('HTTPS configuration loaded for chat service');
+	console.log('HTTPS configuration loaded for enhanced game service');
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);
 	process.exit(1);
@@ -44,409 +69,216 @@ const fastify = Fastify({
 });
 
 const PORT = process.env.PORT || 3004;
-const DATA_DIR = process.env.DOCKER_ENV ? '/app/data' : './data';
+const JWT_SECRET = process.env.JWT_SECRET;
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
-// CORS plugin
-await fastify.register(import('@fastify/cors'), {
-  origin: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
-});
+async function start() {
+    try {
+        // Initialize enhanced database with tournament features
+        console.log('🎮 Initializing Enhanced Pong Game Service with Tournament Support...');
+        await initializeDatabase();
 
-// Initialize data directory
-async function initializeDataDir() {
-  try {
-    await access(DATA_DIR);
-  } catch (error) {
-    await mkdir(DATA_DIR, { recursive: true });
-    fastify.log.info(`Created data directory: ${DATA_DIR}`);
-  }
-}
+        // Register CORS
+        await fastify.register(cors, {
+            origin: CORS_ORIGIN,
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+        });
 
-// Database helper functions
-async function readJsonFile(filename) {
-  try {
-    const filePath = join(DATA_DIR, filename);
-    const data = await readFile(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return null;
+        // Register JWT
+        await fastify.register(jwt, {
+            secret: JWT_SECRET,
+            sign: {
+                expiresIn: '24h'
+            }
+        });
+
+        // Register Socket.IO with enhanced configuration
+        await fastify.register(socketio, {
+            cors: {
+                origin: CORS_ORIGIN,
+                credentials: true
+            },
+            transports: ['websocket', 'polling'],
+            pingTimeout: 60000,
+            pingInterval: 25000,
+            upgradeTimeout: 30000,
+            maxHttpBufferSize: 1e6, // 1MB
+            allowEIO3: true // Allow Engine.IO v3 clients
+        });
+
+        // Setup enhanced Socket.IO handlers with tournament support
+        setupSocketHandlers(fastify.io);
+
+        // Register enhanced routes
+        await fastify.register(gameRoutes);
+
+        // Global error handler
+        fastify.setErrorHandler((error, request, reply) => {
+            request.log.error(error);
+            
+            if (error.validation) {
+                reply.status(400).send({
+                    error: 'Validation Error',
+                    message: error.message,
+                    details: error.validation
+                });
+                return;
+            }
+
+            if (error.statusCode) {
+                reply.status(error.statusCode).send({
+                    error: error.message || 'An error occurred'
+                });
+                return;
+            }
+
+            reply.status(500).send({
+                error: 'Internal Server Error',
+                message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+            });
+        });
+
+        // Enhanced health check endpoint
+        fastify.get('/', async (request, reply) => {
+            return {
+                service: 'Enhanced Pong Game Service',
+                status: 'healthy',
+                version: '2.0.0',
+                timestamp: new Date().toISOString(),
+                features: [
+                    'Tournament System with Seeding',
+                    'Bracket Management',
+                    'Real-time Announcements',
+                    'Advanced Player Statistics',
+                    'Live Spectating',
+                    'Tournament Chat',
+                    'Match History & Analytics'
+                ],
+                endpoints: {
+                    health: '/api/game/health',
+                    game_sessions: '/api/game/session',
+                    tournaments: '/api/game/tournament',
+                    tournament_seeding: '/api/game/tournament/:id/seeding',
+                    tournament_announcements: '/api/game/tournament/:id/announcements',
+                    invitations: '/api/game/invite',
+                    statistics: '/api/game/stats',
+                    leaderboard: '/api/game/leaderboard',
+                    game_rooms: '/api/game/room/:id/join'
+                },
+                socket_events: {
+                    authentication: ['authenticate', 'authenticated'],
+                    game_control: ['join_game_room', 'player_ready', 'paddle_move', 'game_pause', 'game_quit'],
+                    tournament: ['join_tournament_room', 'tournament_match_request', 'tournament_bracket_update_request'],
+                    communication: ['game_chat', 'tournament_chat', 'game_emote'],
+                    updates: ['game_update', 'tournament_match_result', 'tournament_bracket_update']
+                }
+            };
+        });
+
+        // Enhanced API documentation endpoint
+        fastify.get('/api/docs', async (request, reply) => {
+            return {
+                title: 'Enhanced Pong Game Service API',
+                version: '2.0.0',
+                description: 'Complete tournament and game management system for Pong',
+                tournament_features: {
+                    seeding: {
+                        methods: ['random', 'ranking', 'manual'],
+                        description: 'Automatic or manual player seeding based on ranking points or custom arrangement'
+                    },
+                    bracket_management: {
+                        types: ['single_elimination', 'double_elimination', 'round_robin'],
+                        positioning: 'Automatic bracket position tracking (R1-M1, R2-M3, etc.)',
+                        advancement: 'Automatic winner advancement and next round generation'
+                    },
+                    announcements: {
+                        types: ['general', 'match_ready', 'match_result', 'round_complete', 'player_advance', 'elimination', 'tournament_start', 'tournament_end'],
+                        targeting: 'Broadcast to all participants or specific players',
+                        expiration: 'Automatic cleanup of expired announcements'
+                    },
+                    real_time: {
+                        spectating: 'Live match viewing for tournament participants',
+                        chat: 'Tournament-wide and match-specific chat systems',
+                        notifications: 'Real-time updates for match results and bracket changes'
+                    }
+                },
+                database_enhancements: {
+                    seeding_support: 'Tournament participants now include seed numbers and ranking points',
+                    bracket_positioning: 'Tournament matches include bracket position tracking',
+                    announcements: 'Dedicated announcement system with targeting and expiration',
+                    enhanced_indexing: 'Optimized database indexes for tournament queries'
+                }
+            };
+        });
+
+        // Start server
+        const address = await fastify.listen({ 
+            port: PORT, 
+            host: '0.0.0.0' 
+        });
+
+        console.log(`🚀 Enhanced Pong Game Service running at: ${address}`);
+        console.log(`🔌 Socket.IO enabled for real-time gameplay and tournaments`);
+        console.log(`🏆 Tournament features: Seeding, Brackets, Announcements, Live Spectating`);
+        console.log(`📊 Advanced analytics and player statistics enabled`);
+        console.log(`🎯 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+        // Log feature summary
+        console.log('\n📋 Feature Summary:');
+        console.log('   ✅ Tournament Creation & Management');
+        console.log('   ✅ Advanced Player Seeding (Random, Ranking, Manual)');
+        console.log('   ✅ Automatic Bracket Generation & Management');
+        console.log('   ✅ Real-time Tournament Announcements');
+        console.log('   ✅ Live Match Spectating for Tournaments');
+        console.log('   ✅ Tournament & Match Chat Systems');
+        console.log('   ✅ Advanced Player Statistics & Leaderboards');
+        console.log('   ✅ Automated Tournament Progression');
+        console.log('   ✅ Match History & Analytics');
+        console.log('   ✅ Game Event Recording & Replay Data');
+
+    } catch (error) {
+        console.error('💥 Failed to start enhanced server:', error);
+        process.exit(1);
     }
-    throw error;
-  }
 }
 
-async function writeJsonFile(filename, data) {
-  const filePath = join(DATA_DIR, filename);
-  await writeFile(filePath, JSON.stringify(data, null, 2));
-}
-
-// Initialize sample data
-async function initializeSampleData() {
-  const gamesFile = 'games.json';
-  const playersFile = 'players.json';
-  const scoresFile = 'scores.json';
-
-  // Initialize games if not exists
-  let games = await readJsonFile(gamesFile);
-  if (!games) {
-    games = [
-      {
-        id: randomUUID(),
-        name: 'Space Invaders',
-        genre: 'Arcade',
-        maxPlayers: 1,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: randomUUID(),
-        name: 'Multiplayer Snake',
-        genre: 'Arcade',
-        maxPlayers: 4,
-        createdAt: new Date().toISOString()
-      }
-    ];
-    await writeJsonFile(gamesFile, games);
-  }
-
-  // Initialize players if not exists
-  let players = await readJsonFile(playersFile);
-  if (!players) {
-    players = [];
-    await writeJsonFile(playersFile, players);
-  }
-
-  // Initialize scores if not exists
-  let scores = await readJsonFile(scoresFile);
-  if (!scores) {
-    scores = [];
-    await writeJsonFile(scoresFile, scores);
-  }
-}
-
-// Health check endpoint
-fastify.get('/health', async (request, reply) => {
-  return { 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    service: 'game-service',
-    version: '1.0.0'
-  };
-});
-
-// Games endpoints
-fastify.get('/api/games', async (request, reply) => {
-  const games = await readJsonFile('games.json');
-  return { games: games || [] };
-});
-
-fastify.get('/api/games/:id', async (request, reply) => {
-  const { id } = request.params;
-  const games = await readJsonFile('games.json') || [];
-  const game = games.find(g => g.id === id);
-  
-  if (!game) {
-    reply.code(404);
-    return { error: 'Game not found' };
-  }
-  
-  return { game };
-});
-
-fastify.post('/api/games', async (request, reply) => {
-  const { name, genre, maxPlayers = 1 } = request.body;
-  
-  if (!name || !genre) {
-    reply.code(400);
-    return { error: 'Name and genre are required' };
-  }
-  
-  const games = await readJsonFile('games.json') || [];
-  const newGame = {
-    id: randomUUID(),
-    name,
-    genre,
-    maxPlayers: parseInt(maxPlayers),
-    createdAt: new Date().toISOString()
-  };
-  
-  games.push(newGame);
-  await writeJsonFile('games.json', games);
-  
-  reply.code(201);
-  return { game: newGame };
-});
-
-fastify.delete('/api/games/:id', async (request, reply) => {
-  const { id } = request.params;
-  const games = await readJsonFile('games.json') || [];
-  const gameIndex = games.findIndex(g => g.id === id);
-  
-  if (gameIndex === -1) {
-    reply.code(404);
-    return { error: 'Game not found' };
-  }
-  
-  games.splice(gameIndex, 1);
-  await writeJsonFile('games.json', games);
-  
-  return { message: 'Game deleted successfully' };
-});
-
-// Players endpoints
-fastify.get('/api/players', async (request, reply) => {
-  const players = await readJsonFile('players.json');
-  return { players: players || [] };
-});
-
-fastify.get('/api/players/:id', async (request, reply) => {
-  const { id } = request.params;
-  const players = await readJsonFile('players.json') || [];
-  const player = players.find(p => p.id === id);
-  
-  if (!player) {
-    reply.code(404);
-    return { error: 'Player not found' };
-  }
-  
-  return { player };
-});
-
-fastify.post('/api/players', async (request, reply) => {
-  const { username, email } = request.body;
-  
-  if (!username || !email) {
-    reply.code(400);
-    return { error: 'Username and email are required' };
-  }
-  
-  const players = await readJsonFile('players.json') || [];
-  
-  // Check if player already exists
-  const existingPlayer = players.find(p => p.username === username || p.email === email);
-  if (existingPlayer) {
-    reply.code(409);
-    return { error: 'Player with this username or email already exists' };
-  }
-  
-  const newPlayer = {
-    id: randomUUID(),
-    username,
-    email,
-    createdAt: new Date().toISOString(),
-    lastActive: new Date().toISOString()
-  };
-  
-  players.push(newPlayer);
-  await writeJsonFile('players.json', players);
-  
-  reply.code(201);
-  return { player: newPlayer };
-});
-
-// Scores endpoints
-fastify.get('/api/scores', async (request, reply) => {
-  const { gameId, playerId, limit = 10 } = request.query;
-  let scores = await readJsonFile('scores.json') || [];
-  
-  if (gameId) {
-    scores = scores.filter(s => s.gameId === gameId);
-  }
-  
-  if (playerId) {
-    scores = scores.filter(s => s.playerId === playerId);
-  }
-  
-  // Sort by score descending
-  scores.sort((a, b) => b.score - a.score);
-  
-  // Limit results
-  scores = scores.slice(0, parseInt(limit));
-  
-  return { scores };
-});
-
-fastify.post('/api/scores', async (request, reply) => {
-  const { gameId, playerId, score, metadata = {} } = request.body;
-  
-  if (!gameId || !playerId || score === undefined) {
-    reply.code(400);
-    return { error: 'GameId, playerId, and score are required' };
-  }
-  
-  // Verify game and player exist
-  const games = await readJsonFile('games.json') || [];
-  const players = await readJsonFile('players.json') || [];
-  
-  const game = games.find(g => g.id === gameId);
-  const player = players.find(p => p.id === playerId);
-  
-  if (!game) {
-    reply.code(404);
-    return { error: 'Game not found' };
-  }
-  
-  if (!player) {
-    reply.code(404);
-    return { error: 'Player not found' };
-  }
-  
-  const scores = await readJsonFile('scores.json') || [];
-  const newScore = {
-    id: randomUUID(),
-    gameId,
-    playerId,
-    score: parseInt(score),
-    metadata,
-    createdAt: new Date().toISOString()
-  };
-  
-  scores.push(newScore);
-  await writeJsonFile('scores.json', scores);
-  
-  reply.code(201);
-  return { score: newScore };
-});
-
-// Leaderboard endpoint
-fastify.get('/api/leaderboard/:gameId', async (request, reply) => {
-  const { gameId } = request.params;
-  const { limit = 10 } = request.query;
-  
-  const scores = await readJsonFile('scores.json') || [];
-  const players = await readJsonFile('players.json') || [];
-  const games = await readJsonFile('games.json') || [];
-  
-  const game = games.find(g => g.id === gameId);
-  if (!game) {
-    reply.code(404);
-    return { error: 'Game not found' };
-  }
-  
-  // Get scores for this game
-  const gameScores = scores
-    .filter(s => s.gameId === gameId)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, parseInt(limit));
-  
-  // Enrich with player data
-  const leaderboard = gameScores.map(score => {
-    const player = players.find(p => p.id === score.playerId);
-    return {
-      ...score,
-      playerName: player ? player.username : 'Unknown Player'
-    };
-  });
-  
-  return { 
-    game: game.name,
-    leaderboard 
-  };
-});
-
-// Game sessions (for active games)
-const activeSessions = new Map();
-
-fastify.post('/api/sessions', async (request, reply) => {
-  const { gameId, playerId } = request.body;
-  
-  if (!gameId || !playerId) {
-    reply.code(400);
-    return { error: 'GameId and playerId are required' };
-  }
-  
-  const sessionId = randomUUID();
-  const session = {
-    id: sessionId,
-    gameId,
-    playerId,
-    startedAt: new Date().toISOString(),
-    status: 'active'
-  };
-  
-  activeSessions.set(sessionId, session);
-  
-  reply.code(201);
-  return { session };
-});
-
-fastify.get('/api/sessions/:id', async (request, reply) => {
-  const { id } = request.params;
-  const session = activeSessions.get(id);
-  
-  if (!session) {
-    reply.code(404);
-    return { error: 'Session not found' };
-  }
-  
-  return { session };
-});
-
-fastify.delete('/api/sessions/:id', async (request, reply) => {
-  const { id } = request.params;
-  
-  if (!activeSessions.has(id)) {
-    reply.code(404);
-    return { error: 'Session not found' };
-  }
-  
-  activeSessions.delete(id);
-  return { message: 'Session ended successfully' };
-});
-
-// Server info endpoint
-fastify.get('/api/info', async (request, reply) => {
-  return {
-    service: 'game-service',
-    version: '1.0.0',
-    environment: process.env.DOCKER_ENV ? 'docker' : 'local',
-    uptime: process.uptime(),
-    activeSessions: activeSessions.size,
-    endpoints: [
-      'GET /health',
-      'GET /api/games',
-      'POST /api/games',
-      'GET /api/games/:id',
-      'DELETE /api/games/:id',
-      'GET /api/players',
-      'POST /api/players',
-      'GET /api/players/:id',
-      'GET /api/scores',
-      'POST /api/scores',
-      'GET /api/leaderboard/:gameId',
-      'POST /api/sessions',
-      'GET /api/sessions/:id',
-      'DELETE /api/sessions/:id'
-    ]
-  };
-});
-
-// Error handler
-fastify.setErrorHandler((error, request, reply) => {
-  fastify.log.error(error);
-  reply.code(500).send({ 
-    error: 'Internal Server Error',
-    message: error.message 
-  });
-});
-
-// Start server
-const start = async () => {
-  try {
-    await initializeDataDir();
-    await initializeSampleData();
-    
-    await fastify.listen({ 
-      port: PORT, 
-      host: process.env.DOCKER_ENV ? '0.0.0.0' : 'localhost' 
+// Graceful shutdown with cleanup
+const signals = ['SIGINT', 'SIGTERM'];
+signals.forEach((signal) => {
+    process.on(signal, async () => {
+        console.log(`\n📡 Received ${signal}, shutting down gracefully...`);
+        try {
+            // Cleanup any active games and tournaments
+            console.log('🧹 Cleaning up active games and tournaments...');
+            
+            // Close Socket.IO connections
+            if (fastify.io) {
+                fastify.io.close();
+                console.log('🔌 Socket.IO connections closed');
+            }
+            
+            // Close server
+            await fastify.close();
+            console.log('✅ Enhanced server closed successfully');
+            process.exit(0);
+        } catch (error) {
+            console.error('❌ Error during shutdown:', error);
+            process.exit(1);
+        }
     });
-    
-    fastify.log.info(`Game service running on port ${PORT}`);
-    fastify.log.info(`Data directory: ${DATA_DIR}`);
-  } catch (err) {
-    fastify.log.error(err);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
     process.exit(1);
-  }
-};
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('💥 Uncaught Exception:', error);
+    process.exit(1);
+});
 
 start();

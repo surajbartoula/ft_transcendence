@@ -102,6 +102,16 @@ await fastify.register(async function (fastify) {
     });
 });
 
+/** Static file serving for assets (default avatar) */
+await fastify.register(async function (fastify) {
+    await fastify.register(httpProxy, {
+        upstream: services.user,
+        prefix: '/assets',
+        rewritePrefix: '/assets',
+        http2: false
+    });
+});
+
 /** Health check endpoint */
 fastify.get('/health', async (request, reply) => {
     return {
@@ -215,7 +225,8 @@ fastify.setNotFoundHandler((request, reply) => {
             '/api/user/*',
             '/api/chat/*',
             '/api/game/*',
-            '/uploads/*'
+            '/uploads/*',
+            '/assets/*'
         ]
     });
 });

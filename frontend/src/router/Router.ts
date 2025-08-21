@@ -36,7 +36,14 @@ export class Router {
 	}
 
 	async navigate(path: string, pushState = true): Promise<void> {
-		const route = this.routes.get(path);
+		// Strip query parameters for route matching but keep the full path for URL updates
+		const pathWithoutQuery = path.split('?')[0];
+		let route = this.routes.get(pathWithoutQuery);
+		
+		// If exact route not found, try to find parametric route
+		if (!route) {
+			route = this.findParametricRoute(pathWithoutQuery);
+		}
 		
 		/** Handle 404 or auth redirects */
 		if (!route) {
@@ -105,6 +112,35 @@ export class Router {
 				</div>
 			</div>
 		`;
+	}
+
+	private findParametricRoute(path: string): RouteConfig | undefined {
+		for (const [routePath, config] of this.routes) {
+			if (this.matchesParametricRoute(routePath, path)) {
+				return config;
+			}
+		}
+		return undefined;
+	}
+
+	private matchesParametricRoute(routePath: string, actualPath: string): boolean {
+		// Handle routes like '/game/tournament/remote/lobby' matching '/game/tournament/remote/lobby/123'
+		if (routePath.endsWith('/lobby') && actualPath.includes('/lobby/')) {
+			const baseRoute = routePath;
+			return actualPath.startsWith(baseRoute + '/');
+		}
+		
+		if (routePath.endsWith('/bracket') && actualPath.includes('/bracket/')) {
+			const baseRoute = routePath;
+			return actualPath.startsWith(baseRoute + '/');
+		}
+		
+		if (routePath.endsWith('/match') && actualPath.includes('/match/')) {
+			const baseRoute = routePath;
+			return actualPath.startsWith(baseRoute + '/');
+		}
+		
+		return false;
 	}
 
 	setAuthenticated(authenticated: boolean): void {

@@ -193,8 +193,14 @@ export class DatabaseService {
 				created_at: row.created_at,
 				photo: row.filename ? {
 					filename: row.filename,
-					path: row.path
-				} : null
+					path: row.path,
+					is_default: false
+				} : {
+					filename: 'avatar.jpg',
+					path: '/assets/avatar.jpg',
+					uploaded_at: null,
+					is_default: true
+				}
 			}));
 		} catch (error) {
 			console.error('Error searching users:', error);
@@ -229,8 +235,14 @@ export class DatabaseService {
 				photo: result.filename ? {
 					filename: result.filename,
 					path: result.path,
-					uploaded_at: result.uploaded_at
-				} : null
+					uploaded_at: result.uploaded_at,
+					is_default: false
+				} : {
+					filename: 'avatar.jpg',
+					path: '/assets/avatar.jpg',
+					uploaded_at: null,
+					is_default: true
+				}
 			};
 		} catch (error) {
 			console.error('Error getting profile with photo:', error);
@@ -269,8 +281,14 @@ export class DatabaseService {
 				photo: row.filename ? {
 					filename: row.filename,
 					path: row.path,
-					uploaded_at: row.uploaded_at
-				} : null
+					uploaded_at: row.uploaded_at,
+					is_default: false
+				} : {
+					filename: 'avatar.jpg',
+					path: '/assets/avatar.jpg',
+					uploaded_at: null,
+					is_default: true
+				}
 			}));
 		} catch (error) {
 			console.error('Error getting profiles with photos:', error);

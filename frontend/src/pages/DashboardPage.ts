@@ -1,8 +1,7 @@
-// pages/DashboardPage.ts - Dashboard page with all related functionality
 import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { fetchUserGameData } from '../utils/dashboard';
-import { generateAvatarUrl, showError, showNotification } from '../utils/ui';
+import { generateAvatarUrl, showNotification } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
 export class DashboardPage implements Page {
@@ -12,7 +11,6 @@ export class DashboardPage implements Page {
     private currentUser: User | null = null;
     private gameData: any = null;
     private playButton: HTMLElement | null = null;
-    private modalOverlay: HTMLElement | null = null;
 
     public render(): string {
         return `
@@ -29,9 +27,9 @@ export class DashboardPage implements Page {
                     </div>
                     
                     <nav class="p-4 space-y-2 flex-1">
-                        <a href="#" id="playButton" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-blue-600 text-white">
+                        <a href="#" id="playButton" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                             <span>🎮</span>
-                            <span>Play</span>
+                            <span>Play Pong</span>
                         </a>
                         <a href="#" data-route="/dashboard/profile" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
                             <span>👤</span>
@@ -79,10 +77,38 @@ export class DashboardPage implements Page {
                         </div>
                     </div>
 
+                    <!-- Quick Actions -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-white mb-4">Quick Actions</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button id="quickPlayButton" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center space-x-3">
+                                <span class="text-2xl">🎮</span>
+                                <div class="text-left">
+                                    <div class="font-bold text-lg">Play Pong</div>
+                                    <div class="text-sm text-blue-100">Start playing now</div>
+                                </div>
+                            </button>
+                            <button data-route="/dashboard/profile" class="bg-slate-700 hover:bg-slate-600 text-white p-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center space-x-3">
+                                <span class="text-2xl">👤</span>
+                                <div class="text-left">
+                                    <div class="font-bold text-lg">View Profile</div>
+                                    <div class="text-sm text-gray-300">Edit your profile</div>
+                                </div>
+                            </button>
+                            <button data-route="/dashboard/leaderboard" class="bg-slate-700 hover:bg-slate-600 text-white p-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center space-x-3">
+                                <span class="text-2xl">🏆</span>
+                                <div class="text-left">
+                                    <div class="font-bold text-lg">Leaderboard</div>
+                                    <div class="text-sm text-gray-300">See top players</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Game Statistics -->
                     <div class="mb-8">
                         <h3 class="text-xl font-semibold text-white mb-4">Game Statistics</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                             <div class="bg-slate-700 rounded-lg p-6 card-hover">
                                 <div class="text-3xl font-bold text-blue-400" id="gamesPlayed">0</div>
                                 <div class="text-gray-400 mt-1">Games Played</div>
@@ -94,6 +120,10 @@ export class DashboardPage implements Page {
                             <div class="bg-slate-700 rounded-lg p-6 card-hover">
                                 <div class="text-3xl font-bold text-red-400" id="losses">0</div>
                                 <div class="text-gray-400 mt-1">Losses</div>
+                            </div>
+                            <div class="bg-slate-700 rounded-lg p-6 card-hover">
+                                <div class="text-3xl font-bold text-yellow-400" id="winRate">0%</div>
+                                <div class="text-gray-400 mt-1">Win Rate</div>
                             </div>
                         </div>
                     </div>
@@ -145,72 +175,92 @@ export class DashboardPage implements Page {
         if (this.playButton) {
             this.playButton.removeEventListener('click', this.handlePlayClick);
         }
+        
+        const quickPlayButton = document.getElementById('quickPlayButton');
+        if (quickPlayButton) {
+            quickPlayButton.removeEventListener('click', this.handlePlayClick);
+        }
+        
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.removeEventListener('click', this.handleLogout);
         }
-        const closeButton = document.getElementById('closeButton');
-        if (closeButton) {
-            closeButton.removeEventListener('click', this.hideModal);
-        }
-        if (this.modalOverlay) {
-            this.modalOverlay.removeEventListener('click', this.handleModalClick);
-        }
-        document.removeEventListener('keydown', this.handleKeyDown);
+
+        // Remove quick action event listeners
+        const quickActionButtons = document.querySelectorAll('[data-route]');
+        quickActionButtons.forEach(button => {
+            button.removeEventListener('click', this.handleQuickAction);
+        });
     }
 
     private bindElements(): void {
         this.playButton = document.getElementById('playButton');
-        this.modalOverlay = document.getElementById('modalOverlay');
     }
 
     private attachEventListeners(): void {
+        // Main sidebar play button
         if (this.playButton) {
             this.playButton.addEventListener('click', this.handlePlayClick.bind(this));
         }
+
+        // Quick play button in main content
+        const quickPlayButton = document.getElementById('quickPlayButton');
+        if (quickPlayButton) {
+            quickPlayButton.addEventListener('click', this.handlePlayClick.bind(this));
+        }
+
+        // Logout button
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', this.handleLogout.bind(this));
         }
-        /** Modal events */
-        const closeButton = document.getElementById('closeButton');
-        if (closeButton) {
-            closeButton.addEventListener('click', this.hideModal.bind(this));
-        }
-        if (this.modalOverlay) {
-            this.modalOverlay.addEventListener('click', this.handleModalClick.bind(this));
-        }
-        document.addEventListener('keydown', this.handleKeyDown.bind(this));
-        /** Game mode selection */
-        const gameModeButtons = document.querySelectorAll('[data-game-mode]');
-        gameModeButtons.forEach(button => {
-            button.addEventListener('click', this.handleGameModeSelect.bind(this));
+
+        // Quick action buttons
+        const quickActionButtons = document.querySelectorAll('[data-route]');
+        quickActionButtons.forEach(button => {
+            button.addEventListener('click', this.handleQuickAction.bind(this));
         });
     }
 
     private async loadUserData(): Promise<void> {
         try {
-            /** Get user data from localStorage */
+            // Get user data from localStorage
             const userDataStr = localStorage.getItem('userData');
             const token = localStorage.getItem('token');
             if (userDataStr) {
                 this.currentUser = JSON.parse(userDataStr);
             }
             if (token) {
-                /** Fetch latest profile data with photo */
-                await this.fetchLatestProfile(token);
-                /** Fetch game data */
-                this.gameData = await fetchUserGameData(token);
+                // Fetch latest profile data with photo (don't let this fail the whole process)
+                try {
+                    await this.fetchLatestProfile(token);
+                } catch (profileError) {
+                    console.warn('Could not fetch profile data:', profileError);
+                }
+                
+                // Fetch game data (don't let this fail the whole process)
+                try {
+                    this.gameData = await fetchUserGameData(token);
+                } catch (gameDataError) {
+                    console.warn('Could not fetch game data:', gameDataError);
+                    // Use default game data
+                    this.gameData = {
+                        stats: { rating: 1000, gamesPlayed: 0, wins: 0, losses: 0, winRate: 0 },
+                        recentGames: [],
+                        achievements: []
+                    };
+                }
             }
         } catch (error) {
             console.error('Failed to load user data:', error);
-            showError('Failed to load dashboard data. Please try refreshing the page.');
+            // Don't show error popup - just continue with what we have
+            console.warn('Continuing with default/cached data');
         }
     }
 
     private async fetchLatestProfile(token: string): Promise<void> {
         try {
-            /** Fetch profile data */
+            // Fetch profile data
             const profileResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
                 method: 'GET',
                 headers: {
@@ -220,24 +270,35 @@ export class DashboardPage implements Page {
             });
             if (profileResponse.ok) {
                 const profile = await profileResponse.json();
-                /** Update current user with profile username */
+                // Update current user with profile username
                 if (this.currentUser && profile.username) {
                     this.currentUser.name = profile.username;
                 }
             }
-            /** Fetch photo data */
-            const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            // Fetch photo data - handle gracefully if user has no photo
+            try {
+                const photoResponse = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (photoResponse.ok) {
+                    const photo = await photoResponse.json();
+                    // Store photo data for later use
+                    if (this.currentUser && photo && photo.path) {
+                        this.currentUser.photo = photo;
+                    }
+                } else if (photoResponse.status === 404) {
+                    console.log('User has no photo, will use default avatar');
+                    // Explicitly handle 404 - user simply has no photo
+                } else {
+                    console.warn('Photo request failed with status:', photoResponse.status);
                 }
-            });
-            if (photoResponse.ok) {
-                const photo = await photoResponse.json();
-                /** Store photo data for later use */
-                if (this.currentUser) {
-                    this.currentUser.photo = photo;
-                }
+                // If photo request fails or returns no photo, we'll use the fallback avatar in populateUserInterface
+            } catch (photoError) {
+                console.log('No user photo available, will use default avatar:', photoError);
+                // Don't set photo property, so fallback avatar will be used
             }
         } catch (error) {
             console.log('Could not fetch profile/photo data:', error);
@@ -246,19 +307,20 @@ export class DashboardPage implements Page {
 
     private populateUserInterface(): void {
         if (!this.currentUser) return;
-        /** Update user avatar and info */
+        
+        // Update user avatar and info
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
         const userHandle = document.getElementById('userHandle');
         const userRating = document.getElementById('userRating');
         
         if (userAvatar) {
-            /** Check if user has a photo */
+            // Check if user has a photo
             if (this.currentUser.photo && this.currentUser.photo.path) {
                 userAvatar.innerHTML = `<img src="${API_CONFIG.GATEWAY_URL}${this.currentUser.photo.path}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
-			} else {
-				userAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
-			}
+            } else {
+                userAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
+            }
         }
         if (userName) {
             userName.textContent = this.currentUser.name;
@@ -272,26 +334,37 @@ export class DashboardPage implements Page {
         if (userRating && this.gameData) {
             userRating.textContent = this.gameData.stats?.rating?.toString() || '1000';
         }
-        /** Update game statistics */
+        
+        // Update game statistics
         this.updateGameStatistics();
-        /** Populate sections */
+        // Populate sections
         this.populateRecentGames();
         this.populateAchievements();
     }
 
     private updateGameStatistics(): void {
         if (!this.gameData) return;
+        
         const gamesPlayed = document.getElementById('gamesPlayed');
         const wins = document.getElementById('wins');
         const losses = document.getElementById('losses');
-        if (gamesPlayed) gamesPlayed.textContent = this.gameData.stats?.gamesPlayed?.toString() || '0';
-        if (wins) wins.textContent = this.gameData.stats?.wins?.toString() || '0';
-        if (losses) losses.textContent = this.gameData.stats?.losses?.toString() || '0';
+        const winRate = document.getElementById('winRate');
+        
+        const totalGames = this.gameData.stats?.gamesPlayed || 0;
+        const totalWins = this.gameData.stats?.wins || 0;
+        const totalLosses = this.gameData.stats?.losses || 0;
+        const winPercentage = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+        
+        if (gamesPlayed) gamesPlayed.textContent = totalGames.toString();
+        if (wins) wins.textContent = totalWins.toString();
+        if (losses) losses.textContent = totalLosses.toString();
+        if (winRate) winRate.textContent = `${winPercentage}%`;
     }
 
     private populateRecentGames(): void {
         const container = document.getElementById('recentGamesContainer');
         if (!container) return;
+        
         const recentGames = this.gameData?.recentGames || [];
         if (recentGames.length === 0) {
             container.innerHTML = `
@@ -303,6 +376,7 @@ export class DashboardPage implements Page {
             `;
             return;
         }
+        
         container.innerHTML = recentGames.map((game: any) => `
             <div class="grid grid-cols-4 gap-4 p-4 border-b border-slate-700 hover:bg-slate-700 transition-colors">
                 <div class="font-medium">${game.game}</div>
@@ -316,6 +390,7 @@ export class DashboardPage implements Page {
     private populateAchievements(): void {
         const container = document.getElementById('achievementsContainer');
         if (!container) return;
+        
         const achievements = this.gameData?.achievements || [];
         if (achievements.length === 0) {
             container.innerHTML = `
@@ -327,6 +402,7 @@ export class DashboardPage implements Page {
             `;
             return;
         }
+        
         container.innerHTML = achievements.slice(0, 4).map((achievement: any) => `
             <div class="bg-slate-700 p-4 rounded-lg flex items-center space-x-4 card-hover">
                 <div class="text-2xl">${achievement.icon}</div>
@@ -341,63 +417,29 @@ export class DashboardPage implements Page {
 
     private handlePlayClick(e: Event): void {
         e.preventDefault();
-        this.showModal();
+        this.navigateToGame();
     }
 
-    private showModal(): void {
-        if (this.modalOverlay) {
-            this.modalOverlay.classList.remove('hidden');
-            this.modalOverlay.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    private hideModal(): void {
-        if (this.modalOverlay) {
-            this.modalOverlay.classList.add('hidden');
-            this.modalOverlay.classList.remove('flex');
-            document.body.style.overflow = 'auto';
-        }
-    }
-
-    private handleModalClick(e: Event): void {
-        if (e.target === this.modalOverlay) {
-            this.hideModal();
-        }
-    }
-
-    private handleKeyDown(e: KeyboardEvent): void {
-        if (e.key === 'Escape' && this.modalOverlay && !this.modalOverlay.classList.contains('hidden')) {
-            this.hideModal();
-        }
-    }
-
-    private handleGameModeSelect(e: Event): void {
+    private handleQuickAction(e: Event): void {
+        e.preventDefault();
         const target = e.currentTarget as HTMLElement;
-        const gameMode = target.getAttribute('data-game-mode');
-        this.hideModal();
-        switch (gameMode) {
-            case 'solo-ai':
-            case 'multiplayer-local':
-                this.navigateToGame();
-                break;
-            case 'settings':
-                this.navigateToSettings();
-                break;
+        const route = target.getAttribute('data-route');
+        
+        if (route) {
+            const event = new CustomEvent('navigate', {
+                detail: { path: route }
+            });
+            window.dispatchEvent(event);
         }
     }
 
     private navigateToGame(): void {
-        /** Dispatch navigation event */
+        // Show notification for better UX
+        showNotification('Loading Pong game...', 'info', 2000);
+        
+        // Dispatch navigation event to game page
         const event = new CustomEvent('navigate', {
             detail: { path: '/game' }
-        });
-        window.dispatchEvent(event);
-    }
-
-    private navigateToSettings(): void {
-        const event = new CustomEvent('navigate', {
-            detail: { path: '/dashboard/settings' }
         });
         window.dispatchEvent(event);
     }
@@ -406,7 +448,8 @@ export class DashboardPage implements Page {
         e.preventDefault();
         localStorage.removeItem('token');
         localStorage.removeItem('userData');
-        /** Dispatch logout event */
+        
+        // Dispatch logout event
         const event = new CustomEvent('logout');
         window.dispatchEvent(event);
         showNotification('Successfully logged out', 'success');
