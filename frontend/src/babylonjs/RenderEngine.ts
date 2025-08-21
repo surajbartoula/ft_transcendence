@@ -402,7 +402,6 @@ export class RenderEngine {
 			this.createInvisibleWalls();
 			this.setupPaddleControls();
 			this.initializeBallSystem();
-			this.setupInteractiveCoordinateDisplay();
 			
 		} catch (error) {
 			console.log("🔍 Trying alternative path...");
@@ -417,7 +416,6 @@ export class RenderEngine {
 				this.createInvisibleWalls();
 				this.setupPaddleControls();
 				this.initializeBallSystem();
-				this.setupInteractiveCoordinateDisplay();
 				
 			} catch (err2) {
 				console.error("❌ Failed to load assets:", err2);
@@ -477,33 +475,9 @@ export class RenderEngine {
 		console.log("💡 Strong light emission system created for paddles");
 	}
 
-	private setupInteractiveCoordinateDisplay(): void {
-		// Add click event to display object coordinates
-		this.scene.onPointerObservable.add((pointerInfo) => {
-			if (pointerInfo.pickInfo?.hit && pointerInfo.pickInfo.pickedMesh) {
-				const mesh = pointerInfo.pickInfo.pickedMesh;
-				const pos = mesh.position;
-				console.log(`🎯 Clicked: ${mesh.name} at (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
-				
-				// Display on webpage
-				this.displayCoordinateOnPage(mesh.name, pos);
-			}
-		});
 
-		// Add keyboard shortcut to log all coordinates
-		window.addEventListener('keydown', (event) => {
-			// Skip keyboard shortcuts when paused
-			if (this.isPaused) return;
-			
-			if (event.key === 'c' || event.key === 'C') {
-				this.logAllObjectCoordinates();
-			}
-		});
-	}
 
-	private displayCoordinateOnPage(meshName: string, position: BABYLON.Vector3): void {
-		this.guiManager.displayCoordinateOnPage(meshName, position);
-	}
+
 
 	private togglePause(): void {
 		this.isPaused = !this.isPaused;
@@ -944,15 +918,7 @@ private debugVisualizeFloorBounds(): void {
 		});
 	}
 
-	private logAllObjectCoordinates(): void {
-		console.log("📍 All Object Coordinates:");
-		this.scene.meshes.forEach(mesh => {
-			if (mesh.name !== "skybox" && !mesh.name.includes("_shadow")) {
-				const pos = mesh.position;
-				console.log(`  ${mesh.name}: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
-			}
-		});
-	}
+
 
 	private createBackgroundLayers(): void {
 		this.createSkybox();

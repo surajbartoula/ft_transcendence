@@ -898,63 +898,7 @@ export class GUIManager {
         }
     }
 
-    // =====================================
-    // COORDINATE DISPLAY
-    // =====================================
-    displayCoordinateOnPage(meshName: string, position: any): void {
-        // Remove any existing coordinate display
-        const existingDisplay = document.getElementById('coordinateDisplay');
-        if (existingDisplay) {
-            existingDisplay.remove();
-        }
 
-        // Create a temporary display element
-        const coordDisplay = document.createElement('div');
-        coordDisplay.id = 'coordinateDisplay';
-        coordDisplay.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #00ffff;
-            color: #00ffff;
-            padding: 15px;
-            font-family: 'Orbitron', 'Courier New', monospace;
-            font-size: 14px;
-            border-radius: 5px;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-            z-index: 9999;
-            max-width: 300px;
-        `;
-
-        coordDisplay.innerHTML = `
-            <div style="font-weight: bold; margin-bottom: 8px; color: #00ff88;">
-                🎯 ${meshName}
-            </div>
-            <div>
-                X: ${position.x.toFixed(2)}<br>
-                Y: ${position.y.toFixed(2)}<br>
-                Z: ${position.z.toFixed(2)}
-            </div>
-            <div style="margin-top: 8px; font-size: 12px; color: #888;">
-                Click to dismiss
-            </div>
-        `;
-
-        // Add click to dismiss
-        coordDisplay.addEventListener('click', () => {
-            coordDisplay.remove();
-        });
-
-        document.body.appendChild(coordDisplay);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (coordDisplay.parentNode) {
-                coordDisplay.remove();
-            }
-        }, 5000);
-    }
 
     dispose(): void {
         this.removeMainMenu();
@@ -969,11 +913,7 @@ export class GUIManager {
         this.clearCountdown();
         this.clearScoreFlash();
         
-        // Remove coordinate display if it exists
-        const existingDisplay = document.getElementById('coordinateDisplay');
-        if (existingDisplay) {
-            existingDisplay.remove();
-        }
+
         
         const styles = document.getElementById('tronStyles');
         if (styles) {
