@@ -43,10 +43,50 @@ class App {
 		this.initializeApp();
 	}
 
+	private createAuthSuccessPage() {
+		return {
+			render: () => `
+				<div class="min-h-screen flex items-center justify-center bg-slate-900">
+					<div class="text-center">
+						<div class="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+						<h2 class="text-xl font-semibold text-white mb-2">Completing Authentication</h2>
+						<p class="text-gray-400">Please wait while we log you in...</p>
+					</div>
+				</div>
+			`,
+			initialize: () => {
+				// Extract token from URL and trigger auth success
+				const urlParams = new URLSearchParams(window.location.search);
+				const token = urlParams.get('token');
+				const error = urlParams.get('error');
+				
+				if (error) {
+					showError(decodeURIComponent(error));
+					this.router.navigate('/login');
+					return;
+				}
+				
+				if (token) {
+					// Clean URL
+					window.history.replaceState({}, document.title, '/auth/success');
+					// Trigger auth success event
+					window.dispatchEvent(new CustomEvent('authSuccess', { 
+						detail: { token, user: null } 
+					}));
+				} else {
+					showError('No authentication token received');
+					this.router.navigate('/login');
+				}
+			},
+			title: 'Authentication Success'
+		};
+	}
+
 	private setupRoutes(): void {
 		const routes = [
 			{ path: '/', page: () => new LoginPage(), requiresAuth: false },
 			{ path: '/login', page: () => new LoginPage(), requiresAuth: false },
+			{ path: '/auth/success', page: () => this.createAuthSuccessPage(), requiresAuth: false },
 			{ path: '/verify-email', page: () => new EmailVerificationPage(), requiresAuth: false},
 			{ path: '/dashboard', page: () => new DashboardPage(), requiresAuth: true },
 			{ path: '/dashboard/profile', page: () => new ProfilePage(), requiresAuth: true },

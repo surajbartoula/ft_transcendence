@@ -448,7 +448,7 @@ export class ChatPage implements Page {
     private async loadChats(): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/chats/recent', {
+            const response = await fetch('/api/chat/chats/recent', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load chats');
@@ -463,7 +463,7 @@ export class ChatPage implements Page {
     private async loadFriends(): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/friends/details', {
+            const response = await fetch('/api/chat/friends/details', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load friends');
@@ -477,7 +477,7 @@ export class ChatPage implements Page {
     private async loadFriendRequests(): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/friends/requests/details', {
+            const response = await fetch('/api/chat/friends/requests/details', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load friend requests');
@@ -712,7 +712,7 @@ export class ChatPage implements Page {
 	private async checkFriendOnlineStatus(friendId: string): Promise<boolean> {
 		try {
 			const token = getStoredToken();
-			const response = await fetch(`https://localhost:3003/api/friends/online`, {
+			const response = await fetch(`/api/chat/friends/online`, {
 				headers: { Authorization: `Bearer ${token}` }
 			});
 			if (!response.ok) throw new Error('Failed to fetch online friends');
@@ -727,7 +727,7 @@ export class ChatPage implements Page {
     private async loadMessages(friendId: string): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch(`https://localhost:3003/api/messages/${friendId}`, {
+            const response = await fetch(`/api/chat/messages/${friendId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Failed to load messages');
@@ -866,7 +866,7 @@ export class ChatPage implements Page {
         }
         try {
             const token = getStoredToken();
-            const response = await fetch(`https://localhost:3003/api/users/search?q=${encodeURIComponent(query)}`, {
+            const response = await fetch(`/api/chat/users/search?q=${encodeURIComponent(query)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Search failed');
@@ -906,7 +906,7 @@ export class ChatPage implements Page {
     private async sendFriendRequest(userId: string): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/friends/request', {
+            const response = await fetch('/api/chat/friends/request', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -931,7 +931,7 @@ export class ChatPage implements Page {
     private async acceptFriendRequest(userId: string): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/friends/accept', {
+            const response = await fetch('/api/chat/friends/accept', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -952,7 +952,7 @@ export class ChatPage implements Page {
     private async declineFriendRequest(userId: string): Promise<void> {
         try {
             const token = getStoredToken();
-            const response = await fetch('https://localhost:3003/api/friends/decline', {
+            const response = await fetch('/api/chat/friends/decline', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -990,7 +990,7 @@ export class ChatPage implements Page {
         }
         try {
             const token = getStoredToken();
-            const response = await fetch(`https://localhost:3003/api/users/search?q=${encodeURIComponent(query)}`, {
+            const response = await fetch(`/api/chat/users/search?q=${encodeURIComponent(query)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Search failed');

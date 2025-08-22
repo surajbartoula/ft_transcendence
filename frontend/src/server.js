@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import httpProxy from '@fastify/http-proxy';
+import fastifyStatic from '@fastify/static';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 3000;
 
 if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
 	console.error('SSL_CERT & SSL_KEY not found');
@@ -52,6 +54,20 @@ await fastify.register(cors, {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
+});
+
+/** Register static file serving for frontend build */
+await fastify.register(fastifyStatic, {
+    root: path.join(__dirname, '../dist'),
+    prefix: '/',
+    setHeaders: (res, path) => {
+        // Set proper headers for SPA
+        if (path.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    },
+    // Handle SPA routing by serving index.html for non-file routes
+    wildcard: false
 });
 
 /** Service endpoints configuration */
@@ -201,6 +217,28 @@ await fastify.register(async function (fastify) {
     });
 });
 
+/** Chat Socket.IO proxy */
+await fastify.register(async function (fastify) {
+    await fastify.register(httpProxy, {
+        upstream: services.chat,
+        prefix: '/chat-socket',
+        rewritePrefix: '/socket.io',
+        websocket: true,
+        http2: false
+    });
+});
+
+/** Game Socket.IO proxy */
+await fastify.register(async function (fastify) {
+    await fastify.register(httpProxy, {
+        upstream: services.game,
+        prefix: '/game-socket',
+        rewritePrefix: '/socket.io',
+        websocket: true,
+        http2: false
+    });
+});
+
 /** Custom Error handler */
 fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);
@@ -210,8 +248,41 @@ fastify.setErrorHandler((error, request, reply) => {
     });
 });
 
+/** Handle default Socket.IO attempts and redirect to proper endpoints */
+fastify.get('/socket.io/*', async (request, reply) => {
+    fastify.log.warn(`Default Socket.IO path accessed: ${request.url} - redirecting client to use proper endpoints`);
+    reply.status(400).send({
+        error: 'Direct Socket.IO connection not allowed',
+        message: 'Use /chat-socket for chat features or /game-socket for game features',
+        availableEndpoints: [
+            '/chat-socket - for chat, messaging, friend requests',
+            '/game-socket - for games, tournaments, match-making'
+        ]
+    });
+});
+
 /** Custom handler for requests that don't match any route */
 fastify.setNotFoundHandler((request, reply) => {
+    // Extract just the pathname (without query parameters)
+    const pathname = request.url.split('?')[0];
+    
+    // Check if it's a file request (has extension)
+    const isFileRequest = pathname.includes('.') && pathname.lastIndexOf('.') > pathname.lastIndexOf('/');
+    
+    fastify.log.info(`NotFound handler: ${request.url} | pathname: ${pathname} | isFile: ${isFileRequest}`);
+    
+    // For SPA routes (not API routes or files), serve index.html
+    if (!pathname.startsWith('/api/') && 
+        !pathname.startsWith('/uploads/') && 
+        !pathname.startsWith('/assets/') &&
+        !pathname.startsWith('/health') &&
+        !pathname.startsWith('/socket.io/') &&
+        !isFileRequest) {
+        fastify.log.info(`Serving SPA index.html for: ${request.url}`);
+        return reply.type('text/html').sendFile('index.html');
+    }
+    
+    // For API routes that don't exist, return 404 JSON
     reply.status(404).send({
         error: 'Route not found',
         path: request.url,
@@ -228,16 +299,18 @@ fastify.setNotFoundHandler((request, reply) => {
     });
 });
 
+
 const start = async () => {
     try {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
+        
 		fastify.log.info(`🛜  Frontend running on port ${process.env.FRONTEND_URL}`);
         fastify.log.info(`🚀 Gateway service running on port ${PORT}`);
         fastify.log.info(`📡 Proxying to services:`);
         Object.entries(services).forEach(([name, url]) => {
             fastify.log.info(`   - ${name}: ${url}`);
         });
-		fastify.log.info(`🔌 Socket.io gateway active on /socket.io/`);
+		fastify.log.info(`🔌 Direct Socket.IO connections to backend services`);
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);

@@ -225,7 +225,7 @@ export class GameMenuPage implements Page {
     private async loadUserStats(): Promise<void> {
         try {
             // Use game-service directly for stats
-            const response = await fetch('https://localhost:3004/api/game/stats', {
+            const response = await fetch('/api/game/stats', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }

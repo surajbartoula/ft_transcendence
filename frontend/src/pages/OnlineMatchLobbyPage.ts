@@ -357,7 +357,7 @@ export class OnlineMatchLobbyPage implements Page {
         console.log(`🔍 OnlineMatchLobby: Searching users with query: "${query}"`);
         
         try {
-            const url = `https://localhost:3004/api/game/users/search?q=${encodeURIComponent(query)}`;
+            const url = `/api/game/users/search?q=${encodeURIComponent(query)}`;
             console.log(`🌐 Making search request to: ${url}`);
             
             const response = await fetch(url, {
@@ -403,7 +403,7 @@ export class OnlineMatchLobbyPage implements Page {
         console.log('👥 OnlineMatchLobby: Loading online users...');
         
         try {
-            const url = 'https://localhost:3004/api/game/users/online';
+            const url = '/api/game/users/online';
             console.log(`🌐 Making request to: ${url}`);
             
             const response = await fetch(url, {
@@ -441,7 +441,7 @@ export class OnlineMatchLobbyPage implements Page {
         console.log('📨 OnlineMatchLobby: Loading invitations...');
         
         try {
-            const url = 'https://localhost:3004/api/game/invitations';
+            const url = '/api/game/invitations';
             console.log(`🌐 Making request to: ${url}`);
             
             const response = await fetch(url, {
@@ -708,7 +708,7 @@ export class OnlineMatchLobbyPage implements Page {
             
             console.log('📤 Sending invitation with data:', invitationData);
             
-            const response = await fetch('https://localhost:3004/api/game/invite', {
+            const response = await fetch('/api/game/invite', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -742,7 +742,7 @@ export class OnlineMatchLobbyPage implements Page {
             const responseData = { response };
             console.log('📤 Sending invitation response:', responseData);
             
-            const apiResponse = await fetch(`https://localhost:3004/api/game/invite/${invitationId}/respond`, {
+            const apiResponse = await fetch(`/api/game/invite/${invitationId}/respond`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

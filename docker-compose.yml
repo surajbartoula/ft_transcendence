@@ -18,7 +18,7 @@ services:
     networks:
       - pong-network
 
-  frontend:
+  gateway-service:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -26,14 +26,24 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - PORT=3000
+      - SSL_CERT=/app/ssl/cert.pem
+      - SSL_KEY=/app/ssl/key.pem
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - AUTH_SERVICE_URL=https://auth-service:3001
+      - USER_SERVICE_URL=https://user-service:3002
+      - CHAT_SERVICE_URL=https://chat-service:3003
+      - GAME_SERVICE_URL=https://game-service:3004
+      - FRONTEND_URL=https://localhost:3000
     depends_on:
-      - gateway-service
+      - auth-service
+      - user-service
       - chat-service
       - game-service
     networks:
       - pong-network
     volumes:
-      - ./certs:/etc/nginx/ssl:ro
+      - ./certs:/app/ssl:ro
 
   auth-service:
     build:
@@ -128,33 +138,6 @@ services:
     networks:
       - pong-network
 
-  gateway-service:
-    build:
-      context: ./services/gateway-service
-      dockerfile: Dockerfile
-    ports:
-      - "3005:3005"
-    env_file:
-      - ./services/gateway-service/.env
-    environment:
-      - NODE_ENV=production
-      - PORT=3005
-      - SSL_CERT=/app/ssl/cert.pem
-      - SSL_KEY=/app/ssl/key.pem
-      - NODE_TLS_REJECT_UNAUTHORIZED=0
-      - AUTH_SERVICE_URL=https://auth-service:3001
-      - USER_SERVICE_URL=https://user-service:3002
-      - CHAT_SERVICE_URL=https://chat-service:3003
-      - GAME_SERVICE_URL=https://game-service:3004
-    depends_on:
-      - auth-service
-      - user-service
-      - chat-service
-      - game-service
-    networks:
-      - pong-network
-    volumes:
-      - ./certs:/app/ssl:ro
 
 networks:
   pong-network:

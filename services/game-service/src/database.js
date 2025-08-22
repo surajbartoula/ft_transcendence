@@ -348,7 +348,7 @@ export class GameDatabaseService {
             
             const sql = `
                 UPDATE game_sessions 
-                SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+                SET ${updates.join(', ')}
                 WHERE id = ?
             `;
             

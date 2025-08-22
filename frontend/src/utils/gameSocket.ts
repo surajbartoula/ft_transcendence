@@ -33,8 +33,9 @@ class GameSocket {
             return;
         }
 
-        console.log('🌐 GameSocket: Creating socket connection to https://localhost:3004');
-        this.socket = io('https://localhost:3004', {
+        console.log('🌐 GameSocket: Creating socket connection to game service');
+        this.socket = io('/', {
+            path: '/game-socket/socket.io',
             auth: { token },
             timeout: 10000,
             transports: ['websocket', 'polling'],

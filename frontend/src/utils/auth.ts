@@ -26,7 +26,7 @@ export interface LoginResponse {
 	requires2FA?: boolean;
 }
 
-const API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;
+const API_BASE = API_CONFIG.ENDPOINTS.AUTH;
 
 /**
  * Email verificaton part
@@ -142,15 +142,15 @@ export function getStoredToken(): string | null {
 }
 
 export function setStoredUser(user: any): void {
-    localStorage.setItem('user_data', JSON.stringify(user));
+    localStorage.setItem('userData', JSON.stringify(user));
     /** Trigger global socket connection */
     window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: user }));
 }
 
 export function clearStoredAuth(): void {
 	clearAllClickableNotifications();
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_data');
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
     /** Trigger global socket disconnection */
     window.dispatchEvent(new CustomEvent('userLoggedOut'));
 }

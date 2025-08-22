@@ -283,7 +283,7 @@ export class PongGameManager {
             if (existingSessionId) {
                 // Fetch existing session (for remote games from invitations)
                 console.log(`🔄 Fetching existing game session: ${existingSessionId}`);
-                response = await fetch(`https://localhost:3004/api/game/session/${existingSessionId}`, {
+                response = await fetch(`/api/game/session/${existingSessionId}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -292,7 +292,7 @@ export class PongGameManager {
             } else {
                 // Create new session (for local/AI games)
                 console.log(`🆕 Creating new game session - Mode: ${gameMode}, Player2: ${player2Id}`);
-                response = await fetch('https://localhost:3004/api/game/session', {
+                response = await fetch('/api/game/session', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -337,7 +337,7 @@ export class PongGameManager {
         if (!this.currentGameSessionId) return;
 
         try {
-            const response = await fetch(`https://localhost:3004/api/game/session/${this.currentGameSessionId}`, {
+            const response = await fetch(`/api/game/session/${this.currentGameSessionId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -369,7 +369,7 @@ export class PongGameManager {
         if (!this.currentGameSessionId) return;
 
         try {
-            await fetch(`https://localhost:3004/api/game/session/${this.currentGameSessionId}/event`, {
+            await fetch(`/api/game/session/${this.currentGameSessionId}/event`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

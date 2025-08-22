@@ -11,7 +11,7 @@ export function registerRoutes(fastify) {
   });
 
   /** User profile route */
-  fastify.get('/api/user/profile', {
+  fastify.get('/api/chat/user/profile', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -33,7 +33,7 @@ export function registerRoutes(fastify) {
    */
 
   /** Get recent chats with last messages and unread counts */
-  fastify.get('/api/chats/recent', {
+  fastify.get('/api/chat/chats/recent', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -58,7 +58,7 @@ export function registerRoutes(fastify) {
   });
 
   /** Get all friends with their details */
-  fastify.get('/api/friends/details', {
+  fastify.get('/api/chat/friends/details', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -73,7 +73,7 @@ export function registerRoutes(fastify) {
   });
 
   /** Get all friend requests with requester details */
-  fastify.get('/api/friends/requests/details', {
+  fastify.get('/api/chat/friends/requests/details', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -88,7 +88,7 @@ export function registerRoutes(fastify) {
   });
 
   /** Get online friends */
-  fastify.get('/api/friends/online', {
+  fastify.get('/api/chat/friends/online', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -103,7 +103,7 @@ export function registerRoutes(fastify) {
   });
 
   /** Get chat statistics */
-  fastify.get('/api/chats/stats', {
+  fastify.get('/api/chat/chats/stats', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -128,7 +128,7 @@ export function registerRoutes(fastify) {
   });
 
   /** Search users */
-  fastify.get('/api/users/search', {
+  fastify.get('/api/chat/users/search', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -150,7 +150,7 @@ export function registerRoutes(fastify) {
    * Friend request routes
    */
 
-  fastify.post('/api/friends/request', {
+  fastify.post('/api/chat/friends/request', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -182,7 +182,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.post('/api/friends/accept', {
+  fastify.post('/api/chat/friends/accept', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -207,7 +207,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.post('/api/friends/decline', {
+  fastify.post('/api/chat/friends/decline', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -221,7 +221,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.get('/api/friends/requests', {
+  fastify.get('/api/chat/friends/requests', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -234,7 +234,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.get('/api/friends', {
+  fastify.get('/api/chat/friends', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -251,7 +251,7 @@ export function registerRoutes(fastify) {
    * Block and unblock routes
    */
 
-  fastify.post('/api/users/block', {
+  fastify.post('/api/chat/users/block', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -268,7 +268,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.post('/api/users/unblock', {
+  fastify.post('/api/chat/users/unblock', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -282,7 +282,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.get('/api/users/blocked', {
+  fastify.get('/api/chat/users/blocked', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -299,7 +299,7 @@ export function registerRoutes(fastify) {
    * Message routes
    */
 
-  fastify.get('/api/messages/:friend_id', {
+  fastify.get('/api/chat/messages/:friend_id', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;
@@ -324,7 +324,7 @@ export function registerRoutes(fastify) {
       }
   });
 
-  fastify.get('/api/messages/unread/count', {
+  fastify.get('/api/chat/messages/unread/count', {
     preValidation: [fastify.authenticate],
   }, async (req, reply) => {
       const user_id = req.user.sub || req.user.user_id || req.user.id;

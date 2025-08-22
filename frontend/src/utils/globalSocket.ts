@@ -37,10 +37,14 @@ class GlobalSocket {
     }
 
     connect(): void {
+        // Update current user data
+        this.currentUser = getStoredUser();
         const token = getStoredToken();
         if (!token || this.socket?.connected) return;
 
-        this.socket = io('https://localhost:3003', {
+        // Connect to chat service through gateway proxy
+        this.socket = io('/', {
+            path: '/chat-socket/socket.io',
             auth: { token },
             timeout: 10000,
             withCredentials: true
@@ -53,6 +57,17 @@ class GlobalSocket {
         if (!this.socket) return;
         this.socket.on('connect', () => {
             console.log('Global socket connected');
+            
+            // Authenticate with chat service
+            if (this.currentUser) {
+                const authData = {
+                    user_id: this.currentUser.id,
+                    username: this.currentUser.name || this.currentUser.username
+                };
+                console.log('🔑 GlobalSocket: Sending authentication data:', authData);
+                this.socket?.emit('authenticate', authData);
+            }
+            
             /** Send heartbeat every 30 seconds to stay online */
             setInterval(() => {
                 this.socket?.emit('heartbeat');
@@ -76,6 +91,15 @@ class GlobalSocket {
         });
         this.socket.on('friend_request_accepted', (data: { from_user: User; message: string }) => {
             showClickableNotification(data.message, 'success');
+        });
+        
+        // Authentication response handlers
+        this.socket.on('authenticated', (data) => {
+            console.log('✅ GlobalSocket: Authentication successful!', data);
+        });
+
+        this.socket.on('auth_error', (data) => {
+            console.error('❌ GlobalSocket: Authentication failed!', data);
         });
     }
 

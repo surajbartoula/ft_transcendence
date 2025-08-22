@@ -314,7 +314,7 @@ export class LoginPage implements Page {
 		}
 		this.set2FALoadingState(true);
 		try {
-			const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}/2fa/verify-login`, {
+			const response = await fetch(`${API_CONFIG.ENDPOINTS.AUTH}/2fa/verify-login`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -488,8 +488,7 @@ export class LoginPage implements Page {
 
     private handleGoogleSignIn(): void {
         this.setGoogleLoadingState(true);
-        const AUTH_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.AUTH}`;
-        window.location.href = `${AUTH_API_BASE}/google`;
+        window.location.href = `${API_CONFIG.ENDPOINTS.AUTH}/google`;
     }
 
     private handleGoogleCallback(): void {

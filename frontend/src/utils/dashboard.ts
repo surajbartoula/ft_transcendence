@@ -1,5 +1,3 @@
-import { API_CONFIG } from '../config';
-
 export interface GameStats {
     rating: number;
     gamesPlayed: number;
@@ -31,12 +29,11 @@ export interface GameData {
     achievements: Achievement[];
 }
 
-const USER_API_BASE = `${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}`;
-const GAME_SERVICE_URL = 'https://localhost:3004';
+const USER_API_BASE = "/api/user";
 
 export async function fetchUserGameData(token: string): Promise<GameData> {
     try {
-        const response = await fetch(`${GAME_SERVICE_URL}/api/game/stats`, {
+        const response = await fetch(`/api/game/stats`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         

@@ -1,8 +1,6 @@
 // Remote Tournament API Service - Direct connection to game-service
 import { showError, showNotification } from '../utils/ui';
 
-const GAME_SERVICE_URL = 'https://localhost:3004';
-
 export interface Tournament {
     id: number;
     name: string;
@@ -111,7 +109,8 @@ class RemoteTournamentService {
     private baseUrl: string;
 
     constructor() {
-        this.baseUrl = GAME_SERVICE_URL;
+        // Use empty string since we're making relative API calls through the gateway
+        this.baseUrl = '';
     }
 
     private getAuthHeaders(): Record<string, string> {

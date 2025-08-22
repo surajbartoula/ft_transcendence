@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-    GATEWAY_URL: 'https://localhost:3005',
+    GATEWAY_URL: '', // Use relative URLs for gateway
     ENDPOINTS: {
         AUTH: '/api/auth',
         USER: '/api/user',
