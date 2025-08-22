@@ -1,8 +1,32 @@
 import { Page } from '../router/Router';
+import { API_CONFIG } from '../config';
+import { getStoredToken } from '../utils/auth';
+import { generateAvatarUrl } from '../utils/ui';
+
+interface LeaderboardPlayer {
+    rank: number;
+    user_id: string;
+    username: string;
+    photo: {
+        filename: string;
+        path: string;
+        uploaded_at: string | null;
+        is_default: boolean;
+    } | null;
+    ranking_points: number;
+    total_games: number;
+    wins: number;
+    losses: number;
+    win_rate: number;
+    win_streak: number;
+    tournaments_won: number;
+}
 
 export class LeaderboardPage implements Page {
     public title = 'Leaderboard';
     public requiresAuth = true;
+    private leaderboardData: LeaderboardPlayer[] = [];
+    private isLoading = true;
 
     public render(): string {
         return `
@@ -12,17 +36,15 @@ export class LeaderboardPage implements Page {
                     <div class="fade-in">
                         <h2 class="text-3xl font-bold mb-6 text-white">Leaderboard</h2>
                         <div class="bg-slate-800 rounded-lg p-6">
-                            <p class="text-gray-300 mb-4">Top players and rankings</p>
-                            <div class="space-y-3">
-                                ${Array.from({length: 10}, (_, i) => `
-                                    <div class="flex items-center justify-between p-3 bg-slate-700 rounded">
-                                        <div class="flex items-center space-x-3">
-                                            <span class="text-lg font-bold text-yellow-500">#${i + 1}</span>
-                                            <span class="text-white">Player ${i + 1}</span>
-                                        </div>
-                                        <span class="text-blue-400 font-semibold">${1500 - i * 50} pts</span>
-                                    </div>
-                                `).join('')}
+                            <div class="flex items-center justify-between mb-4">
+                                <p class="text-gray-300">Top players and rankings</p>
+                                <button id="refreshBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                    <span class="refresh-icon">${this.isLoading ? '⟳' : '↻'}</span>
+                                    Refresh
+                                </button>
+                            </div>
+                            <div id="leaderboardContent" class="space-y-3">
+                                ${this.renderLeaderboardContent()}
                             </div>
                         </div>
                     </div>
@@ -31,8 +53,136 @@ export class LeaderboardPage implements Page {
         `;
     }
 
-    public initialize(): void {
+    private renderLeaderboardContent(): string {
+        if (this.isLoading) {
+            return `
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <span class="ml-3 text-gray-300">Loading leaderboard...</span>
+                </div>
+            `;
+        }
+
+        if (this.leaderboardData.length === 0) {
+            return `
+                <div class="text-center py-8">
+                    <p class="text-gray-400">No players found. Start playing to appear on the leaderboard!</p>
+                </div>
+            `;
+        }
+
+        return this.leaderboardData.map(player => `
+            <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+                <div class="flex items-center space-x-4">
+                    <span class="text-xl font-bold ${this.getRankColor(player.rank)}">#${player.rank}</span>
+                    ${player.photo && !player.photo.is_default ? 
+                        `<img src="${API_CONFIG.GATEWAY_URL}${player.photo.path}" alt="${player.username}" class="w-10 h-10 rounded-full object-cover">` :
+                        `<img src="${generateAvatarUrl()}" alt="${player.username}" class="w-10 h-10 rounded-full object-cover">`
+                    }
+                    <div>
+                        <div class="text-white font-semibold">${player.username}</div>
+                        <div class="text-sm text-gray-400">
+                            ${player.total_games} games • ${player.wins}W-${player.losses}L • ${player.win_rate}% win rate
+                            ${player.tournaments_won > 0 ? ` • 🏆 ${player.tournaments_won}` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-bold text-blue-400">${player.ranking_points} pts</div>
+                    ${player.win_streak > 0 ? `<div class="text-sm text-green-400">🔥 ${player.win_streak} streak</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    private getRankColor(rank: number): string {
+        if (rank === 1) return 'text-yellow-500';
+        if (rank === 2) return 'text-gray-300';
+        if (rank === 3) return 'text-amber-600';
+        return 'text-blue-400';
+    }
+
+    private async fetchLeaderboard(): Promise<void> {
+        try {
+            this.isLoading = true;
+            this.updateContent();
+
+            const token = getStoredToken();
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.GAME}/leaderboard?limit=50`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                this.leaderboardData = data.leaderboard;
+            } else {
+                throw new Error(data.error || 'Failed to fetch leaderboard');
+            }
+        } catch (error) {
+            console.error('Failed to fetch leaderboard:', error);
+            this.leaderboardData = [];
+            this.showError(error instanceof Error ? error.message : 'Failed to load leaderboard');
+        } finally {
+            this.isLoading = false;
+            this.updateContent();
+        }
+    }
+
+    private updateContent(): void {
+        const content = document.getElementById('leaderboardContent');
+        if (content) {
+            content.innerHTML = this.renderLeaderboardContent();
+        }
+
+        const refreshIcon = document.querySelector('.refresh-icon');
+        if (refreshIcon) {
+            refreshIcon.textContent = this.isLoading ? '⟳' : '↻';
+            if (this.isLoading) {
+                refreshIcon.classList.add('animate-spin');
+            } else {
+                refreshIcon.classList.remove('animate-spin');
+            }
+        }
+    }
+
+    private showError(message: string): void {
+        const content = document.getElementById('leaderboardContent');
+        if (content) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-400 mb-2">⚠️ Error</div>
+                    <p class="text-gray-400">${message}</p>
+                    <button onclick="window.leaderboardPage?.initialize()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    public async initialize(): Promise<void> {
         console.log('Leaderboard page initialized');
+        (window as any).leaderboardPage = this;
+        
+        // Initial load
+        await this.fetchLeaderboard();
+        
+        // Set up refresh button
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.fetchLeaderboard());
+        }
     }
 
     public cleanup(): void {

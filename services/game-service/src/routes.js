@@ -42,7 +42,7 @@ async function getUserProfile(userId, token) {
 // Helper function to check if users are blocked via chat-service
 async function checkIfBlocked(user1Id, user2Id, token) {
     try {
-        const response = await axios.get(`${CHAT_SERVICE_URL}/api/users/blocked`, {
+        const response = await axios.get(`${CHAT_SERVICE_URL}/api/chat/users/blocked`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const blockedUsers = response.data || [];
@@ -710,7 +710,7 @@ export default async function gameRoutes(fastify, options) {
                 const token = req.headers.authorization;
 
                 // Get online friends from chat-service
-                const response = await axios.get(`${CHAT_SERVICE_URL}/api/friends/online`, {
+                const response = await axios.get(`${CHAT_SERVICE_URL}/api/chat/friends/online`, {
                     headers: { Authorization: token }
                 });
 
@@ -986,9 +986,47 @@ export default async function gameRoutes(fastify, options) {
         handler: async (req, reply) => {
             try {
                 const { limit = 100 } = req.query;
+                const token = req.headers.authorization;
                 const leaderboard = await gameDb.getLeaderboard(limit);
                 
-                reply.send({ success: true, leaderboard });
+                // Enhance leaderboard with usernames
+                const enhancedLeaderboard = await Promise.all(
+                    leaderboard.map(async (player, index) => {
+                        try {
+                            const userProfile = await getUserProfile(player.user_id, token);
+                            return {
+                                rank: index + 1,
+                                user_id: player.user_id,
+                                username: userProfile?.username || 'Unknown Player',
+                                photo: userProfile?.photo || null,
+                                ranking_points: player.ranking_points,
+                                total_games: player.total_games,
+                                wins: player.wins,
+                                losses: player.losses,
+                                win_rate: player.win_rate,
+                                win_streak: player.win_streak,
+                                tournaments_won: player.tournaments_won
+                            };
+                        } catch (error) {
+                            console.warn(`Failed to get profile for user ${player.user_id}:`, error.message);
+                            return {
+                                rank: index + 1,
+                                user_id: player.user_id,
+                                username: 'Unknown Player',
+                                photo: null,
+                                ranking_points: player.ranking_points,
+                                total_games: player.total_games,
+                                wins: player.wins,
+                                losses: player.losses,
+                                win_rate: player.win_rate,
+                                win_streak: player.win_streak,
+                                tournaments_won: player.tournaments_won
+                            };
+                        }
+                    })
+                );
+                
+                reply.send({ success: true, leaderboard: enhancedLeaderboard });
             } catch (error) {
                 req.log.error(error);
                 reply.code(500).send({ error: 'Failed to fetch leaderboard' });

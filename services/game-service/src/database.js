@@ -1278,7 +1278,7 @@ export class GameDatabaseService {
                        END as win_rate
                 FROM player_statistics ps
                 WHERE ps.total_games > 0
-                ORDER BY ps.ranking_points DESC, ps.wins DESC, ps.win_rate DESC
+                ORDER BY ps.ranking_points DESC, ps.wins DESC, win_rate DESC
                 LIMIT ?
             `, [limit], (err, rows) => {
                 if (err) return reject(err);

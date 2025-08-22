@@ -25,7 +25,9 @@ export class SettingsPage implements Page {
                             <h2 class="text-xl font-semibold text-white mb-4">Security</h2>
                             
                             <!-- 2FA Section -->
-                            ${this.render2FASection()}
+                            <div id="2fa-section-container">
+                                ${this.render2FASection()}
+                            </div>
                         </div>
                         
                     </div>
@@ -277,7 +279,6 @@ export class SettingsPage implements Page {
     }
 
     public initialize(): void {
-        console.log('Settings page initialized');
         this.setupEventListeners();
         this.loadUserSettings();
     }
@@ -295,12 +296,7 @@ export class SettingsPage implements Page {
             });
             if (userResponse.ok) {
                 const userData = await userResponse.json();
-                if (userData.user.google_id) {
-                    console.log(userData.user.google_id);
-                } else {
-                    console.log("Not a google user");
-                }
-                this.isGoogleUser = !!userData.user.google_id;
+                this.isGoogleUser = !!userData.user?.google_id;
             }
             /** Only check 2FA status for regular users */
             if (!this.isGoogleUser) {
@@ -591,6 +587,25 @@ export class SettingsPage implements Page {
     }
 
     private updatePageContent(): void {
+        /** Re-render the entire 2FA section now that we know if user is Google user */
+        const twoFAContainer = document.getElementById('2fa-section-container');
+        if (twoFAContainer) {
+            twoFAContainer.innerHTML = this.render2FASection();
+        } else {
+            /** Find and replace the 2FA content in the security section */
+            const securitySection = document.querySelector('.bg-slate-800.p-6.rounded-lg.mb-6');
+            if (securitySection) {
+                const h2Element = securitySection.querySelector('h2');
+                if (h2Element && h2Element.textContent === 'Security') {
+                    /** Find and replace the 2FA section content */
+                    const render2FAContainer = securitySection.querySelector('.p-4.bg-slate-700.rounded-lg');
+                    if (render2FAContainer) {
+                        render2FAContainer.outerHTML = this.render2FASection();
+                    }
+                }
+            }
+        }
+        
         const statusContainer = document.getElementById('2fa-status-container');
         if (statusContainer) {
             statusContainer.innerHTML = this.is2FAEnabled ? this.render2FAStatus() : '';
@@ -599,7 +614,6 @@ export class SettingsPage implements Page {
     }
 
     public cleanup(): void {
-        console.log('Cleaning up Settings page event listeners');
         document.removeEventListener('change', this.handleDocumentChange);
         document.removeEventListener('click', this.handleDocumentClick);
         document.removeEventListener('input', this.handleDocumentInput);

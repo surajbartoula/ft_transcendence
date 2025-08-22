@@ -721,8 +721,8 @@ export class RemoteGamePage implements Page {
             console.warn('⚠️ Controls hint element not found');
         }
         
-        console.log('✅ Game is now active!');
-        showNotification('Game started! Good luck!', 'success');
+        // console.log('✅ Game is now active!');
+        // showNotification('Game started! Good luck!', 'success');
     }
 
     private handleGameEnded(event: Event): void {
@@ -854,8 +854,8 @@ export class RemoteGamePage implements Page {
     private handleGoalScored(event: Event): void {
         const { scorer, player1_score, player2_score } = (event as CustomEvent).detail;
         
-        const isMyGoal = (scorer === 'player1' && this.isPlayer1) || (scorer === 'player2' && !this.isPlayer1);
-        showNotification(`${isMyGoal ? 'You' : 'Opponent'} scored!`, isMyGoal ? 'success' : 'error');
+        // const isMyGoal = (scorer === 'player1' && this.isPlayer1) || (scorer === 'player2' && !this.isPlayer1);
+        // showNotification(`${isMyGoal ? 'You' : 'Opponent'} scored!`, isMyGoal ? 'success' : 'error');
         
         // Update scores
         const player1Score = document.getElementById('player1Score');
