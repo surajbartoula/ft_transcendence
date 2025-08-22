@@ -1,0 +1,22 @@
+[ req ]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+C = US
+ST = CA
+L = San Francisco
+O = Development
+CN = lab1r5s1.42abudhabi.ae
+
+[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = localhost
+DNS.2 = lab1r5s1.42abudhabi.ae
+IP.1 = 127.0.0.1
+IP.2 = 10.11.5.1

@@ -1,4 +1,4 @@
-all:check-docker ft_transcendence
+all:check-docker ssl-setup ft_transcendence
 
 check-docker:
 			@docker ps > /dev/null 2>&1 || ( \
@@ -11,6 +11,10 @@ check-docker:
 				done; \
 				echo "\n✅ Docker started successfully!"; \
 			)
+
+ssl-setup:
+	@echo "🔐 Setting up SSL certificates..."
+	@bash ./ssl-setup.sh
 
 ft_transcendence:
 				@echo "🚀 Starting ft_transcendence containers..."

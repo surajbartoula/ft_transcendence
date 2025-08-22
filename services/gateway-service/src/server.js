@@ -48,10 +48,7 @@ const fastify = Fastify({
 
 /** Register CORS plugin */
 await fastify.register(cors, {
-    origin: [
-        process.env.FRONTEND_URL || 'https://localhost:3000',
-        process.env.FRONTEND_DOCKER_URL || 'https://localhost:3000'
-    ],
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

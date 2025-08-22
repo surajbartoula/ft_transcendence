@@ -38,7 +38,8 @@ class GameSocket {
             auth: { token },
             timeout: 10000,
             transports: ['websocket', 'polling'],
-            forceNew: true
+            forceNew: true,
+            withCredentials: true
         });
         
         console.log('🔌 GameSocket: Socket instance created, setting up event listeners...');

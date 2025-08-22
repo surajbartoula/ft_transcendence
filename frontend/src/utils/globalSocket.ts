@@ -42,7 +42,8 @@ class GlobalSocket {
 
         this.socket = io('https://localhost:3003', {
             auth: { token },
-            timeout: 10000
+            timeout: 10000,
+            withCredentials: true
         });
 
         this.setupEventListeners();

@@ -80,9 +80,8 @@ async function start() {
 
         // Register CORS
         await fastify.register(cors, {
-            origin: CORS_ORIGIN,
-            credentials: true,
-            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+            origin: true,
+            credentials: true
         });
 
         // Register JWT
@@ -96,7 +95,7 @@ async function start() {
         // Register Socket.IO with enhanced configuration
         await fastify.register(socketio, {
             cors: {
-                origin: CORS_ORIGIN,
+                origin: true,
                 credentials: true
             },
             transports: ['websocket', 'polling'],

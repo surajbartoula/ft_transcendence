@@ -55,7 +55,7 @@ await fs.promises.mkdir(uploadDir, { recursive: true });
 
 /** Register plugins */
 await fastify.register(cors, {
-	origin: process.env.CORS_ORIGIN || true,
+	origin: true,
 	credentials: true
 });
 

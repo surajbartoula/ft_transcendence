@@ -48,7 +48,7 @@ const fastify = Fastify({
 
 /** Register CORS */
 await fastify.register(cors, {
-	origin: ['https://localhost:3000', 'https://127.0.0.1:3000'],
+	origin: true,
 	credentials: true
 });
 

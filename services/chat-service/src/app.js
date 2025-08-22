@@ -58,7 +58,7 @@ const fastify = Fastify({
 async function setupFastify() {
 
 	await fastify.register(cors, {
-		origin: CORS_ORIGIN,
+		origin: true,
 		credentials: true
 	});
 
@@ -68,7 +68,7 @@ async function setupFastify() {
 
 	await fastify.register(fastifySocketIO, {
 		cors: {
-			origin: CORS_ORIGIN,
+			origin: true,
 			credentials: true
 		}
 	});
