@@ -49,8 +49,6 @@ services:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
     env_file:
       - ./services/auth-service/.env
     environment:
@@ -72,8 +70,6 @@ services:
     build:
       context: ./services/user-service
       dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
     env_file:
       - ./services/user-service/.env
     environment:
@@ -96,8 +92,6 @@ services:
     build:
       context: ./services/chat-service
       dockerfile: Dockerfile
-    ports:
-      - "3003:3003"
     env_file:
       - ./services/chat-service/.env
     environment:
@@ -119,8 +113,6 @@ services:
     build:
       context: ./services/game-service
       dockerfile: Dockerfile
-    ports:
-      - "3004:3004"
     env_file:
       - ./services/game-service/.env
     environment:
