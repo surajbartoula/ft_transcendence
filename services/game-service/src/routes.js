@@ -666,14 +666,14 @@ export default async function gameRoutes(fastify, options) {
                 
                 // Filter out current user and get their game stats
                 const filteredUsers = [];
-                for (const user of users.filter(u => u.id !== userId)) {
+                for (const user of users.filter(u => String(u.id || u.user_id) !== String(userId))) {
                     try {
                         // Check if blocked
-                        const isBlocked = await checkIfBlocked(userId, user.id, token);
+                        const isBlocked = await checkIfBlocked(userId, user.id || user.user_id, token);
                         if (isBlocked) continue;
 
                         // Get game stats
-                        const stats = await gameDb.getOrCreatePlayerStats(user.id);
+                        const stats = await gameDb.getOrCreatePlayerStats(user.id || user.user_id);
                         filteredUsers.push({
                             ...user,
                             game_stats: {
@@ -718,14 +718,14 @@ export default async function gameRoutes(fastify, options) {
                 
                 // Filter and enhance with game stats
                 const availableUsers = [];
-                for (const user of onlineUsers.filter(u => u.id !== userId)) {
+                for (const user of onlineUsers.filter(u => String(u.id || u.user_id) !== String(userId))) {
                     try {
                         // Check if blocked
-                        const isBlocked = await checkIfBlocked(userId, user.id, token);
+                        const isBlocked = await checkIfBlocked(userId, user.id || user.user_id, token);
                         if (isBlocked) continue;
 
                         // Get game stats
-                        const stats = await gameDb.getOrCreatePlayerStats(user.id);
+                        const stats = await gameDb.getOrCreatePlayerStats(user.id || user.user_id);
                         availableUsers.push({
                             ...user,
                             game_stats: {
@@ -770,7 +770,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(400).send({ error: 'Receiver ID is required' });
                 }
 
-                if (senderId === receiver_id) {
+                if (String(senderId) === String(receiver_id)) {
                     return reply.code(400).send({ error: 'Cannot invite yourself' });
                 }
 
