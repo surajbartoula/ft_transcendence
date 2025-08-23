@@ -269,7 +269,7 @@ class PlayingState extends GameState {
         
         // Check for game end conditions
         const score = this.systems.scoreManager.getScore();
-        const winningScore = 11; // Configurable
+        const winningScore = 7; // Configurable
         
         if (score.left >= winningScore || score.right >= winningScore) {
             this.handleGameEnd();

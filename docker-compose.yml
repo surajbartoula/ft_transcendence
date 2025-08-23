@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # Init container to set proper ownership

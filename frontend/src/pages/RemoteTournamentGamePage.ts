@@ -74,7 +74,6 @@ export class RemoteTournamentGamePage implements Page {
                         </div>
                         <div id="gameStats" class="flex space-x-4">
                             <span id="currentScore">Score: 0 - 0</span>
-                            <span id="gameTime">Time: 0:00</span>
                         </div>
                     </div>
                 </div>
@@ -434,7 +433,7 @@ export class RemoteTournamentGamePage implements Page {
         if (!this.gameManager) return;
 
         const score = this.gameManager.getScore();
-        const winningScore = 11; // Standard pong winning score
+        const winningScore = 7; // Standard pong winning score
         
         if (score.left >= winningScore || score.right >= winningScore) {
             const winner = score.left >= winningScore ? this.player1Name : this.player2Name;

@@ -69,7 +69,6 @@ export class SharedGamePage implements Page {
                         </div>
                         <div id="gameStats" class="flex space-x-4">
                             <span id="currentScore">Score: 0 - 0</span>
-                            <span id="gameTime">Time: 0:00</span>
                         </div>
                     </div>
                 </div>
@@ -433,7 +432,7 @@ export class SharedGamePage implements Page {
                                                     }
                         
                         // Check if game should have ended
-                        if (score.left >= 11 || score.right >= 11) {
+                        if (score.left >= 7 || score.right >= 7) {
                             if (!this.isGameCompleted) {
                                                             }
                         }
@@ -460,7 +459,7 @@ export class SharedGamePage implements Page {
             }
             
             const score = this.gameManager.getScore();
-            const winningScore = 11; // Standard pong winning score
+            const winningScore = 7; // Standard pong winning score
             
             if (score.left >= winningScore || score.right >= winningScore) {
                 this.isGameCompleted = true;
