@@ -101,38 +101,65 @@ import { ScoreManager } from "./ScoreManager";
 		const dz = inputDirection * moveSpeedPerSec * (Math.max(0, deltaTime) / 1000);
 		const intendedNewPosition = paddle.position.add(new BABYLON.Vector3(0, 0, dz));
 		
-		// Collision detection logic (simplified from your original)
-		if (this.canPaddleMoveTo(paddle, intendedNewPosition)) {
-			paddle.position.z = intendedNewPosition.z;
+		// Use improved clamping logic for local paddle movement
+		const clampedPosition = this.clampPaddlePosition(paddleName, intendedNewPosition);
+		
+		// Only update if position is different (optimization)
+		if (Math.abs(paddle.position.z - clampedPosition.z) > 0.001) {
+			paddle.position.z = clampedPosition.z;
 		}
 	}
 
-	private canPaddleMoveTo(paddle: BABYLON.AbstractMesh, newPosition: BABYLON.Vector3): boolean {
-		if (!this.renderEngine) return false;
+
+	private isRemoteMode: boolean = false;
+
+	setRemoteMode(isRemote: boolean): void {
+		this.isRemoteMode = isRemote;
+	}
+
+	/**
+	 * Clamp paddle position to valid boundaries (for both local and remote games)
+	 */
+	public clampPaddlePosition(paddleName: string, position: BABYLON.Vector3): BABYLON.Vector3 {
+		if (!this.renderEngine) return position;
+		
+		const paddle = this.renderEngine.getMesh(paddleName);
+		if (!paddle) return position;
 		
 		const floorPlane = this.renderEngine.getMesh('floorPlane');
-		if (!floorPlane) return true;
+		if (!floorPlane) return position;
 		
+		// Get floor boundaries
 		floorPlane.computeWorldMatrix(true);
 		floorPlane.getBoundingInfo().update(floorPlane.getWorldMatrix());
 		const floorBounds = floorPlane.getBoundingInfo().boundingBox;
 		
+		// Get paddle dimensions
 		paddle.computeWorldMatrix(true);
 		paddle.getBoundingInfo().update(paddle.getWorldMatrix());
 		const paddleBounds = paddle.getBoundingInfo().boundingBox;
 		const paddleDepth = Math.abs(paddleBounds.maximumWorld.z - paddleBounds.minimumWorld.z);
 		
-		const frontEdge = newPosition.z + (paddleDepth / 2);
-		const backEdge = newPosition.z - (paddleDepth / 2);
+		// Clamp paddle position to stay within floor bounds
+		const minZ = floorBounds.minimumWorld.z + (paddleDepth / 2);
+		const maxZ = floorBounds.maximumWorld.z - (paddleDepth / 2);
 		
-		return frontEdge <= floorBounds.maximumWorld.z && 
-			   backEdge >= floorBounds.minimumWorld.z;
+		const clampedPosition = position.clone();
+		clampedPosition.z = Math.max(minZ, Math.min(maxZ, position.z));
+		
+		// Silently clamp without logging (working as expected)
+		
+		return clampedPosition;
 	}
 
 	update(deltaTime: number): void {
 		if (!this.ballActive || !this.renderEngine) return;
 		
-		this.updateBallPosition(deltaTime);
+		// During remote multiplayer, physics updates are disabled
+		// Ball position and physics are controlled by the backend
+		if (!this.isRemoteMode) {
+			this.updateBallPosition(deltaTime);
+		}
 	}
 
 	private updateBallPosition(deltaTime: number): void {
@@ -328,21 +355,19 @@ import { ScoreManager } from "./ScoreManager";
 	/**
 	 * Sync physics state with remote backend for multiplayer
 	 */
-	syncRemoteState(ball: any, paddle1: any, paddle2: any): void {
+	syncRemoteState(ball: any, _paddle1: any, _paddle2: any): void {
 		try {
-			// Update internal ball velocity to match backend
+			// During remote multiplayer, the backend handles all physics
+			// Frontend physics system is essentially disabled - just sync visual state
 			if (ball) {
-				// Convert backend 2D velocity to 3D velocity
-				this.ballVelocity.x = (ball.vx / 800) * 40; // Scale to 3D space
-				this.ballVelocity.z = (ball.vy / 600) * 30; // Scale to 3D space
-				this.ballVelocity.y = 0; // Keep Y velocity at 0 for 2D-style gameplay
-				
-				// Update ball active state
+				// Backend handles physics, frontend just follows
+				// Ball velocity is managed by backend, we just maintain active state
 				this.ballActive = true;
+				this.setRemoteMode(true);
 			}
 			
-			// Physics system now follows backend state instead of calculating locally
-			// Local physics calculations are disabled during remote multiplayer
+			// Note: Ball position and paddle positions are updated directly by RenderEngine
+			// This method primarily ensures the physics system doesn't interfere with remote sync
 			
 		} catch (error) {
 			console.warn('⚠️ PhysicsSystem: Error syncing remote state:', error);

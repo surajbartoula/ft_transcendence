@@ -45,6 +45,13 @@ export class OnlineMatchLobbyPage implements Page {
     private pendingInvitations: GameInvitation[] = [];
     private sentInvitations: GameInvitation[] = [];
     private searchTimeout: NodeJS.Timeout | null = null;
+    
+    // Store bound event handler references for proper cleanup
+    private boundHandlers = {
+        gameInvitation: this.handleSocketGameInvitation.bind(this),
+        gameInvitationResponse: this.handleSocketInvitationResponse.bind(this),
+        gameReady: this.handleSocketGameReady.bind(this)
+    };
 
     public render(): string {
         return `
@@ -315,15 +322,17 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private setupSocketEventListeners(): void {
-        window.addEventListener('game_invitation', this.handleSocketGameInvitation.bind(this) as EventListener);
-        window.addEventListener('game_invitation_response', this.handleSocketInvitationResponse.bind(this) as EventListener);
-        window.addEventListener('game_ready', this.handleSocketGameReady.bind(this) as EventListener);
+        console.log('🔧 OnlineMatchLobby: Setting up socket event listeners');
+        window.addEventListener('game_invitation', this.boundHandlers.gameInvitation as EventListener);
+        window.addEventListener('game_invitation_response', this.boundHandlers.gameInvitationResponse as EventListener);
+        window.addEventListener('game_ready', this.boundHandlers.gameReady as EventListener);
     }
 
     private removeSocketEventListeners(): void {
-        window.removeEventListener('game_invitation', this.handleSocketGameInvitation.bind(this) as EventListener);
-        window.removeEventListener('game_invitation_response', this.handleSocketInvitationResponse.bind(this) as EventListener);
-        window.removeEventListener('game_ready', this.handleSocketGameReady.bind(this) as EventListener);
+        console.log('🔧 OnlineMatchLobby: Removing socket event listeners');
+        window.removeEventListener('game_invitation', this.boundHandlers.gameInvitation as EventListener);
+        window.removeEventListener('game_invitation_response', this.boundHandlers.gameInvitationResponse as EventListener);
+        window.removeEventListener('game_ready', this.boundHandlers.gameReady as EventListener);
     }
 
     private handleBackClick(): void {

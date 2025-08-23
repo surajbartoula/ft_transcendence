@@ -141,6 +141,9 @@ function getClickableNotificationTextColor(type: 'success' | 'error' | 'info' | 
     }
 }
 
+// Track recent notifications to prevent duplicates
+const recentNotifications = new Map<string, number>();
+
 export function showNotification(
     message: string, 
     type: 'success' | 'error' | 'info' = 'info', 
@@ -150,6 +153,25 @@ export function showNotification(
     if (!notificationsContainer) {
         console.warn('Notifications container not found');
         return;
+    }
+    
+    // Prevent duplicate notifications within 2 seconds
+    const notificationKey = `${type}:${message}`;
+    const now = Date.now();
+    if (recentNotifications.has(notificationKey)) {
+        const lastShown = recentNotifications.get(notificationKey)!;
+        if (now - lastShown < 2000) { // 2 second cooldown
+            console.log(`🔕 Duplicate notification blocked: "${message}"`);
+            return;
+        }
+    }
+    recentNotifications.set(notificationKey, now);
+    
+    // Clean up old entries
+    for (const [key, timestamp] of recentNotifications.entries()) {
+        if (now - timestamp > 10000) { // Remove entries older than 10 seconds
+            recentNotifications.delete(key);
+        }
     }
     const notification = document.createElement('div');
     notification.className = `notification max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 mb-4 ${getNotificationClasses(type)}`;

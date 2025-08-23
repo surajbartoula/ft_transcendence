@@ -17,7 +17,25 @@ export class RemoteGamePage implements Page {
     private player2Name: string = 'Player 2';
     private currentUser: any = null;
     private opponentConnected: boolean = false;
+    private keysPressed: Set<string> = new Set();
+    private currentPaddleDirection: 'up' | 'down' | null = null;
     private updateCount: number = 0;
+    
+    // Store bound event handler references for proper cleanup
+    private boundHandlers = {
+        gameState: this.handleGameState.bind(this),
+        gameStarted: this.handleGameStarted.bind(this),
+        gameEnded: this.handleGameEnded.bind(this),
+        playerJoined: this.handlePlayerJoined.bind(this),
+        playerLeft: this.handlePlayerLeft.bind(this),
+        playerReady: this.handlePlayerReady.bind(this),
+        gameUpdate: this.handleGameUpdate.bind(this),
+        paddleUpdate: this.handlePaddleUpdate.bind(this),
+        goalScored: this.handleGoalScored.bind(this),
+        gamePaused: this.handleGamePaused.bind(this),
+        gameChatMessage: this.handleChatMessage.bind(this),
+        playerEmote: this.handlePlayerEmote.bind(this)
+    };
 
     public render(): string {
         return `
@@ -213,6 +231,14 @@ export class RemoteGamePage implements Page {
     public cleanup(): void {
         console.log('🎮 Cleaning up Remote Game Page...');
         
+        // Stop any ongoing paddle movement
+        if (this.currentPaddleDirection !== null) {
+            console.log('🛑 CLEANUP: Stopping paddle movement before page cleanup');
+            gameSocket.stopMovingPaddle();
+            this.currentPaddleDirection = null;
+        }
+        this.keysPressed.clear();
+        
         if (this.gameManager) {
             try {
                 this.gameManager.dispose();
@@ -341,33 +367,35 @@ export class RemoteGamePage implements Page {
     }
 
     private setupSocketEventListeners(): void {
-        window.addEventListener('gameState', this.handleGameState.bind(this) as EventListener);
-        window.addEventListener('gameStarted', this.handleGameStarted.bind(this) as EventListener);
-        window.addEventListener('gameEnded', this.handleGameEnded.bind(this) as EventListener);
-        window.addEventListener('playerJoined', this.handlePlayerJoined.bind(this) as EventListener);
-        window.addEventListener('playerLeft', this.handlePlayerLeft.bind(this) as EventListener);
-        window.addEventListener('playerReady', this.handlePlayerReady.bind(this) as EventListener);
-        window.addEventListener('gameUpdate', this.handleGameUpdate.bind(this) as EventListener);
-        window.addEventListener('paddleUpdate', this.handlePaddleUpdate.bind(this) as EventListener);
-        window.addEventListener('goalScored', this.handleGoalScored.bind(this) as EventListener);
-        window.addEventListener('gamePaused', this.handleGamePaused.bind(this) as EventListener);
-        window.addEventListener('gameChatMessage', this.handleChatMessage.bind(this) as EventListener);
-        window.addEventListener('playerEmote', this.handlePlayerEmote.bind(this) as EventListener);
+        console.log('🔧 RemoteGamePage: Setting up socket event listeners');
+        window.addEventListener('gameState', this.boundHandlers.gameState as EventListener);
+        window.addEventListener('gameStarted', this.boundHandlers.gameStarted as EventListener);
+        window.addEventListener('gameEnded', this.boundHandlers.gameEnded as EventListener);
+        window.addEventListener('playerJoined', this.boundHandlers.playerJoined as EventListener);
+        window.addEventListener('playerLeft', this.boundHandlers.playerLeft as EventListener);
+        window.addEventListener('playerReady', this.boundHandlers.playerReady as EventListener);
+        window.addEventListener('gameUpdate', this.boundHandlers.gameUpdate as EventListener);
+        window.addEventListener('paddleUpdate', this.boundHandlers.paddleUpdate as EventListener);
+        window.addEventListener('goalScored', this.boundHandlers.goalScored as EventListener);
+        window.addEventListener('gamePaused', this.boundHandlers.gamePaused as EventListener);
+        window.addEventListener('gameChatMessage', this.boundHandlers.gameChatMessage as EventListener);
+        window.addEventListener('playerEmote', this.boundHandlers.playerEmote as EventListener);
     }
 
     private removeSocketEventListeners(): void {
-        window.removeEventListener('gameState', this.handleGameState.bind(this) as EventListener);
-        window.removeEventListener('gameStarted', this.handleGameStarted.bind(this) as EventListener);
-        window.removeEventListener('gameEnded', this.handleGameEnded.bind(this) as EventListener);
-        window.removeEventListener('playerJoined', this.handlePlayerJoined.bind(this) as EventListener);
-        window.removeEventListener('playerLeft', this.handlePlayerLeft.bind(this) as EventListener);
-        window.removeEventListener('playerReady', this.handlePlayerReady.bind(this) as EventListener);
-        window.removeEventListener('gameUpdate', this.handleGameUpdate.bind(this) as EventListener);
-        window.removeEventListener('paddleUpdate', this.handlePaddleUpdate.bind(this) as EventListener);
-        window.removeEventListener('goalScored', this.handleGoalScored.bind(this) as EventListener);
-        window.removeEventListener('gamePaused', this.handleGamePaused.bind(this) as EventListener);
-        window.removeEventListener('gameChatMessage', this.handleChatMessage.bind(this) as EventListener);
-        window.removeEventListener('playerEmote', this.handlePlayerEmote.bind(this) as EventListener);
+        console.log('🔧 RemoteGamePage: Removing socket event listeners');
+        window.removeEventListener('gameState', this.boundHandlers.gameState as EventListener);
+        window.removeEventListener('gameStarted', this.boundHandlers.gameStarted as EventListener);
+        window.removeEventListener('gameEnded', this.boundHandlers.gameEnded as EventListener);
+        window.removeEventListener('playerJoined', this.boundHandlers.playerJoined as EventListener);
+        window.removeEventListener('playerLeft', this.boundHandlers.playerLeft as EventListener);
+        window.removeEventListener('playerReady', this.boundHandlers.playerReady as EventListener);
+        window.removeEventListener('gameUpdate', this.boundHandlers.gameUpdate as EventListener);
+        window.removeEventListener('paddleUpdate', this.boundHandlers.paddleUpdate as EventListener);
+        window.removeEventListener('goalScored', this.boundHandlers.goalScored as EventListener);
+        window.removeEventListener('gamePaused', this.boundHandlers.gamePaused as EventListener);
+        window.removeEventListener('gameChatMessage', this.boundHandlers.gameChatMessage as EventListener);
+        window.removeEventListener('playerEmote', this.boundHandlers.playerEmote as EventListener);
     }
 
     private async initializeRemoteGame(): Promise<void> {
@@ -391,8 +419,7 @@ export class RemoteGamePage implements Page {
             console.log('🚀 RemoteGamePage: Starting remote game initialization sequence...');
             
             this.updateLoadingMessage('Connecting to game server...');
-            console.log('⏱️ Step 1: Connecting to game server (500ms delay)...');
-            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log('⏱️ Step 1: Connecting to game server...');
             
             // Join the game room via socket
             console.log(`🏠 Step 2: Joining game room - Room: ${this.roomId}, Session: ${this.gameSessionId}`);
@@ -403,16 +430,17 @@ export class RemoteGamePage implements Page {
             console.log('✅ Game room join request sent via socket');
             
             this.updateLoadingMessage('Creating 3D engine...');
-            console.log('⏱️ Step 3: Creating 3D engine (1000ms delay)...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log('⏱️ Step 3: Creating 3D engine...');
             
             console.log('🏓 Step 4: Creating PongGameManager...');
             this.gameManager = new PongGameManager(this.gameCanvas);
             console.log('✅ PongGameManager created:', this.gameManager);
             
             this.updateLoadingMessage('Initializing remote game session...');
-            console.log('⏱️ Step 5: Initializing game session (1000ms delay)...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log('⏱️ Step 4: Initializing game session...');
+            
+            // Small delay to let 3D engine initialize properly
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             if (this.gameManager) {
                 console.log('🎮 Step 6: Initializing game session with mode "remote"...');
@@ -580,23 +608,35 @@ export class RemoteGamePage implements Page {
             console.log('⚠️ RemoteGamePage: Key pressed but game not initialized yet');
             return;
         }
-
-        console.log(`⌨️ RemoteGamePage: Key pressed: ${event.key} - I am Player1: ${this.isPlayer1}`);
+        
+        // Prevent key repeat
+        if (this.keysPressed.has(event.key)) {
+            return;
+        }
+        
+        console.log(`⌨️ PADDLE_DEBUG: Key pressed: ${event.key} - I am Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.username || 'Unknown'})`);
+        this.keysPressed.add(event.key);
         
         switch (event.key) {
             case 'ArrowUp':
             case 'w':
             case 'W':
                 event.preventDefault();
-                console.log(`⬆️ FRONTEND: Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.username || 'Unknown'}) sending paddle move UP`);
-                gameSocket.movePaddle('up');
+                if (this.currentPaddleDirection !== 'up') {
+                    console.log(`⬆️ PADDLE_DEBUG: Starting UP movement for Player${this.isPlayer1 ? '1' : '2'}`);
+                    this.currentPaddleDirection = 'up';
+                    gameSocket.startMovingPaddle('up');
+                }
                 break;
             case 'ArrowDown':
             case 's':
             case 'S':
                 event.preventDefault();
-                console.log(`⬇️ FRONTEND: Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.username || 'Unknown'}) sending paddle move DOWN`);
-                gameSocket.movePaddle('down');
+                if (this.currentPaddleDirection !== 'down') {
+                    console.log(`⬇️ PADDLE_DEBUG: Starting DOWN movement for Player${this.isPlayer1 ? '1' : '2'}`);
+                    this.currentPaddleDirection = 'down';
+                    gameSocket.startMovingPaddle('down');
+                }
                 break;
             case 'Enter':
                 event.preventDefault();
@@ -611,7 +651,55 @@ export class RemoteGamePage implements Page {
     }
 
     private handleKeyUp(event: KeyboardEvent): void {
-        // Handle key up events if needed for smooth movement
+        if (!this.isGameInitialized) {
+            return;
+        }
+
+        this.keysPressed.delete(event.key);
+        console.log(`⌨️ PADDLE_DEBUG: Key released: ${event.key}`);
+        
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                event.preventDefault();
+                if (this.currentPaddleDirection === 'up') {
+                    // Check if down key is still pressed
+                    const downKeys = ['ArrowDown', 's', 'S'];
+                    const isDownPressed = downKeys.some(key => this.keysPressed.has(key));
+                    
+                    if (isDownPressed) {
+                        console.log(`⬇️ PADDLE_DEBUG: Switching to DOWN movement (down key still pressed)`);
+                        this.currentPaddleDirection = 'down';
+                        gameSocket.startMovingPaddle('down');
+                    } else {
+                        console.log(`🛑 PADDLE_DEBUG: Stopping paddle movement (UP key released)`);
+                        this.currentPaddleDirection = null;
+                        gameSocket.stopMovingPaddle();
+                    }
+                }
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                event.preventDefault();
+                if (this.currentPaddleDirection === 'down') {
+                    // Check if up key is still pressed
+                    const upKeys = ['ArrowUp', 'w', 'W'];
+                    const isUpPressed = upKeys.some(key => this.keysPressed.has(key));
+                    
+                    if (isUpPressed) {
+                        console.log(`⬆️ PADDLE_DEBUG: Switching to UP movement (up key still pressed)`);
+                        this.currentPaddleDirection = 'up';
+                        gameSocket.startMovingPaddle('up');
+                    } else {
+                        console.log(`🛑 PADDLE_DEBUG: Stopping paddle movement (DOWN key released)`);
+                        this.currentPaddleDirection = null;
+                        gameSocket.stopMovingPaddle();
+                    }
+                }
+                break;
+        }
     }
 
     // Socket event handlers
@@ -695,8 +783,15 @@ export class RemoteGamePage implements Page {
         const eventDetail = (event as CustomEvent).detail;
         console.log('🎮 RemoteGamePage: Game started!', eventDetail);
         
-        console.log('💻 Hiding all overlays...');
+        console.log('💻 Force hiding all overlays including loading screen...');
         this.hideAllOverlays();
+        
+        // Force hide loading screen specifically to handle race conditions
+        const gameLoading = document.getElementById('gameLoading');
+        if (gameLoading && !gameLoading.classList.contains('hidden')) {
+            console.log('🔧 Loading screen was still visible - force hiding it');
+            gameLoading.classList.add('hidden');
+        }
         
         // Ensure camera perspective is set correctly when game starts
         if (this.gameManager && this.isPlayer1 !== undefined) {
@@ -809,7 +904,15 @@ export class RemoteGamePage implements Page {
     }
 
     private handleGameUpdate(event: Event): void {
-        const { ball, paddle1, paddle2, timestamp } = (event as CustomEvent).detail;
+        const { ball, paddle1, paddle2, timestamp: _timestamp } = (event as CustomEvent).detail;
+        
+        // Safety check: if we receive game updates, the game has definitely started
+        // Force hide loading screen in case it's still visible due to race conditions
+        const gameLoading = document.getElementById('gameLoading');
+        if (gameLoading && !gameLoading.classList.contains('hidden')) {
+            console.log('🔧 Game update received but loading screen still visible - force hiding');
+            gameLoading.classList.add('hidden');
+        }
         
         // Debug log every 60th update (once per second at 60fps) to avoid spam
         if (!this.updateCount) this.updateCount = 0;
@@ -821,7 +924,7 @@ export class RemoteGamePage implements Page {
                 ball_vel: `(${ball.vx.toFixed(1)}, ${ball.vy.toFixed(1)})`,
                 p1_score: paddle1.score,
                 p2_score: paddle2.score,
-                timestamp
+                timestamp: _timestamp
             });
         }
         

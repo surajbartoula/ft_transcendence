@@ -428,6 +428,27 @@ class GameSocket {
         this.socket.emit('paddle_move', moveData);
     }
 
+    // Velocity-based paddle movement methods
+    startMovingPaddle(direction: 'up' | 'down'): void {
+        if (!this.socket || !this.isConnected()) {
+            console.warn('⚠️ GameSocket: Cannot start moving paddle - socket not connected');
+            return;
+        }
+        
+        console.log(`🏓 PADDLE_DEBUG: Starting paddle movement - Direction: ${direction}`);
+        this.socket.emit('paddle_move_start', { direction });
+    }
+
+    stopMovingPaddle(): void {
+        if (!this.socket || !this.isConnected()) {
+            console.warn('⚠️ GameSocket: Cannot stop moving paddle - socket not connected');
+            return;
+        }
+        
+        console.log('🏓 PADDLE_DEBUG: Stopping paddle movement');
+        this.socket.emit('paddle_move_stop');
+    }
+
     pauseGame(): void {
         if (this.socket && this.isConnected()) {
             this.socket.emit('game_pause');
@@ -446,17 +467,21 @@ class GameSocket {
             return;
         }
         
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        if (!userData.id) {
+        // Use current user data instead of parsing from localStorage again
+        const userData = this.currentUser || getStoredUser();
+        if (!userData || !userData.id) {
             console.warn('⚠️ GameSocket: Cannot rejoin user room - no user data');
+            console.warn('⚠️ Current user data:', userData);
             return;
         }
         
         console.log('🔄 GameSocket: Requesting to rejoin user room...');
-        this.socket.emit('rejoin_user_room', {
+        const rejoinData = {
             user_id: userData.id,
-            username: userData.username
-        });
+            username: userData.name // Use 'name' field, not 'username'
+        };
+        console.log('📤 GameSocket: Rejoin data:', rejoinData);
+        this.socket.emit('rejoin_user_room', rejoinData);
     }
 
     sendGameChat(message: string): void {

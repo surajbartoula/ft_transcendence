@@ -993,25 +993,24 @@ private debugVisualizeFloorBounds(): void {
 		const leftPaddle = this.gameObjects.get('leftPaddle');
 		const rightPaddle = this.gameObjects.get('rightPaddle');
 		
-		console.log(`🎮 3D ENGINE: Updating paddle positions - P1(${paddle1Y}) -> Left paddle, P2(${paddle2Y}) -> Right paddle`);
+		// Clamp backend paddle Y coordinates to valid range (0-500, accounting for paddle height)
+		const clampedPaddle1Y = Math.max(0, Math.min(500, paddle1Y));
+		const clampedPaddle2Y = Math.max(0, Math.min(500, paddle2Y));
 		
 		if (leftPaddle && leftPaddle.mesh) {
-			// Map backend paddle Y (0-600) to 3D Z (+15 to -15) - INVERTED for correct controls
-			// Backend Y=0 (top) should map to Z=+15 (back), Y=600 (bottom) to Z=-15 (front)
-			const newLeftZ = 15 - ((paddle1Y / 600) * 30);
-			console.log(`🏓 3D ENGINE: Left paddle (P1) - Backend Y: ${paddle1Y}, 3D Z: ${newLeftZ.toFixed(2)} (was ${leftPaddle.mesh.position.z.toFixed(2)})`);
-			leftPaddle.mesh.position.z = newLeftZ;
-		} else {
-			console.warn('⚠️ 3D ENGINE: Left paddle not found or no mesh');
+			// Map backend paddle Y (0-500) to 3D Z (+12 to -12) - INVERTED for correct controls
+			const newLeftZ = 12 - ((clampedPaddle1Y / 500) * 24);
+			// Additional safety clamp for 3D coordinates to ensure paddle stays on plane
+			const finalLeftZ = Math.max(-12, Math.min(12, newLeftZ));
+			leftPaddle.mesh.position.z = finalLeftZ;
 		}
 		
 		if (rightPaddle && rightPaddle.mesh) {
-			// Map backend paddle Y (0-600) to 3D Z (+15 to -15) - INVERTED for correct controls
-			const newRightZ = 15 - ((paddle2Y / 600) * 30);
-			console.log(`🏓 3D ENGINE: Right paddle (P2) - Backend Y: ${paddle2Y}, 3D Z: ${newRightZ.toFixed(2)} (was ${rightPaddle.mesh.position.z.toFixed(2)})`);
-			rightPaddle.mesh.position.z = newRightZ;
-		} else {
-			console.warn('⚠️ 3D ENGINE: Right paddle not found or no mesh');
+			// Map backend paddle Y (0-500) to 3D Z (+12 to -12) - INVERTED for correct controls
+			const newRightZ = 12 - ((clampedPaddle2Y / 500) * 24);
+			// Additional safety clamp for 3D coordinates to ensure paddle stays on plane
+			const finalRightZ = Math.max(-12, Math.min(12, newRightZ));
+			rightPaddle.mesh.position.z = finalRightZ;
 		}
 	}
 

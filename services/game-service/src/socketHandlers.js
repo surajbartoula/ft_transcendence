@@ -41,6 +41,11 @@ export function setupSocketHandlers(io) {
             try {
                 if (!currentUser) {
                     const { user_id, username } = data;
+                    console.log(`🔍 DEBUG: rejoin_user_room data:`, data);
+                    if (!user_id || !username) {
+                        console.error('❌ DEBUG: Missing required data in rejoin_user_room:', { user_id, username });
+                        return socket.emit('user_room_error', { error: 'user_id and username required' });
+                    }
                     currentUser = { user_id, username };
                 }
                 
@@ -136,8 +141,8 @@ export function setupSocketHandlers(io) {
                         players: {},
                         gameState: {
                             ball: { x: 400, y: 300, vx: 5, vy: 3 },
-                            paddle1: { y: 250, score: 0 },
-                            paddle2: { y: 250, score: 0 },
+                            paddle1: { y: 300, velocity: 0, isMoving: false, score: 0 },
+                            paddle2: { y: 300, velocity: 0, isMoving: false, score: 0 },
                             isRunning: false,
                             isPaused: false,
                             lastUpdate: Date.now()
@@ -287,6 +292,47 @@ export function setupSocketHandlers(io) {
             }
         });
 
+        // Velocity-based paddle movement handlers
+        socket.on('paddle_move_start', (data) => {
+            if (!currentRoom || !currentUser) return;
+            
+            const gameData = activeGames.get(currentRoom);
+            if (!gameData || !gameData.gameState.isRunning) return;
+            
+            const player = gameData.players[currentUser.user_id];
+            if (!player) return;
+            
+            const { direction } = data; // 'up' or 'down'
+            const paddleVelocity = 8; // pixels per frame (at 60fps = 480 pixels/second)
+            
+            if (player.is_player1) {
+                gameData.gameState.paddle1.velocity = direction === 'up' ? -paddleVelocity : paddleVelocity;
+                gameData.gameState.paddle1.isMoving = true;
+            } else {
+                gameData.gameState.paddle2.velocity = direction === 'up' ? -paddleVelocity : paddleVelocity;
+                gameData.gameState.paddle2.isMoving = true;
+            }
+        });
+
+        socket.on('paddle_move_stop', () => {
+            if (!currentRoom || !currentUser) return;
+            
+            const gameData = activeGames.get(currentRoom);
+            if (!gameData || !gameData.gameState.isRunning) return;
+            
+            const player = gameData.players[currentUser.user_id];
+            if (!player) return;
+            
+            if (player.is_player1) {
+                gameData.gameState.paddle1.velocity = 0;
+                gameData.gameState.paddle1.isMoving = false;
+            } else {
+                gameData.gameState.paddle2.velocity = 0;
+                gameData.gameState.paddle2.isMoving = false;
+            }
+        });
+
+        // Legacy paddle_move handler (for backward compatibility)
         socket.on('paddle_move', (data) => {
             if (!currentRoom || !currentUser) return;
 
@@ -298,49 +344,40 @@ export function setupSocketHandlers(io) {
 
             const { direction, y } = data;
             
-            // Paddle dimensions for boundary checking
-            const paddleHeight = 100; // Backend paddle height
-            const gameHeight = 600;   // Backend game area height
-            const maxPaddleY = gameHeight - paddleHeight; // 500
+            // Paddle dimensions for boundary checking  
+            const maxPaddleY = 600 - 100; // GAME_HEIGHT - PADDLE_HEIGHT = 500
             
-            console.log(`🎮 DEBUG: PADDLE_MOVE from ${currentUser.username} (Player1: ${player.is_player1}) - Direction: ${direction}`);
-            console.log(`🎮 DEBUG: Current game state - P1 Y: ${gameData.gameState.paddle1.y}, P2 Y: ${gameData.gameState.paddle2.y}`);
             
             if (player.is_player1) {
                 let newY = gameData.gameState.paddle1.y;
-                if (direction === 'up') newY -= 35;
-                if (direction === 'down') newY += 35;
+                if (direction === 'up') newY -= 25;
+                if (direction === 'down') newY += 25;
                 if (y !== undefined) newY = y;
                 
                 // Constrain paddle within bounds (0 to 500)
                 const constrainedY = Math.max(0, Math.min(maxPaddleY, newY));
                 gameData.gameState.paddle1.y = constrainedY;
                 
-                console.log(`🏓 DEBUG: Player1 (${currentUser.username}) paddle move ${direction} - Old: ${newY}, New: ${constrainedY}, Bounds: 0-${maxPaddleY}`);
             } else {
                 let newY = gameData.gameState.paddle2.y;
-                if (direction === 'up') newY -= 35;
-                if (direction === 'down') newY += 35;
+                if (direction === 'up') newY -= 25;
+                if (direction === 'down') newY += 25;
                 if (y !== undefined) newY = y;
                 
                 // Constrain paddle within bounds (0 to 500)
                 const constrainedY = Math.max(0, Math.min(maxPaddleY, newY));
                 gameData.gameState.paddle2.y = constrainedY;
                 
-                console.log(`🏓 DEBUG: Player2 (${currentUser.username}) paddle move ${direction} - Old: ${newY}, New: ${constrainedY}, Bounds: 0-${maxPaddleY}`);
             }
 
-            // Enhanced debugging for paddle updates
+            // Notify other players of paddle update
             const updatedPlayer = player.is_player1 ? 'player1' : 'player2';
             const updatedY = player.is_player1 ? gameData.gameState.paddle1.y : gameData.gameState.paddle2.y;
-            console.log(`📡 DEBUG: Emitting paddle_update to other players - Player: ${updatedPlayer}, Y: ${updatedY}`);
 
             socket.to(currentRoom).emit('paddle_update', {
                 player: updatedPlayer,
                 y: updatedY
             });
-            
-            console.log(`🏓 DEBUG: Final game state after move - P1 Y: ${gameData.gameState.paddle1.y}, P2 Y: ${gameData.gameState.paddle2.y}`);
         });
 
         socket.on('game_pause', async () => {
@@ -754,13 +791,9 @@ export function setupSocketHandlers(io) {
                     timestamp: Date.now()
                 };
                 
-                // Log every 60th update (once per second at 60fps) to avoid spam
-                if (updateCount % 60 === 1) {
-                    console.log(`🎮 DEBUG: Game update #${updateCount} for room ${roomId}:`, {
-                        ball_pos: `(${gameData.gameState.ball.x.toFixed(1)}, ${gameData.gameState.ball.y.toFixed(1)})`,
-                        ball_vel: `(${gameData.gameState.ball.vx.toFixed(1)}, ${gameData.gameState.ball.vy.toFixed(1)})`,
-                        players_in_room: Object.keys(gameData.players).length
-                    });
+                // Log every 300th update (once every 5 seconds at 60fps) to avoid spam
+                if (updateCount % 300 === 1) {
+                    console.log(`🎮 Game update #${updateCount} for room ${roomId} - Players: ${Object.keys(gameData.players).length}`);
                 }
                 
                 io.to(roomId).emit('game_update', updateData);
@@ -788,14 +821,51 @@ export function setupSocketHandlers(io) {
         async function updateGamePhysics(gameData) {
             const { ball, paddle1, paddle2 } = gameData.gameState;
             
+            // Game constants (physics function scope)
+            const BALL_RADIUS = 10;
+            const PADDLE_WIDTH = 20;
+            const PADDLE_HEIGHT = 100;
+            const GAME_WIDTH = 800;
+            const GAME_HEIGHT = 600;
+            const MAX_PADDLE_Y = GAME_HEIGHT - PADDLE_HEIGHT; // 500
+            
+            // Update paddle positions based on velocity
+            if (paddle1.isMoving && paddle1.velocity !== 0) {
+                paddle1.y += paddle1.velocity;
+                paddle1.y = Math.max(0, Math.min(MAX_PADDLE_Y, paddle1.y));
+            }
+            
+            if (paddle2.isMoving && paddle2.velocity !== 0) {
+                paddle2.y += paddle2.velocity;
+                paddle2.y = Math.max(0, Math.min(MAX_PADDLE_Y, paddle2.y));
+            }
+            
             // Update ball position
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Wall collision (top and bottom)
-            if (ball.y <= 0 || ball.y >= 600) {
-                ball.vy = -ball.vy;
-                ball.y = Math.max(0, Math.min(600, ball.y)); // Correct position
+            
+            // Wall collision (top and bottom) with improved boundary checking
+            if (ball.y - BALL_RADIUS <= 0) {
+                ball.vy = Math.abs(ball.vy); // Ensure ball bounces down
+                ball.y = BALL_RADIUS; // Correct position to stay inside bounds
+                
+                if (currentGameSession) {
+                    try {
+                        await gameDb.recordGameEvent(currentGameSession.id, {
+                            event_type: 'wall_bounce',
+                            position_x: ball.x,
+                            position_y: ball.y,
+                            timestamp_ms: Date.now()
+                        });
+                    } catch (error) {
+                        console.error('Error recording wall bounce:', error);
+                    }
+                }
+            } else if (ball.y + BALL_RADIUS >= GAME_HEIGHT) {
+                ball.vy = -Math.abs(ball.vy); // Ensure ball bounces up  
+                ball.y = GAME_HEIGHT - BALL_RADIUS; // Correct position to stay inside bounds
+                
                 if (currentGameSession) {
                     try {
                         await gameDb.recordGameEvent(currentGameSession.id, {
@@ -810,56 +880,141 @@ export function setupSocketHandlers(io) {
                 }
             }
 
-            const ballRadius = 10;
-            const paddleWidth = 20;
-            const paddleHeight = 100;
+            // Store previous ball position for continuous collision detection
+            const prevBallX = ball.x - ball.vx;
+            const prevBallY = ball.y - ball.vy;
 
+            // Enhanced collision detection with improved edge handling
             // Left paddle collision (Player 1 - GREEN paddle)
-            if (ball.vx < 0 && // Ball moving left
-                ball.x - ballRadius <= paddleWidth && 
-                ball.y + ballRadius >= paddle1.y && 
-                ball.y - ballRadius <= paddle1.y + paddleHeight) {
+            if (ball.vx < 0) { // Ball moving left
+                const paddleRight = PADDLE_WIDTH;
+                const paddleTop = paddle1.y;
+                const paddleBottom = paddle1.y + PADDLE_HEIGHT;
                 
-                console.log(`🟢 DEBUG: LEFT PADDLE COLLISION! Ball: (${ball.x.toFixed(1)}, ${ball.y.toFixed(1)}), Paddle1 Y: ${paddle1.y}`);
-                ball.vx = Math.abs(ball.vx); // Bounce right
-                ball.x = paddleWidth + ballRadius; // Correct position to prevent sticking
+                // Enhanced collision detection - check both continuous movement and current overlap
+                const ballWasRightOfPaddle = prevBallX - BALL_RADIUS > paddleRight;
+                const ballIsAtOrInPaddle = ball.x - BALL_RADIUS <= paddleRight;
+                const ballCurrentlyOverlapsPaddle = ball.x - BALL_RADIUS <= paddleRight && ball.x + BALL_RADIUS >= 0;
                 
-                if (currentGameSession) {
-                    try {
-                        await gameDb.recordGameEvent(currentGameSession.id, {
-                            event_type: 'paddle_hit',
-                            player_id: currentGameSession.player1_id,
-                            position_x: ball.x,
-                            position_y: ball.y,
-                            timestamp_ms: Date.now()
-                        });
-                    } catch (error) {
-                        console.error('Error recording paddle hit:', error);
+                // Additional edge case: check if ball is already overlapping from previous frame
+                const ballWasOverlapping = prevBallX - BALL_RADIUS <= paddleRight && prevBallX + BALL_RADIUS >= 0;
+                
+                if ((ballWasRightOfPaddle && ballIsAtOrInPaddle) || (ballCurrentlyOverlapsPaddle && !ballWasOverlapping)) {
+                    // Calculate intersection point on paddle face
+                    const intersectX = paddleRight + BALL_RADIUS;
+                    const timeToIntersection = Math.abs(ball.vx) > 0 ? (prevBallX - intersectX) / Math.abs(ball.vx) : 0;
+                    const intersectY = prevBallY + (ball.vy * timeToIntersection);
+                    
+                    // Enhanced tolerance for edge detection - larger tolerance for better edge catching
+                    const tolerance = BALL_RADIUS * 0.8; // Increased tolerance for better edge hits
+                    const minY = paddleTop - tolerance;
+                    const maxY = paddleBottom + tolerance;
+                    
+                    // Check if intersection or current ball position is within paddle bounds
+                    const ballCenterY = ball.y;
+                    const intersectionInBounds = intersectY >= minY && intersectY <= maxY;
+                    const currentPositionInBounds = ballCenterY >= minY && ballCenterY <= maxY;
+                    
+                    if (intersectionInBounds || currentPositionInBounds) {
+                        // Use the more accurate Y position for collision
+                        const collisionY = intersectionInBounds ? intersectY : ballCenterY;
+                        
+                        // Enhanced angle calculation with better edge handling
+                        const paddleCenter = paddleTop + (PADDLE_HEIGHT / 2);
+                        const hitOffset = Math.max(-1, Math.min(1, (collisionY - paddleCenter) / (PADDLE_HEIGHT / 2))); // Clamp to -1 to 1
+                        
+                        ball.vx = Math.abs(ball.vx); // Bounce right
+                        ball.vy += hitOffset * 2.0; // Increased angle influence for better gameplay
+                        
+                        // Clamp velocities to prevent extremely fast speeds
+                        const maxSpeed = 12;
+                        if (Math.abs(ball.vx) > maxSpeed) ball.vx = ball.vx > 0 ? maxSpeed : -maxSpeed;
+                        if (Math.abs(ball.vy) > maxSpeed) ball.vy = ball.vy > 0 ? maxSpeed : -maxSpeed;
+                        
+                        // Correct ball position to prevent sticking and ensure proper separation
+                        ball.x = Math.max(intersectX, paddleRight + BALL_RADIUS + 1); // Add 1px buffer
+                        ball.y = Math.max(BALL_RADIUS, Math.min(GAME_HEIGHT - BALL_RADIUS, collisionY));
+                        
+                        if (currentGameSession) {
+                            try {
+                                await gameDb.recordGameEvent(currentGameSession.id, {
+                                    event_type: 'paddle_hit',
+                                    player_id: currentGameSession.player1_id,
+                                    position_x: ball.x,
+                                    position_y: ball.y,
+                                    timestamp_ms: Date.now()
+                                });
+                            } catch (error) {
+                                console.error('Error recording paddle hit:', error);
+                            }
+                        }
                     }
                 }
             }
 
             // Right paddle collision (Player 2 - RED paddle)
-            if (ball.vx > 0 && // Ball moving right
-                ball.x + ballRadius >= 800 - paddleWidth && 
-                ball.y + ballRadius >= paddle2.y && 
-                ball.y - ballRadius <= paddle2.y + paddleHeight) {
+            if (ball.vx > 0) { // Ball moving right
+                const paddleLeft = GAME_WIDTH - PADDLE_WIDTH;
+                const paddleTop = paddle2.y;
+                const paddleBottom = paddle2.y + PADDLE_HEIGHT;
                 
-                console.log(`🔴 DEBUG: RIGHT PADDLE COLLISION! Ball: (${ball.x.toFixed(1)}, ${ball.y.toFixed(1)}), Paddle2 Y: ${paddle2.y}`);
-                ball.vx = -Math.abs(ball.vx); // Bounce left
-                ball.x = 800 - paddleWidth - ballRadius; // Correct position to prevent sticking
+                // Enhanced collision detection - check both continuous movement and current overlap
+                const ballWasLeftOfPaddle = prevBallX + BALL_RADIUS < paddleLeft;
+                const ballIsAtOrInPaddle = ball.x + BALL_RADIUS >= paddleLeft;
+                const ballCurrentlyOverlapsPaddle = ball.x + BALL_RADIUS >= paddleLeft && ball.x - BALL_RADIUS <= GAME_WIDTH;
                 
-                if (currentGameSession) {
-                    try {
-                        await gameDb.recordGameEvent(currentGameSession.id, {
-                            event_type: 'paddle_hit',
-                            player_id: currentGameSession.player2_id,
-                            position_x: ball.x,
-                            position_y: ball.y,
-                            timestamp_ms: Date.now()
-                        });
-                    } catch (error) {
-                        console.error('Error recording paddle hit:', error);
+                // Additional edge case: check if ball is already overlapping from previous frame
+                const ballWasOverlapping = prevBallX + BALL_RADIUS >= paddleLeft && prevBallX - BALL_RADIUS <= GAME_WIDTH;
+                
+                if ((ballWasLeftOfPaddle && ballIsAtOrInPaddle) || (ballCurrentlyOverlapsPaddle && !ballWasOverlapping)) {
+                    // Calculate intersection point on paddle face
+                    const intersectX = paddleLeft - BALL_RADIUS;
+                    const timeToIntersection = Math.abs(ball.vx) > 0 ? (intersectX - prevBallX) / Math.abs(ball.vx) : 0;
+                    const intersectY = prevBallY + (ball.vy * timeToIntersection);
+                    
+                    // Enhanced tolerance for edge detection - larger tolerance for better edge catching
+                    const tolerance = BALL_RADIUS * 0.8; // Increased tolerance for better edge hits
+                    const minY = paddleTop - tolerance;
+                    const maxY = paddleBottom + tolerance;
+                    
+                    // Check if intersection or current ball position is within paddle bounds
+                    const ballCenterY = ball.y;
+                    const intersectionInBounds = intersectY >= minY && intersectY <= maxY;
+                    const currentPositionInBounds = ballCenterY >= minY && ballCenterY <= maxY;
+                    
+                    if (intersectionInBounds || currentPositionInBounds) {
+                        // Use the more accurate Y position for collision
+                        const collisionY = intersectionInBounds ? intersectY : ballCenterY;
+                        
+                        // Enhanced angle calculation with better edge handling
+                        const paddleCenter = paddleTop + (PADDLE_HEIGHT / 2);
+                        const hitOffset = Math.max(-1, Math.min(1, (collisionY - paddleCenter) / (PADDLE_HEIGHT / 2))); // Clamp to -1 to 1
+                        
+                        ball.vx = -Math.abs(ball.vx); // Bounce left
+                        ball.vy += hitOffset * 2.0; // Increased angle influence for better gameplay
+                        
+                        // Clamp velocities to prevent extremely fast speeds
+                        const maxSpeed = 12;
+                        if (Math.abs(ball.vx) > maxSpeed) ball.vx = ball.vx > 0 ? maxSpeed : -maxSpeed;
+                        if (Math.abs(ball.vy) > maxSpeed) ball.vy = ball.vy > 0 ? maxSpeed : -maxSpeed;
+                        
+                        // Correct ball position to prevent sticking and ensure proper separation
+                        ball.x = Math.min(intersectX, paddleLeft - BALL_RADIUS - 1); // Add 1px buffer
+                        ball.y = Math.max(BALL_RADIUS, Math.min(GAME_HEIGHT - BALL_RADIUS, collisionY));
+                        
+                        if (currentGameSession) {
+                            try {
+                                await gameDb.recordGameEvent(currentGameSession.id, {
+                                    event_type: 'paddle_hit',
+                                    player_id: currentGameSession.player2_id,
+                                    position_x: ball.x,
+                                    position_y: ball.y,
+                                    timestamp_ms: Date.now()
+                                });
+                            } catch (error) {
+                                console.error('Error recording paddle hit:', error);
+                            }
+                        }
                     }
                 }
             }

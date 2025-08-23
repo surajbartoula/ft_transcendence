@@ -301,16 +301,22 @@ export class RemoteTournamentLobbyPage implements Page {
         // Event listeners are automatically cleaned up
     }
     
+    private boundHandlers = {
+        tournamentUpdate: this.handleTournamentSocketUpdate.bind(this) as EventListener,
+        tournamentStarted: this.handleTournamentSocketStarted.bind(this) as EventListener,
+        tournamentAnnouncement: this.handleTournamentSocketAnnouncement.bind(this) as EventListener
+    };
+
     private attachSocketEventListeners(): void {
-        window.addEventListener('tournamentUpdate', this.handleTournamentSocketUpdate.bind(this) as EventListener);
-        window.addEventListener('tournamentStarted', this.handleTournamentSocketStarted.bind(this) as EventListener);
-        window.addEventListener('tournamentAnnouncement', this.handleTournamentSocketAnnouncement.bind(this) as EventListener);
+        window.addEventListener('tournamentUpdate', this.boundHandlers.tournamentUpdate);
+        window.addEventListener('tournamentStarted', this.boundHandlers.tournamentStarted);
+        window.addEventListener('tournamentAnnouncement', this.boundHandlers.tournamentAnnouncement);
     }
     
     private removeSocketEventListeners(): void {
-        window.removeEventListener('tournamentUpdate', this.handleTournamentSocketUpdate.bind(this) as EventListener);
-        window.removeEventListener('tournamentStarted', this.handleTournamentSocketStarted.bind(this) as EventListener);
-        window.removeEventListener('tournamentAnnouncement', this.handleTournamentSocketAnnouncement.bind(this) as EventListener);
+        window.removeEventListener('tournamentUpdate', this.boundHandlers.tournamentUpdate);
+        window.removeEventListener('tournamentStarted', this.boundHandlers.tournamentStarted);
+        window.removeEventListener('tournamentAnnouncement', this.boundHandlers.tournamentAnnouncement);
     }
     
     private handleTournamentSocketUpdate(event: Event): void {

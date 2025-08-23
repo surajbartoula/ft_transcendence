@@ -62,7 +62,7 @@ class GlobalSocket {
             if (this.currentUser) {
                 const authData = {
                     user_id: this.currentUser.id,
-                    username: this.currentUser.name || this.currentUser.username
+                    username: this.currentUser.name // Use consistent field name
                 };
                 console.log('🔑 GlobalSocket: Sending authentication data:', authData);
                 this.socket?.emit('authenticate', authData);

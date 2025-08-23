@@ -168,6 +168,7 @@ async function getUserProfiles(userIds, token = null) {
       data.profiles.forEach(profile => {
         profiles[profile.user_id] = {
           ...profile,
+          id: profile.user_id, // Add normalized id field for frontend compatibility
           display_name: profile.display_name || profile.username || `User ${profile.user_id}`
         };
       });
@@ -176,6 +177,7 @@ async function getUserProfiles(userIds, token = null) {
       if (!profiles[userId]) {
         profiles[userId] = {
           user_id: userId,
+          id: userId, // Add normalized id field for frontend compatibility
           username: `user_${userId}`,
           display_name: `User ${userId}`,
           bio: null,
@@ -390,11 +392,16 @@ export const dbService = {
     const friendIds = onlineFriends.map(f => f.friend_id);
     const userProfiles = await getUserProfiles(friendIds, token);
     
-    return onlineFriends.map(friend => ({
-      ...userProfiles[friend.friend_id],
-      last_seen: friend.last_seen,
-      is_online: true
-    }));
+    return onlineFriends.map(friend => {
+      const profile = userProfiles[friend.friend_id];
+      return {
+        ...profile,
+        id: profile.user_id, // Normalize field name for frontend compatibility
+        display_name: profile.display_name || profile.username || `User ${profile.user_id}`,
+        last_seen: friend.last_seen,
+        is_online: true
+      };
+    });
   },
 
   async areFriends(userId1, userId2) {
