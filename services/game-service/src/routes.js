@@ -30,8 +30,6 @@ async function getUserProfile(userId, token) {
                 photo: data.photo
             };
         }
-		console.log("The username is working and the name is", data.username);
-		console.log("\n");
         return null;
     } catch (error) {
         console.error('Failed to fetch user profile:', error.message);
@@ -709,25 +707,45 @@ export default async function gameRoutes(fastify, options) {
                 const userId = req.user.sub || req.user.user_id || req.user.id;
                 const token = req.headers.authorization;
 
-                // Get online friends from chat-service
-                const response = await axios.get(`${CHAT_SERVICE_URL}/api/chat/friends/online`, {
-                    headers: { Authorization: token }
-                });
-
-                const onlineUsers = response.data.users || [];
+                // Get all authenticated users from socket.io server
+                const io = fastify.io;
+                const connectedSockets = await io.fetchSockets();
+                const onlineUserIds = new Set();
                 
-                // Filter and enhance with game stats
+                // Extract user IDs from socket rooms (users join `user_${user_id}` rooms when authenticated)
+                for (const socket of connectedSockets) {
+                    for (const room of socket.rooms) {
+                        if (room.startsWith('user_')) {
+                            const userIdFromRoom = room.replace('user_', '');
+                            if (userIdFromRoom !== String(userId)) {
+                                onlineUserIds.add(userIdFromRoom);
+                            }
+                        }
+                    }
+                }
+
+                
+                // Filter and enhance with game stats and user profiles
                 const availableUsers = [];
-                for (const user of onlineUsers.filter(u => String(u.id || u.user_id) !== String(userId))) {
+                for (const onlineUserId of onlineUserIds) {
                     try {
-                        // Check if blocked
-                        const isBlocked = await checkIfBlocked(userId, user.id || user.user_id, token);
-                        if (isBlocked) continue;
+                        // Get user profile from user-service
+                        const userResponse = await axios.get(`${USER_SERVICE_URL}/api/user/profile/${onlineUserId}`, {
+                            headers: { Authorization: token }
+                        });
+                        
+                        if (!userResponse.data) {
+                            continue;
+                        }
+                        const userProfile = userResponse.data;
 
                         // Get game stats
-                        const stats = await gameDb.getOrCreatePlayerStats(user.id || user.user_id);
+                        const stats = await gameDb.getOrCreatePlayerStats(onlineUserId);
                         availableUsers.push({
-                            ...user,
+                            id: onlineUserId,
+                            user_id: onlineUserId,
+                            username: userProfile.username,
+                            name: userProfile.username,
                             game_stats: {
                                 total_games: stats.total_games,
                                 wins: stats.wins,
@@ -737,8 +755,8 @@ export default async function gameRoutes(fastify, options) {
                             }
                         });
                     } catch (error) {
-                        console.warn(`Failed to get stats for user ${user.id}:`, error.message);
-                        availableUsers.push(user);
+                        console.warn(`Failed to get user data for ${onlineUserId}:`, error.message);
+                        // Skip this user if we can't get their data
                     }
                 }
 
@@ -1135,7 +1153,7 @@ export default async function gameRoutes(fastify, options) {
     // ========================================
 
     // Health check
-    fastify.get('/api/game/health', async (req, reply) => {
+    fastify.get('/api/game/health', async (_, reply) => {
         reply.send({ 
             status: 'ok', 
             service: 'pong-game-service',

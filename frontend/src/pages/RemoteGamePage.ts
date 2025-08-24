@@ -17,6 +17,8 @@ export class RemoteGamePage implements Page {
     private player2Name: string = 'Player 2';
     private currentUser: any = null;
     private opponentConnected: boolean = false;
+    private opponentUserId: string | null = null;
+    private opponentUsername: string | null = null;
     private keysPressed: Set<string> = new Set();
     private currentPaddleDirection: 'up' | 'down' | null = null;
     private updateCount: number = 0;
@@ -581,9 +583,48 @@ export class RemoteGamePage implements Page {
         this.initializeRemoteGame();
     }
 
-    private handlePlayAgain(): void {
-        // This would send a new game invitation to the same opponent
-        showNotification('Feature coming soon!', 'info');
+    private async handlePlayAgain(): Promise<void> {
+        if (!this.opponentUserId || !this.opponentUsername) {
+            showNotification('Unable to find opponent information', 'error');
+            return;
+        }
+
+        try {
+            const invitationData = {
+                receiver_id: this.opponentUserId,
+                game_mode: 'remote',
+                message: `Challenge you to another Pong match!`
+            };
+            
+            console.log('📤 Sending rematch invitation:', invitationData);
+            
+            const response = await fetch('/api/game/invite', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(invitationData)
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showNotification(`Rematch invitation sent to ${this.opponentUsername}!`, 'success');
+                console.log('✅ Rematch invitation sent successfully');
+                
+                // Navigate back to lobby to see the invitation status
+                setTimeout(() => {
+                    this.navigateToLobby();
+                }, 1500);
+            } else {
+                console.error('❌ Failed to send rematch invitation:', data);
+                showNotification(data.error || 'Failed to send rematch invitation', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error sending rematch invitation:', error);
+            showNotification('Failed to send rematch invitation', 'error');
+        }
     }
 
     private navigateToLobby(): void {
@@ -712,13 +753,23 @@ export class RemoteGamePage implements Page {
         console.log('🎭 Your role:', your_role);
         console.log('👥 Players object:', players);
         
-        // Detailed player analysis
+        // Detailed player analysis and capture opponent information
         if (players) {
             const playerIds = Object.keys(players);
             console.log(`👥 Player IDs: [${playerIds.join(', ')}]`);
             console.log('👥 Player details:');
+            
+            // Find opponent information
+            const currentUserId = this.currentUser?.id;
             Object.entries(players).forEach(([playerId, playerData]: [string, any]) => {
                 console.log(`  - Player ${playerId}: ${playerData.username} (Player 1: ${playerData.is_player1}, Ready: ${playerData.ready})`);
+                
+                // Store opponent information for rematch functionality
+                if (currentUserId && playerId !== currentUserId) {
+                    this.opponentUserId = playerId;
+                    this.opponentUsername = playerData.username;
+                    console.log(`🎯 Captured opponent: ${this.opponentUsername} (ID: ${this.opponentUserId})`);
+                }
             });
         } else {
             console.warn('⚠️ No players object in game state');
