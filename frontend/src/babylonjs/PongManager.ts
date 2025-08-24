@@ -426,6 +426,25 @@ export class PongGameManager {
             this.renderEngine.setCameraForPlayer(isPlayer1);
         }
     }
+
+    /**
+     * Play audio for remote games
+     */
+    public playAudio(audioType: 'wall_bounce' | 'paddle_hit' | 'score'): void {
+        if (this.renderEngine) {
+            switch (audioType) {
+                case 'wall_bounce':
+                    this.renderEngine.playBallWallBounceSound();
+                    break;
+                case 'paddle_hit':
+                    this.renderEngine.playBallHitSound();
+                    break;
+                case 'score':
+                    this.renderEngine.playScoreSound();
+                    break;
+            }
+        }
+    }
     
     /**
      * Sync backend game state to frontend 3D engine for remote multiplayer

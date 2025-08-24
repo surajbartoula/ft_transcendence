@@ -273,7 +273,7 @@ export class RenderEngine {
 		console.log("🔊 Boundary hit sound played");
 	}
 
-	private playBallHitSound(): void {
+	public playBallHitSound(): void {
 		const currentTime = Date.now();
 		
 		// Prevent sound spam by using cooldown
@@ -286,12 +286,12 @@ export class RenderEngine {
 		console.log("🔊 Ball hit paddle sound played");
 	}
 
-	private playBallWallBounceSound(): void {
+	public playBallWallBounceSound(): void {
 		this.playDirectBeep(600, 0.1, 0.25); // Wall bounce: 600Hz, 0.1s, 25% volume
 		console.log("🔊 Ball wall bounce sound played");
 	}
 
-	private playScoreSound(): void {
+	public playScoreSound(): void {
 		this.playDirectChord([523, 659, 784], 0.8, 0.5); // Score chord: C-E-G, 0.8s, 50% volume
 		console.log("🔊 Score sound played");
 	}
@@ -335,7 +335,12 @@ export class RenderEngine {
 	}
 
 	private playDirectBeep(frequency: number, duration: number, volume: number): void {
-		if (!this.audioContext) return;
+		if (!this.audioContext) {
+			console.warn("⚠️ No audio context available for beep");
+			return;
+		}
+		
+		console.log(`🔊 Playing beep: ${frequency}Hz, ${duration}s, ${volume} volume, context state: ${this.audioContext.state}`);
 		
 		try {
 			const oscillator = this.audioContext.createOscillator();
@@ -354,6 +359,7 @@ export class RenderEngine {
 			
 			oscillator.start(this.audioContext.currentTime);
 			oscillator.stop(this.audioContext.currentTime + duration);
+			console.log(`✅ Beep oscillator started successfully`);
 		} catch (error) {
 			console.warn("⚠️ Failed to play beep:", error);
 		}

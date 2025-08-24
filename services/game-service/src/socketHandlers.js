@@ -777,7 +777,7 @@ export function setupSocketHandlers(io) {
                 }
 
                 try {
-                    await updateGamePhysics(gameData);
+                    await updateGamePhysics(gameData, roomId, currentGameSession, gameDb, io);
                 } catch (error) {
                     console.error(`❌ DEBUG: Error in updateGamePhysics for room ${roomId}:`, error);
                     // Continue the game loop even if physics update fails
@@ -818,7 +818,7 @@ export function setupSocketHandlers(io) {
             }, 16); // ~60 FPS
         }
 
-        async function updateGamePhysics(gameData) {
+        async function updateGamePhysics(gameData, roomId, currentGameSession, gameDb, io) {
             const { ball, paddle1, paddle2 } = gameData.gameState;
             
             // Game constants (physics function scope)
@@ -850,6 +850,9 @@ export function setupSocketHandlers(io) {
                 ball.vy = Math.abs(ball.vy); // Ensure ball bounces down
                 ball.y = BALL_RADIUS; // Correct position to stay inside bounds
                 
+                // Emit wall bounce sound event to clients
+                io.to(roomId).emit('audio_event', { type: 'wall_bounce' });
+                
                 if (currentGameSession) {
                     try {
                         await gameDb.recordGameEvent(currentGameSession.id, {
@@ -865,6 +868,9 @@ export function setupSocketHandlers(io) {
             } else if (ball.y + BALL_RADIUS >= GAME_HEIGHT) {
                 ball.vy = -Math.abs(ball.vy); // Ensure ball bounces up  
                 ball.y = GAME_HEIGHT - BALL_RADIUS; // Correct position to stay inside bounds
+                
+                // Emit wall bounce sound event to clients
+                io.to(roomId).emit('audio_event', { type: 'wall_bounce' });
                 
                 if (currentGameSession) {
                     try {
@@ -935,6 +941,9 @@ export function setupSocketHandlers(io) {
                         ball.x = Math.max(intersectX, paddleRight + BALL_RADIUS + 1); // Add 1px buffer
                         ball.y = Math.max(BALL_RADIUS, Math.min(GAME_HEIGHT - BALL_RADIUS, collisionY));
                         
+                        // Emit paddle hit sound event to clients
+                        io.to(roomId).emit('audio_event', { type: 'paddle_hit' });
+                        
                         if (currentGameSession) {
                             try {
                                 await gameDb.recordGameEvent(currentGameSession.id, {
@@ -1001,6 +1010,9 @@ export function setupSocketHandlers(io) {
                         // Correct ball position to prevent sticking and ensure proper separation
                         ball.x = Math.min(intersectX, paddleLeft - BALL_RADIUS - 1); // Add 1px buffer
                         ball.y = Math.max(BALL_RADIUS, Math.min(GAME_HEIGHT - BALL_RADIUS, collisionY));
+                        
+                        // Emit paddle hit sound event to clients
+                        io.to(roomId).emit('audio_event', { type: 'paddle_hit' });
                         
                         if (currentGameSession) {
                             try {
@@ -1077,7 +1089,7 @@ export function setupSocketHandlers(io) {
                     });
                 }
 
-                if (paddle1.score >= 11 || paddle2.score >= 11) {
+                if (paddle1.score >= 7 || paddle2.score >= 7) {
                     try {
                         await endGame(roomId, gameData);
                     } catch (error) {

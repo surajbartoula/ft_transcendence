@@ -199,16 +199,22 @@ import { ScoreManager } from "./ScoreManager";
 		if (ball.position.z + ballRadius >= floorBounds.maximumWorld.z) {
 			this.ballVelocity.z = -Math.abs(this.ballVelocity.z);
 			ball.position.z = floorBounds.maximumWorld.z - ballRadius;
-			if (this.renderEngine && (this.renderEngine as any).playBallWallBounceSound) {
-				(this.renderEngine as any).playBallWallBounceSound();
+			console.log("🏐 DEBUG: Wall collision detected (top), attempting to play sound");
+			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
+				this.renderEngine.playBallWallBounceSound();
+			} else {
+				console.warn("⚠️ Cannot play wall bounce sound - renderEngine missing or method unavailable");
 			}
 		}
 		
 		if (ball.position.z - ballRadius <= floorBounds.minimumWorld.z) {
 			this.ballVelocity.z = Math.abs(this.ballVelocity.z);
 			ball.position.z = floorBounds.minimumWorld.z + ballRadius;
-			if (this.renderEngine && (this.renderEngine as any).playBallWallBounceSound) {
-				(this.renderEngine as any).playBallWallBounceSound();
+			console.log("🏐 DEBUG: Wall collision detected (bottom), attempting to play sound");
+			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
+				this.renderEngine.playBallWallBounceSound();
+			} else {
+				console.warn("⚠️ Cannot play wall bounce sound - renderEngine missing or method unavailable");
 			}
 		}
 	}
@@ -224,8 +230,11 @@ import { ScoreManager } from "./ScoreManager";
 		if (leftPaddle && this.ballCollidesWithPaddle(ball, leftPaddle, ballRadius)) {
 			this.ballVelocity.x = Math.abs(this.ballVelocity.x); // Ensure ball moves right
 			this.addPaddleInfluence(ball, leftPaddle);
-			if (this.renderEngine && (this.renderEngine as any).playBallHitSound) {
-				(this.renderEngine as any).playBallHitSound();
+			console.log("🏐 DEBUG: Left paddle collision detected, attempting to play sound");
+			if (this.renderEngine && this.renderEngine.playBallHitSound) {
+				this.renderEngine.playBallHitSound();
+			} else {
+				console.warn("⚠️ Cannot play paddle hit sound - renderEngine missing or method unavailable");
 			}
 			console.log("🏐 Ball hit left paddle");
 		}
@@ -234,8 +243,11 @@ import { ScoreManager } from "./ScoreManager";
 		if (rightPaddle && this.ballCollidesWithPaddle(ball, rightPaddle, ballRadius)) {
 			this.ballVelocity.x = -Math.abs(this.ballVelocity.x); // Ensure ball moves left
 			this.addPaddleInfluence(ball, rightPaddle);
-			if (this.renderEngine && (this.renderEngine as any).playBallHitSound) {
-				(this.renderEngine as any).playBallHitSound();
+			console.log("🏐 DEBUG: Right paddle collision detected, attempting to play sound");
+			if (this.renderEngine && this.renderEngine.playBallHitSound) {
+				this.renderEngine.playBallHitSound();
+			} else {
+				console.warn("⚠️ Cannot play paddle hit sound - renderEngine missing or method unavailable");
 			}
 			console.log("🏐 Ball hit right paddle");
 		}
@@ -245,8 +257,8 @@ import { ScoreManager } from "./ScoreManager";
 			if (this.scoreManager) {
 				this.scoreManager.scorePoint('left');
 			}
-			if (this.renderEngine && (this.renderEngine as any).playScoreSound) {
-				(this.renderEngine as any).playScoreSound();
+			if (this.renderEngine && this.renderEngine.playScoreSound) {
+				this.renderEngine.playScoreSound();
 			}
 			this.hasScored = true;
 			this.resetBall();
@@ -254,8 +266,8 @@ import { ScoreManager } from "./ScoreManager";
 			if (this.scoreManager) {
 				this.scoreManager.scorePoint('right');
 			}
-			if (this.renderEngine && (this.renderEngine as any).playScoreSound) {
-				(this.renderEngine as any).playScoreSound();
+			if (this.renderEngine && this.renderEngine.playScoreSound) {
+				this.renderEngine.playScoreSound();
 			}
 			this.hasScored = true;
 			this.resetBall();

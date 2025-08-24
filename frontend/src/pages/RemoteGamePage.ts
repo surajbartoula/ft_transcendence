@@ -33,6 +33,7 @@ export class RemoteGamePage implements Page {
         paddleUpdate: this.handlePaddleUpdate.bind(this),
         goalScored: this.handleGoalScored.bind(this),
         gamePaused: this.handleGamePaused.bind(this),
+        audioEvent: this.handleAudioEvent.bind(this),
         gameChatMessage: this.handleChatMessage.bind(this),
         playerEmote: this.handlePlayerEmote.bind(this)
     };
@@ -185,12 +186,6 @@ export class RemoteGamePage implements Page {
                         </div>
                     </div>
 
-                    <!-- Game Controls Hint -->
-                    <div id="controlsHint" class="absolute bottom-4 right-4 bg-slate-800 rounded-lg border border-slate-700 p-3 text-sm text-gray-300 hidden">
-                        <div class="font-medium text-white mb-1">Controls:</div>
-                        <div id="controlsHintText">↑↓ Arrow Keys or W/S to move paddle</div>
-                        <div>Enter to toggle chat</div>
-                    </div>
                 </div>
 
                 <!-- Notifications Container -->
@@ -378,6 +373,7 @@ export class RemoteGamePage implements Page {
         window.addEventListener('paddleUpdate', this.boundHandlers.paddleUpdate as EventListener);
         window.addEventListener('goalScored', this.boundHandlers.goalScored as EventListener);
         window.addEventListener('gamePaused', this.boundHandlers.gamePaused as EventListener);
+        window.addEventListener('audioEvent', this.boundHandlers.audioEvent as EventListener);
         window.addEventListener('gameChatMessage', this.boundHandlers.gameChatMessage as EventListener);
         window.addEventListener('playerEmote', this.boundHandlers.playerEmote as EventListener);
     }
@@ -394,6 +390,7 @@ export class RemoteGamePage implements Page {
         window.removeEventListener('paddleUpdate', this.boundHandlers.paddleUpdate as EventListener);
         window.removeEventListener('goalScored', this.boundHandlers.goalScored as EventListener);
         window.removeEventListener('gamePaused', this.boundHandlers.gamePaused as EventListener);
+        window.removeEventListener('audioEvent', this.boundHandlers.audioEvent as EventListener);
         window.removeEventListener('gameChatMessage', this.boundHandlers.gameChatMessage as EventListener);
         window.removeEventListener('playerEmote', this.boundHandlers.playerEmote as EventListener);
     }
@@ -614,7 +611,7 @@ export class RemoteGamePage implements Page {
             return;
         }
         
-        console.log(`⌨️ PADDLE_DEBUG: Key pressed: ${event.key} - I am Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.username || 'Unknown'})`);
+        console.log(`⌨️ PADDLE_DEBUG: Key pressed: ${event.key} - I am Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.name || 'Unknown'})`);
         this.keysPressed.add(event.key);
         
         switch (event.key) {
@@ -799,22 +796,6 @@ export class RemoteGamePage implements Page {
             this.gameManager.setPlayerCameraPerspective(this.isPlayer1);
         }
         
-        // Show controls hint with player-specific information
-        const controlsHint = document.getElementById('controlsHint');
-        const controlsHintText = document.getElementById('controlsHintText');
-        if (controlsHint && controlsHintText) {
-            const paddleInfo = this.isPlayer1 ? 'GREEN LEFT paddle' : 'RED RIGHT paddle';
-            controlsHintText.textContent = `↑↓ Arrow Keys or W/S to move your ${paddleInfo}`;
-            
-            console.log('🎮 Showing personalized controls hint for 7 seconds...');
-            controlsHint.classList.remove('hidden');
-            setTimeout(() => {
-                controlsHint.classList.add('hidden');
-                console.log('👁️ Controls hint hidden');
-            }, 7000);
-        } else {
-            console.warn('⚠️ Controls hint element not found');
-        }
         
         // console.log('✅ Game is now active!');
         // showNotification('Game started! Good luck!', 'success');
@@ -957,6 +938,11 @@ export class RemoteGamePage implements Page {
     private handleGoalScored(event: Event): void {
         const { scorer, player1_score, player2_score } = (event as CustomEvent).detail;
         
+        // Play score sound
+        if (this.gameManager) {
+            this.gameManager.playAudio('score');
+        }
+        
         // const isMyGoal = (scorer === 'player1' && this.isPlayer1) || (scorer === 'player2' && !this.isPlayer1);
         // showNotification(`${isMyGoal ? 'You' : 'Opponent'} scored!`, isMyGoal ? 'success' : 'error');
         
@@ -971,6 +957,14 @@ export class RemoteGamePage implements Page {
     private handleGamePaused(event: Event): void {
         const { paused_by, is_paused } = (event as CustomEvent).detail;
         showNotification(`Game ${is_paused ? 'paused' : 'resumed'} by ${paused_by}`, 'info');
+    }
+
+    private handleAudioEvent(event: Event): void {
+        const { type } = (event as CustomEvent).detail;
+        
+        if (this.gameManager) {
+            this.gameManager.playAudio(type);
+        }
     }
 
     private handleChatMessage(event: Event): void {

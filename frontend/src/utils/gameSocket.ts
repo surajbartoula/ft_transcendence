@@ -167,6 +167,10 @@ class GameSocket {
             window.dispatchEvent(new CustomEvent('playerEmote', { detail: data }));
         });
 
+        this.socket.on('audio_event', (data: any) => {
+            window.dispatchEvent(new CustomEvent('audioEvent', { detail: data }));
+        });
+
         // Tournament-specific socket events
         this.socket.on('tournament_joined', (data: any) => {
             window.dispatchEvent(new CustomEvent('tournamentJoined', { detail: data }));

@@ -127,7 +127,7 @@ export class TournamentManager {
                 if (player2.name === 'Bye') {
                     match.winner = player1;
                     match.isComplete = true;
-                    match.score = { player1: 11, player2: 0 };
+                    match.score = { player1: 7, player2: 0 };
                 }
 
                 tournament.matches.push(match);
