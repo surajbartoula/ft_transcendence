@@ -45,8 +45,8 @@ async function checkIfBlocked(user1Id, user2Id, token) {
         });
         const blockedUsers = response.data || [];
         return blockedUsers.some(blocked => 
-            (blocked.blocker_id === user1Id && blocked.blocked_id === user2Id) ||
-            (blocked.blocker_id === user2Id && blocked.blocked_id === user1Id)
+            (String(blocked.blocker_id) === String(user1Id) && String(blocked.blocked_id) === String(user2Id)) ||
+            (String(blocked.blocker_id) === String(user2Id) && String(blocked.blocked_id) === String(user1Id))
         );
     } catch (error) {
         console.warn('Could not check blocked status:', error.message);
@@ -162,7 +162,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
+                if (String(gameSession.player1_id) !== String(userId) && String(gameSession.player2_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Not authorized to update this game' });
                 }
 
@@ -171,12 +171,12 @@ export default async function gameRoutes(fastify, options) {
                 // If game finished, update player statistics and handle tournament advancement
                 if (updates.status === 'finished' && updates.winner_id) {
                     const player1Result = {
-                        result: updates.winner_id === gameSession.player1_id ? 'won' : 'lost',
+                        result: String(updates.winner_id) === String(gameSession.player1_id) ? 'won' : 'lost',
                         score: gameSession.player1_score,
                         duration: updates.game_duration
                     };
                     const player2Result = {
-                        result: updates.winner_id === gameSession.player2_id ? 'won' : 'lost',
+                        result: String(updates.winner_id) === String(gameSession.player2_id) ? 'won' : 'lost',
                         score: gameSession.player2_score,
                         duration: updates.game_duration
                     };
@@ -379,7 +379,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Tournament not found' });
                 }
 
-                if (tournament.creator_id !== userId) {
+                if (String(tournament.creator_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Only tournament creator can manage seeding' });
                 }
 
@@ -437,7 +437,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Tournament not found' });
                 }
 
-                if (tournament.creator_id !== userId) {
+                if (String(tournament.creator_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Only tournament creator can start the tournament' });
                 }
 
@@ -603,7 +603,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Tournament not found' });
                 }
 
-                if (tournament.creator_id !== userId) {
+                if (String(tournament.creator_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Only tournament creator can create announcements' });
                 }
 
@@ -717,7 +717,7 @@ export default async function gameRoutes(fastify, options) {
                     for (const room of socket.rooms) {
                         if (room.startsWith('user_')) {
                             const userIdFromRoom = room.replace('user_', '');
-                            if (userIdFromRoom !== String(userId)) {
+                            if (String(userIdFromRoom) !== String(userId)) {
                                 onlineUserIds.add(userIdFromRoom);
                             }
                         }
@@ -916,13 +916,13 @@ export default async function gameRoutes(fastify, options) {
                         try {
                             // Get sender profile if not current user
                             let senderProfile = null;
-                            if (invitation.sender_id !== userId) {
+                            if (String(invitation.sender_id) !== String(userId)) {
                                 senderProfile = await getUserProfile(invitation.sender_id, token);
                             }
                             
                             // Get receiver profile if not current user
                             let receiverProfile = null;
-                            if (invitation.receiver_id !== userId) {
+                            if (String(invitation.receiver_id) !== String(userId)) {
                                 receiverProfile = await getUserProfile(invitation.receiver_id, token);
                             }
                             
@@ -1074,7 +1074,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
+                if (String(gameSession.player1_id) !== String(userId) && String(gameSession.player2_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Not authorized to join this game' });
                 }
 
@@ -1104,7 +1104,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
+                if (String(gameSession.player1_id) !== String(userId) && String(gameSession.player2_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Not authorized' });
                 }
 
@@ -1135,7 +1135,7 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(404).send({ error: 'Game session not found' });
                 }
 
-                if (gameSession.player1_id !== userId && gameSession.player2_id !== userId) {
+                if (String(gameSession.player1_id) !== String(userId) && String(gameSession.player2_id) !== String(userId)) {
                     return reply.code(403).send({ error: 'Not authorized' });
                 }
 

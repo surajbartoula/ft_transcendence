@@ -765,7 +765,7 @@ export class RemoteGamePage implements Page {
                 console.log(`  - Player ${playerId}: ${playerData.username} (Player 1: ${playerData.is_player1}, Ready: ${playerData.ready})`);
                 
                 // Store opponent information for rematch functionality
-                if (currentUserId && playerId !== currentUserId) {
+                if (currentUserId && String(playerId) !== String(currentUserId)) {
                     this.opponentUserId = playerId;
                     this.opponentUsername = playerData.username;
                     console.log(`🎯 Captured opponent: ${this.opponentUsername} (ID: ${this.opponentUserId})`);

@@ -107,7 +107,7 @@ class GlobalSocket {
         /** Only show notification if not currently on chat page or chat is not open with this user */
         const isOnChatPage = window.location.pathname === '/chat';
         const currentChatUserId = this.getCurrentOpenChatUserId();
-        const isCurrentChat = currentChatUserId === data.sender_id;
+        const isCurrentChat = String(currentChatUserId) === String(data.sender_id);
 
         /** Show notification if not on chat page OR not chatting with this specific user */
         if (!isOnChatPage || !isCurrentChat) {

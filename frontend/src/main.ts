@@ -9,9 +9,6 @@ import { GameMenuPage } from './pages/GameMenuPage';
 import { SharedGamePage } from './pages/SharedGamePage';
 import { TournamentSetupPage } from './pages/TournamentSetupPage';
 import { TournamentBracketPage } from './pages/TournamentBracketPage';
-import { RemoteTournamentGamePage } from './pages/RemoteTournamentGamePage';
-import { RemoteTournamentLobbyPage } from './pages/RemoteTournamentLobbyPage';
-import { RemoteTournamentBracketPage } from './pages/RemoteTournamentBracketPage';
 import { OnlineMatchLobbyPage } from './pages/OnlineMatchLobbyPage';
 import { RemoteGamePage } from './pages/RemoteGamePage';
 import { EmailVerificationPage } from './pages/EmailVerificationPage';
@@ -99,10 +96,6 @@ class App {
 			{ path: '/game/remote/match', page: () => new RemoteGamePage(), requiresAuth: true },
 			{ path: '/game/tournament/setup', page: () => new TournamentSetupPage(), requiresAuth: true },
 			{ path: '/game/tournament/bracket', page: () => new TournamentBracketPage(), requiresAuth: true },
-			{ path: '/game/tournament/match', page: () => new RemoteTournamentGamePage(), requiresAuth: true },
-			{ path: '/game/tournament/remote/lobby', page: () => new RemoteTournamentLobbyPage(), requiresAuth: true },
-			{ path: '/game/tournament/remote/bracket', page: () => new RemoteTournamentBracketPage(), requiresAuth: true },
-			{ path: '/game/tournament/remote/match', page: () => new RemoteTournamentGamePage(), requiresAuth: true },
 		];
 
 		routes.forEach(({ path, page, requiresAuth }) => {

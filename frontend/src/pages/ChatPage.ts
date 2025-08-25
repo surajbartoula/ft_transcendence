@@ -313,7 +313,7 @@ export class ChatPage implements Page {
     private handleGlobalMessage = (event: CustomEvent) => {
         const messageData = event.detail;
         /** If chat is open with this user, add message to UI */
-        if (this.currentChatFriend && String(messageData.sender_id) === this.currentChatFriend.user_id) {
+        if (this.currentChatFriend && String(messageData.sender_id) === String(this.currentChatFriend.user_id)) {
             this.messages.push(messageData);
             this.renderMessages();
             this.scrollToBottom();
@@ -785,7 +785,7 @@ export class ChatPage implements Page {
 
     private handleNewMessage(messageData: Message & { sender_profile: User }): void {
         /** If chat is open with this user, add message */
-        if (this.currentChatFriend && String(messageData.sender_id) === this.currentChatFriend.user_id) {
+        if (this.currentChatFriend && String(messageData.sender_id) === String(this.currentChatFriend.user_id)) {
             this.messages.push(messageData);
             this.renderMessages();
             this.scrollToBottom();
@@ -832,7 +832,7 @@ export class ChatPage implements Page {
     }
 
     private handleTypingStart(userId: string): void {
-        if (this.currentChatFriend && String(userId) === this.currentChatFriend.user_id) {
+        if (this.currentChatFriend && String(userId) === String(this.currentChatFriend.user_id)) {
             this.isTyping[userId] = true;
             this.updateTypingIndicator();
         }

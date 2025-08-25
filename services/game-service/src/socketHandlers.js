@@ -551,8 +551,8 @@ export function setupSocketHandlers(io) {
                 // Find their current match
                 const matches = await gameDb.getTournamentMatches(tournament_id);
                 const currentMatch = matches.find(m => 
-                    (m.player1_id === currentUser.user_id && m.player2_id === opponent_id) ||
-                    (m.player1_id === opponent_id && m.player2_id === currentUser.user_id)
+                    (String(m.player1_id) === String(currentUser.user_id) && String(m.player2_id) === String(opponent_id)) ||
+                    (String(m.player1_id) === String(opponent_id) && String(m.player2_id) === String(currentUser.user_id))
                 );
 
                 if (!currentMatch || currentMatch.status !== 'ready') {

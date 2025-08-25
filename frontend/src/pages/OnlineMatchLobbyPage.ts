@@ -791,7 +791,7 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private async handleRandomMatch(): Promise<void> {
-        const onlineUsers = this.onlineUsers.filter(user => user.id !== JSON.parse(localStorage.getItem('userData') || '{}').id);
+        const onlineUsers = this.onlineUsers.filter(user => String(user.id) !== String(JSON.parse(localStorage.getItem('userData') || '{}').id));
         
         if (onlineUsers.length === 0) {
             showError('No online players available for random match');
