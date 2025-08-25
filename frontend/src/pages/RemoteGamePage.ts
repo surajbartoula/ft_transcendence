@@ -584,7 +584,13 @@ export class RemoteGamePage implements Page {
     }
 
     private async handlePlayAgain(): Promise<void> {
+        console.log('🎮 HandlePlayAgain called - Debug info:');
+        console.log(`  - opponentUserId: ${this.opponentUserId}`);
+        console.log(`  - opponentUsername: ${this.opponentUsername}`);
+        console.log(`  - currentUser: ${JSON.stringify(this.currentUser)}`);
+        
         if (!this.opponentUserId || !this.opponentUsername) {
+            console.warn('⚠️ Opponent information not found, showing error notification');
             showNotification('Unable to find opponent information', 'error');
             return;
         }
@@ -855,6 +861,9 @@ export class RemoteGamePage implements Page {
     private handleGameEnded(event: Event): void {
         const { winner, final_score, reason } = (event as CustomEvent).detail;
         
+        console.log('🏁 Game ended event received');
+        console.log(`🎯 Opponent info status - ID: ${this.opponentUserId}, Name: ${this.opponentUsername}`);
+        
         const gameOverOverlay = document.getElementById('gameOverOverlay');
         const resultTitle = document.getElementById('resultTitle');
         const resultMessage = document.getElementById('resultMessage');
@@ -882,6 +891,9 @@ export class RemoteGamePage implements Page {
             finalPlayer1Score.textContent = final_score.player1.toString();
             finalPlayer2Score.textContent = final_score.player2.toString();
         }
+        
+        // Ensure opponent information is preserved for rematch functionality
+        console.log('📝 Game ended - preserving opponent information for rematch');
     }
 
     private handlePlayerJoined(event: Event): void {
@@ -895,6 +907,14 @@ export class RemoteGamePage implements Page {
         if (user && user.username) {
             console.log(`✅ ${user.username} joined the game`);
             showNotification(`${user.username} joined the game`, 'info');
+            
+            // Store opponent information when they join
+            const currentUserId = this.currentUser?.id;
+            if (currentUserId && String(user.user_id) !== String(currentUserId)) {
+                this.opponentUserId = String(user.user_id);
+                this.opponentUsername = user.username;
+                console.log(`🎯 Captured opponent from join event: ${this.opponentUsername} (ID: ${this.opponentUserId})`);
+            }
         } else {
             console.warn('⚠️ Missing user information in player joined event');
             showNotification('A player joined the game', 'info');
@@ -907,8 +927,15 @@ export class RemoteGamePage implements Page {
 
     private handlePlayerLeft(event: Event): void {
         const { user } = (event as CustomEvent).detail;
+        console.log('👋 Player left event:', { user });
+        console.log(`🎯 Current opponent info - ID: ${this.opponentUserId}, Name: ${this.opponentUsername}`);
+        
         showNotification(`${user.username} left the game`, 'error');
         this.opponentConnected = false;
+        
+        // DO NOT clear opponent information here - we need it for rematch functionality
+        // The opponent info should persist even after they leave
+        console.log('📝 Preserving opponent information for potential rematch');
     }
 
     private handlePlayerReady(event: Event): void {
