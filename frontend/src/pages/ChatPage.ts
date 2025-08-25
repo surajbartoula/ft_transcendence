@@ -717,7 +717,7 @@ export class ChatPage implements Page {
 			});
 			if (!response.ok) throw new Error('Failed to fetch online friends');
 			const onlineFriends = await response.json();
-			return onlineFriends.some((friend: any) => friend.user_id === friendId);
+			return onlineFriends.some((friend: any) => String(friend.user_id) === String(friendId));
 		} catch (error) {
 			console.error('Error checking friend online status:', error);
 			return false;
@@ -793,7 +793,7 @@ export class ChatPage implements Page {
         /** Update chats list */
         this.loadChats();
         /** Show notification if chat is not open or window is not focused */
-        if (!this.currentChatFriend || messageData.sender_id !== this.currentChatFriend.user_id || !document.hasFocus()) {
+        if (!this.currentChatFriend || String(messageData.sender_id) !== String(this.currentChatFriend.user_id) || !document.hasFocus()) {
             showNotification(
                 `${messageData.sender_profile.display_name}: ${messageData.content}`,
                 'info',
