@@ -288,7 +288,7 @@ class GameSocket {
         window.dispatchEvent(new CustomEvent('matchReady', { detail: data }));
         
         const currentUser = getStoredUser();
-        if (currentUser && (data.player1_id === currentUser.id || data.player2_id === currentUser.id)) {
+        if (currentUser && (String(data.player1_id) === String(currentUser.id) || String(data.player2_id) === String(currentUser.id))) {
             showClickableNotification(
                 `Your match is ready! Click to join.`, 
                 'success', 
