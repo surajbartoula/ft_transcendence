@@ -35,6 +35,7 @@ export class GameStateManager {
     private currentGameMode: GameMode = { type: 'local' };
     private pongManager: any = null; // Reference to PongManager
     private paused: boolean = false; // Simple pause flag
+    private stateChangeCallbacks: ((stateName: string) => void)[] = [];
 
     constructor(systems: Omit<SystemReferences, 'aiPlayer' | 'tournamentManager'>, pongManager?: any) {
         this.pongManager = pongManager;
@@ -71,6 +72,15 @@ export class GameStateManager {
             this.currentState = newState;
             await this.currentState.enter(data);
             console.log(`🎮 State changed to: ${stateName}`);
+            
+            // Trigger state change callbacks
+            this.stateChangeCallbacks.forEach(callback => {
+                try {
+                    callback(stateName);
+                } catch (error) {
+                    console.error('State change callback error:', error);
+                }
+            });
         }
     }
 
@@ -92,6 +102,19 @@ export class GameStateManager {
         if (this.currentGameMode.type === 'ai') {
             this.systems.aiPlayer.update(deltaTime);
         }
+    }
+
+    getCurrentStateName(): string | null {
+        for (const [name, state] of this.states.entries()) {
+            if (state === this.currentState) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    onStateChange(callback: (stateName: string) => void): void {
+        this.stateChangeCallbacks.push(callback);
     }
 
     getState(stateName: string): GameState | undefined {

@@ -323,7 +323,7 @@ export class DashboardPage implements Page {
             if (this.currentUser.photo && this.currentUser.photo.path) {
                 userAvatar.innerHTML = `<img src="${API_CONFIG.GATEWAY_URL}${this.currentUser.photo.path}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
             } else {
-                userAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover">`;
+                userAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="" class="w-16 h-16 rounded-full object-cover">`;
             }
         }
         if (userName) {

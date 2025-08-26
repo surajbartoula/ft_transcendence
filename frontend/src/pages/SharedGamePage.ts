@@ -15,6 +15,7 @@ export class SharedGamePage implements Page {
     private gameMode: 'local' | 'ai' | 'remote' = 'local';
     private player1Name: string = 'Player 1';
     private player2Name: string = 'Player 2';
+    private hasShownLoading: boolean = false;
     
     // Tournament support
     private tournamentId: string | null = null;
@@ -152,6 +153,7 @@ export class SharedGamePage implements Page {
         this.gameCanvas = null;
         this.fullscreenButton = null;
         this.gameContainer = null;
+        this.hasShownLoading = false;
     }
 
     private parseGameMode(): void {
@@ -240,30 +242,36 @@ export class SharedGamePage implements Page {
                 throw new Error('WebGL is not supported in this browser');
             }
 
-            this.updateLoadingMessage('Initializing 3D engine...');
-            this.showGameState();
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            console.log(`📐 Canvas ready - Display: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-            if (this.gameCanvas.clientWidth === 0 || this.gameCanvas.clientHeight === 0) {
-                throw new Error('Canvas has no display dimensions - check CSS and container setup');
-            }
-
             this.updateLoadingMessage('Creating game manager...');
             console.log('🏓 Creating PongGameManager...');
             this.gameManager = new PongGameManager(this.gameCanvas);
             
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
             if (this.gameManager) {
-                console.log('✅ Game initialized successfully!');
+                console.log('✅ Game manager created successfully!');
                 this.isGameInitialized = true;
+
+                // Set up state change listener BEFORE starting game
+                this.gameManager.onStateChange((stateName: string) => {
+                    console.log(`📺 State changed to: ${stateName}, updating canvas visibility`);
+                    this.showGameStateIfReady();
+                });
 
                 this.updateLoadingMessage('Starting game session...');
                 await this.initializeBackendSession();
+                
+                this.updateLoadingMessage('Initializing game mode...');
+                
+                // Start game mode - this will set the initial state
                 await this.startGameBasedOnMode();
+                
                 this.setupGameStateMonitoring();
                 this.updateGameInfo();
+
+                // Only show canvas after a delay to ensure state is properly established
+                setTimeout(() => {
+                    console.log('⏰ Checking if canvas should be shown after delay');
+                    this.showGameStateIfReady();
+                }, 300); // Increased delay to ensure state is set
 
                 if ((this.gameManager as any)?.renderEngine?.engine) {
                     (this.gameManager as any).renderEngine.engine.resize();
@@ -284,7 +292,6 @@ export class SharedGamePage implements Page {
             loadingMessage.textContent = message;
         }
     }
-
 
     private async startGameBasedOnMode(): Promise<void> {
         if (!this.gameManager) return;
@@ -322,10 +329,28 @@ export class SharedGamePage implements Page {
             // Regular game modes
             switch (this.gameMode) {
                 case 'local':
-                    await this.gameManager.startLocalGame(this.player1Name, this.player2Name);
+                    // Only pass player names if they were explicitly provided in URL and not defaults
+                    const hasCustomNames = this.player1Name !== 'Player 1' || this.player2Name !== 'Player 2';
+                    if (hasCustomNames) {
+                        console.log('🎮 Starting local game with provided names');
+                        await this.gameManager.startLocalGame(this.player1Name, this.player2Name);
+                    } else {
+                        // Go through setup to get player names
+                        console.log('🎮 Starting local game with setup state');
+                        await this.gameManager.startLocalGame();
+                    }
                     break;
                 case 'ai':
-                    await this.gameManager.startAIGame(this.player1Name);
+                    // Only pass player name if it was explicitly provided in URL and not default
+                    const hasCustomPlayerName = this.player1Name !== 'Player 1';
+                    if (hasCustomPlayerName) {
+                        console.log('🎮 Starting AI game with provided name');
+                        await this.gameManager.startAIGame(this.player1Name);
+                    } else {
+                        // Go through setup to get player name
+                        console.log('🎮 Starting AI game with setup state');
+                        await this.gameManager.startAIGame();
+                    }
                     break;
             }
         }
@@ -441,18 +466,53 @@ export class SharedGamePage implements Page {
         }
     }
 
-    private showGameState(): void {
-        const loading = document.getElementById('gameLoading');
-        const canvas = document.getElementById('gameCanvas');
-        const error = document.getElementById('gameError');
-        
-        if (loading) loading.style.display = 'none';
-        if (canvas) {
-            canvas.style.display = 'block';
-            canvas.offsetHeight;
-            console.log(`📐 Canvas shown - Display: ${canvas.clientWidth}x${canvas.clientHeight}`);
+
+    private showGameStateIfReady(): void {
+        // Check if the game is in a state where the canvas should be visible
+        if (this.gameManager) {
+            const currentState = this.gameManager.getCurrentStateName();
+            console.log(`🎮 Current game state: ${currentState}, mode: ${this.gameMode}, hasShownLoading: ${this.hasShownLoading}`);
+            
+            const loading = document.getElementById('gameLoading');
+            const canvas = document.getElementById('gameCanvas');
+            const error = document.getElementById('gameError');
+            
+            if (currentState) {
+                // Show loading only once for local multiplayer setup, then hide permanently
+                if (!this.hasShownLoading && this.gameMode === 'local' && currentState === 'gameSetup') {
+                    // First time local multiplayer setup - keep loading visible
+                    this.hasShownLoading = true;
+                    console.log(`⏳ First time local multiplayer setup - showing loading`);
+                    return;
+                }
+                
+                // For all other cases: hide loading and show canvas
+                if (loading) {
+                    loading.style.display = 'none';
+                    console.log(`🎯 Loading hidden permanently for ${this.gameMode} ${currentState}`);
+                }
+                
+                if (canvas) {
+                    canvas.style.display = 'block';
+                    console.log(`📐 Canvas shown for ${this.gameMode} ${currentState}`);
+                    
+                    // Ensure canvas dimensions are correct
+                    if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {
+                        canvas.style.width = '100%';
+                        canvas.style.height = '100%';
+                    }
+                }
+                
+                if (error) error.style.display = 'none';
+                
+                if ((this.gameManager as any)?.renderEngine?.engine) {
+                    (this.gameManager as any).renderEngine.engine.resize();
+                    console.log('🔄 Engine resized');
+                }
+            }
+        } else {
+            console.log('⚠️ Game manager not available yet');
         }
-        if (error) error.style.display = 'none';
     }
 
     private showError(message: string): void {

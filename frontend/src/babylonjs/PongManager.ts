@@ -140,6 +140,14 @@ export class PongGameManager {
         return this.gameState.getGameMode();
     }
 
+    public getCurrentStateName(): string | null {
+        return this.gameState.getCurrentStateName();
+    }
+
+    public onStateChange(callback: (stateName: string) => void): void {
+        this.gameState.onStateChange(callback);
+    }
+
     /**
      * Get current tournament information (if in tournament mode)
      */
@@ -166,29 +174,42 @@ export class PongGameManager {
     }
 
     /**
-     * Start a new local multiplayer game
+     * Start a new local multiplayer game - goes through setup state first
      */
-    public async startLocalGame(player1Name: string = "Player 1", player2Name: string = "Player 2"): Promise<void> {
-        this.gameState.setGameMode({
-            type: 'local',
-            player1Name,
-            player2Name
-        });
-        await this.gameState.setState('playing');
+    public async startLocalGame(player1Name?: string, player2Name?: string): Promise<void> {
+        // If names are provided, skip setup and go directly to playing
+        if (player1Name && player2Name) {
+            this.gameState.setGameMode({
+                type: 'local',
+                player1Name,
+                player2Name
+            });
+            await this.gameState.setState('playing');
+        } else {
+            // Go through setup state to get player names
+            await this.gameState.setState('gameSetup', { type: 'local' });
+        }
     }
 
     /**
-     * Start a new AI game (always on hard difficulty)
+     * Start a new AI game (always on hard difficulty) - goes through setup state first
      */
-    public async startAIGame(playerName: string = "Player"): Promise<void> {
+    public async startAIGame(playerName?: string): Promise<void> {
         // Set AI to hard difficulty
         this.aiPlayer.setDifficulty('hard');
-        this.gameState.setGameMode({
-            type: 'ai',
-            player1Name: playerName,
-            player2Name: "AI Opponent"
-        });
-        await this.gameState.setState('playing');
+        
+        // If player name is provided, skip setup and go directly to playing
+        if (playerName) {
+            this.gameState.setGameMode({
+                type: 'ai',
+                player1Name: playerName,
+                player2Name: "AI Opponent"
+            });
+            await this.gameState.setState('playing');
+        } else {
+            // Go through setup state to get player name
+            await this.gameState.setState('gameSetup', { type: 'ai' });
+        }
     }
 
     /**

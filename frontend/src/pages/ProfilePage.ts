@@ -366,7 +366,7 @@ export class ProfilePage implements Page {
         const memberSince = document.getElementById('memberSince');
 
         if (profileAvatar) {
-            profileAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">`;
+            profileAvatar.innerHTML = `<img src="${generateAvatarUrl()}" alt="UA" class="w-24 h-24 rounded-full object-cover">`;
         }
         if (currentUserName) {
             currentUserName.textContent = this.currentUser.name;
