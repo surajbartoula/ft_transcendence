@@ -300,11 +300,11 @@ export const dbService = {
       FROM friends f
       WHERE (requester_id = ? OR addressee_id = ?) AND status = 'accepted'
     `, [userId, userId, userId]);
-    const friendIds = friends.map(f => f.friend_id);
+    const friendIds = friends.map(f => String(f.friend_id));
     const userProfiles = await getUserProfiles(friendIds, token);
     
     return friends.map(friend => ({
-      ...userProfiles[friend.friend_id],
+      ...userProfiles[String(friend.friend_id)],
       friendship_date: friend.friendship_date
     }));
   },
@@ -351,12 +351,12 @@ export const dbService = {
     }));
     
     /** Get user details for each chat participant in batch */
-    const friendIds = chats.map(chat => chat.friend_id);
+    const friendIds = chats.map(chat => String(chat.friend_id));
     const userProfiles = await getUserProfiles(friendIds, token);
     
     return chats.map(chat => ({
       ...chat,
-      friend_profile: userProfiles[chat.friend_id]
+      friend_profile: userProfiles[String(chat.friend_id)]
     }));
   },
 
@@ -365,11 +365,11 @@ export const dbService = {
       'SELECT requester_id, created_at FROM friends WHERE addressee_id = ? AND status = ?',
       [userId, 'pending']
     );
-    const requesterIds = requests.map(r => r.requester_id);
+    const requesterIds = requests.map(r => String(r.requester_id));
     const userProfiles = await getUserProfiles(requesterIds, token);
     
     return requests.map(request => ({
-      ...userProfiles[request.requester_id],
+      ...userProfiles[String(request.requester_id)],
       request_date: request.created_at
     }));
   },
@@ -389,11 +389,11 @@ export const dbService = {
       AND us.last_seen > datetime('now', '-5 minutes')
     `, [userId, userId]);
     
-    const friendIds = onlineFriends.map(f => f.friend_id);
+    const friendIds = onlineFriends.map(f => String(f.friend_id));
     const userProfiles = await getUserProfiles(friendIds, token);
     
     return onlineFriends.map(friend => {
-      const profile = userProfiles[friend.friend_id];
+      const profile = userProfiles[String(friend.friend_id)];
       return {
         ...profile,
         id: profile.user_id, // Normalize field name for frontend compatibility
@@ -432,6 +432,14 @@ export const dbService = {
     const result = await db.getAsync(
       'SELECT 1 FROM blocked_users WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)',
       [userId1, userId2, userId2, userId1]
+    );
+    return !!result;
+  },
+
+  async isUserBlockedBy(blockerId, blockedId) {
+    const result = await db.getAsync(
+      'SELECT 1 FROM blocked_users WHERE blocker_id = ? AND blocked_id = ?',
+      [blockerId, blockedId]
     );
     return !!result;
   },

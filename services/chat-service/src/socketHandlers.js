@@ -69,7 +69,17 @@ export function setupSocketHandlers(fastify) {
         }
         const isBlocked = await dbService.isBlocked(user_id, receiver_id);
         if (isBlocked) {
-          socket.emit('error', { message: 'Cannot send message to blocked user' });
+          /** Check which direction the block is */
+          const userBlockedReceiver = await dbService.isUserBlockedBy(user_id, receiver_id);
+          const receiverBlockedUser = await dbService.isUserBlockedBy(receiver_id, user_id);
+          
+          if (receiverBlockedUser) {
+            socket.emit('error', { message: 'You cannot send messages because you are blocked by this user' });
+          } else if (userBlockedReceiver) {
+            socket.emit('error', { message: 'Cannot send message to blocked user' });
+          } else {
+            socket.emit('error', { message: 'Cannot send message to blocked user' });
+          }
           return;
         }
         /** Save message to database */

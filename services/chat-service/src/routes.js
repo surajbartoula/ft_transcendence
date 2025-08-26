@@ -295,6 +295,20 @@ export function registerRoutes(fastify) {
       }
   });
 
+  fastify.post('/api/chat/users/is-blocked-by', {
+    preValidation: [fastify.authenticate],
+  }, async (req, reply) => {
+      const user_id = req.user.sub || req.user.user_id || req.user.id;
+      const { user_id: other_user_id } = req.body;
+      try {
+        const isBlocked = await dbService.isUserBlockedBy(other_user_id, user_id);
+        reply.send({ is_blocked: isBlocked });
+      } catch (err) {
+        req.log.error(err);
+        reply.code(500).send({ error: 'Failed to check blocked status' });
+      }
+  });
+
   /**
    * Message routes
    */

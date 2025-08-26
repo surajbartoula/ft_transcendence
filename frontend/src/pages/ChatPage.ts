@@ -53,6 +53,14 @@ interface FriendRequest {
     request_date: string;
 }
 
+interface BlockedUser {
+    user_id: string;
+    username: string;
+    display_name: string;
+    photo?: PhotoInfo | null;
+    blocked_date: string;
+}
+
 declare global {
     interface WindowEventMap {
         'globalMessage': CustomEvent<any>;
@@ -70,6 +78,7 @@ export class ChatPage implements Page {
     private friends: Friend[] = [];
     private chats: Chat[] = [];
     private friendRequests: FriendRequest[] = [];
+    private blockedUsers: BlockedUser[] = [];
     private isTyping: { [userId: string]: boolean } = {};
     private typingTimeout: { [userId: string]: NodeJS.Timeout } = {};
 	private isCurrentUserTyping = false;
@@ -80,7 +89,7 @@ export class ChatPage implements Page {
 		return `
 			<div class="h-screen bg-gray-900 flex overflow-hidden">
 				<!-- Sidebar -->
-				<div class="w-80 bg-gray-800 border-r border-gray-700 flex flex-col">
+				<div class="w-96 bg-gray-800 border-r border-gray-700 flex flex-col">
 					<!-- Header -->
 					<button data-route="/dashboard" class="text-gray-400 hover:text-white transition-colors items-center justify-center h-18 p-4">
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,17 +107,21 @@ export class ChatPage implements Page {
 						</div>
 						
 						<!-- Tabs -->
-						<div class="flex space-x-1 bg-gray-700 rounded-lg p-1">
-							<button id="chatsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-white bg-gray-600 transition-colors">
+						<div class="grid grid-cols-4 gap-1 bg-gray-700 rounded-lg p-1">
+							<button id="chatsTab" class="py-2 px-3 rounded-md text-sm font-medium text-white bg-gray-600 transition-colors">
 								Chats
-								<span id="unreadBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+								<span id="unreadBadge" class="ml-1 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
 							</button>
-							<button id="friendsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+							<button id="friendsTab" class="py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
 								Friends
 							</button>
-							<button id="requestsTab" class="flex-1 py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+							<button id="requestsTab" class="py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
 								Requests
-								<span id="requestsBadge" class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+								<span id="requestsBadge" class="ml-1 bg-red-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
+							</button>
+							<button id="blockedTab" class="py-2 px-3 rounded-md text-sm font-medium text-gray-300 hover:text-white transition-colors">
+								Blocked
+								<span id="blockedBadge" class="ml-1 bg-gray-500 text-white text-xs rounded-full px-2 py-1 hidden">0</span>
 							</button>
 						</div>
 					</div>
@@ -158,6 +171,16 @@ export class ChatPage implements Page {
 								<p>No friend requests</p>
 							</div>
 						</div>
+
+						<!-- Blocked List -->
+						<div id="blockedList" class="p-4 space-y-2 hidden">
+							<div class="text-center text-gray-400 py-8">
+								<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636a9 9 0 00-12.728 0M5.636 18.364a9 9 0 0012.728 0"></path>
+								</svg>
+								<p>No blocked users</p>
+							</div>
+						</div>
 					</div>
 				</div>
 
@@ -171,11 +194,21 @@ export class ChatPage implements Page {
 								<h2 id="chatName" class="text-white font-semibold"></h2>
 								<p id="chatStatus" class="text-sm text-gray-400"></p>
 							</div>
-							<button id="closeChatBtn" class="text-gray-400 hover:text-white p-2">
-								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-								</svg>
-							</button>
+							<div class="flex items-center space-x-2">
+								<button id="blockBtn" class="text-red-400 hover:text-red-300 p-2" title="Block User">
+									<img class="w-5 h-5 filter brightness-0 invert opacity-70 hover:opacity-100" src="/block-user.svg" alt="Block">
+								</button>
+								<button id="unblockBtn" class="text-green-400 hover:text-green-300 p-2 hidden" title="Unblock User">
+									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+									</svg>
+								</button>
+								<button id="closeChatBtn" class="text-gray-400 hover:text-white p-2">
+									<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+									</svg>
+								</button>
+							</div>
 						</div>
 					</div>
 
@@ -308,6 +341,10 @@ export class ChatPage implements Page {
             }
         });
 
+        socket.on('error', (data: { message: string }) => {
+            showError(data.message);
+        });
+
         /** Request online users when chat page loads */
         if (globalSocket.isConnected()) {
             socket.emit('get_online_users');
@@ -426,6 +463,7 @@ export class ChatPage implements Page {
         document.getElementById('chatsTab')?.addEventListener('click', () => this.switchTab('chats'));
         document.getElementById('friendsTab')?.addEventListener('click', () => this.switchTab('friends'));
         document.getElementById('requestsTab')?.addEventListener('click', () => this.switchTab('requests'));
+        document.getElementById('blockedTab')?.addEventListener('click', () => this.switchTab('blocked'));
         /** Search */
         const searchInput = document.getElementById('searchInput') as HTMLInputElement;
         searchInput?.addEventListener('input', this.debounce(() => this.handleSearch(searchInput.value), 300));
@@ -434,6 +472,9 @@ export class ChatPage implements Page {
         document.getElementById('sendBtn')?.addEventListener('click', () => this.sendMessage());
         /** Close chat */
         document.getElementById('closeChatBtn')?.addEventListener('click', () => this.closeChat());
+        /** Block/Unblock buttons */
+        document.getElementById('blockBtn')?.addEventListener('click', () => this.blockCurrentUser());
+        document.getElementById('unblockBtn')?.addEventListener('click', () => this.unblockCurrentUser());
         /** Add friend modal */
         document.getElementById('addFriendBtn')?.addEventListener('click', () => this.showAddFriendModal());
         document.getElementById('cancelAddFriend')?.addEventListener('click', () => this.hideAddFriendModal());
@@ -447,7 +488,8 @@ export class ChatPage implements Page {
             await Promise.all([
                 this.loadChats(),
                 this.loadFriends(),
-                this.loadFriendRequests()
+                this.loadFriendRequests(),
+                this.loadBlockedUsers()
             ]);
         } catch (error) {
             console.error('Failed to load initial data:', error);
@@ -499,7 +541,7 @@ export class ChatPage implements Page {
         }
     }
 
-    private switchTab(tab: 'chats' | 'friends' | 'requests'): void {
+    private switchTab(tab: 'chats' | 'friends' | 'requests' | 'blocked'): void {
         /** Update tab buttons */
         document.querySelectorAll('[id$="Tab"]').forEach(btn => {
             btn.classList.remove('bg-gray-600', 'text-white');
@@ -512,6 +554,7 @@ export class ChatPage implements Page {
         document.getElementById('chatsList')?.classList.add('hidden');
         document.getElementById('friendsList')?.classList.add('hidden');
         document.getElementById('requestsList')?.classList.add('hidden');
+        document.getElementById('blockedList')?.classList.add('hidden');
         document.getElementById(`${tab}List`)?.classList.remove('hidden');
     }
 
@@ -525,7 +568,12 @@ export class ChatPage implements Page {
 		const container = document.getElementById('chatsList');
 		if (!container) return;
 		
-		if (this.chats.length === 0) {
+		/** Filter out chats with blocked users */
+		const visibleChats = this.chats.filter(chat => 
+			!this.blockedUsers.some(blocked => String(blocked.user_id) === String(chat.friend.user_id))
+		);
+		
+		if (visibleChats.length === 0) {
 			container.innerHTML = `
 				<div class="text-center text-gray-400 py-8">
 					<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -537,7 +585,7 @@ export class ChatPage implements Page {
 			`;
 			return;
 		}
-		container.innerHTML = this.chats.map(chat => {
+		container.innerHTML = visibleChats.map(chat => {
 			const userIdStr = String(chat.friend.user_id);
 			const isOnline = this.isUserOnline(userIdStr);
 			return `
@@ -585,7 +633,13 @@ export class ChatPage implements Page {
 	private renderFriends(): void {
 		const container = document.getElementById('friendsList');
 		if (!container) return;
-		if (this.friends.length === 0) {
+		
+		/** Filter out blocked users from friends list */
+		const visibleFriends = this.friends.filter(friend => 
+			!this.blockedUsers.some(blocked => String(blocked.user_id) === String(friend.user_id))
+		);
+		
+		if (visibleFriends.length === 0) {
 			container.innerHTML = `
 				<div class="text-center text-gray-400 py-8">
 					<svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -597,7 +651,7 @@ export class ChatPage implements Page {
 			`;
 			return;
 		}
-		container.innerHTML = this.friends.map(friend => {
+		container.innerHTML = visibleFriends.map(friend => {
 			const userIdStr = String(friend.user_id);
 			const isOnline = this.isUserOnline(userIdStr);
 			return `
@@ -705,6 +759,8 @@ export class ChatPage implements Page {
         }
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
+        /** Update block/unblock button visibility */
+        await this.updateBlockButtons();
     }
 
     private closeChat(): void {
@@ -763,6 +819,15 @@ export class ChatPage implements Page {
         const input = document.getElementById('messageInput') as HTMLInputElement;
         const content = input.value.trim();
         if (!content || !this.currentChatFriend) return;
+        
+        /** Check if current user blocked this user */
+        const isBlocked = await this.isUserBlocked(this.currentChatFriend.user_id);
+        if (isBlocked) {
+            showError('Cannot send message to blocked user');
+            input.value = '';
+            return;
+        }
+        
         input.value = '';
         globalSocket.sendMessage(this.currentChatFriend.user_id, content, 'text');
 
@@ -855,23 +920,44 @@ export class ChatPage implements Page {
                 resultsContainer.innerHTML = '<p class="text-gray-400 text-sm p-2">No users found</p>';
             } else {
                 resultsContainer.innerHTML = users.map((user: User) => `
-                    <div class="search-result p-2 rounded bg-gray-600 hover:bg-gray-500 cursor-pointer transition-colors" 
+                    <div class="search-result p-2 rounded bg-gray-600 hover:bg-gray-500 transition-colors" 
                          data-user-id="${user.user_id}">
-                        <div class="flex items-center">
-                            <img class="w-8 h-8 rounded-full mr-2"
-                                 src="${user.photo?.path ? `${API_CONFIG.GATEWAY_URL}${user.photo.path}` : generateAvatarUrl()}"
-                                 alt="${user.display_name}">
-                            <div>
-                                <p class="text-white text-sm font-medium">${escapeHtml(user.display_name)}</p>
-                                <p class="text-gray-400 text-xs">@${escapeHtml(user.username)}</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center flex-1 cursor-pointer">
+                                <img class="w-8 h-8 rounded-full mr-2"
+                                     src="${user.photo?.path ? `${API_CONFIG.GATEWAY_URL}${user.photo.path}` : generateAvatarUrl()}"
+                                     alt="${user.display_name}">
+                                <div>
+                                    <p class="text-white text-sm font-medium">${escapeHtml(user.display_name)}</p>
+                                    <p class="text-gray-400 text-xs">@${escapeHtml(user.username)}</p>
+                                </div>
                             </div>
+                            <button class="block-user-search text-red-400 hover:text-red-300 p-1 ml-2" 
+                                    data-user-id="${user.user_id}" title="Block User">
+                                <img class="w-4 h-4 filter brightness-0 invert opacity-70 hover:opacity-100" src="/block-user.svg" alt="Block">
+                            </button>
                         </div>
                     </div>
                 `).join('');
                 resultsContainer.querySelectorAll('.search-result').forEach(item => {
-                    item.addEventListener('click', async () => {
+                    const clickableArea = item.querySelector('.flex.items-center.flex-1.cursor-pointer');
+                    clickableArea?.addEventListener('click', async () => {
                         const userId = item.getAttribute('data-user-id');
                         if (userId) await this.sendFriendRequest(userId);
+                    });
+                });
+                
+                resultsContainer.querySelectorAll('.block-user-search').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const userId = btn.getAttribute('data-user-id');
+                        if (userId) {
+                            await this.blockUser(userId);
+                            /** Remove from search results */
+                            document.getElementById('searchResults')?.classList.add('hidden');
+                            const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+                            if (searchInput) searchInput.value = '';
+                        }
                     });
                 });
             }
@@ -989,10 +1075,16 @@ export class ChatPage implements Page {
                                 <p class="text-gray-400 text-sm">@${escapeHtml(user.username)}</p>
                             </div>
                         </div>
-                        <button class="send-request bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors" 
-                                data-user-id="${user.user_id}">
-                            Add Friend
-                        </button>
+                        <div class="flex items-center space-x-2">
+                            <button class="send-request bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors" 
+                                    data-user-id="${user.user_id}">
+                                Add Friend
+                            </button>
+                            <button class="block-user-modal text-red-400 hover:text-red-300 p-1" 
+                                    data-user-id="${user.user_id}" title="Block User">
+                                <img class="w-4 h-4 filter brightness-0 invert opacity-70 hover:opacity-100" src="/block-user.svg" alt="Block">
+                            </button>
+                        </div>
                     </div>
                 `).join('');
                 resultsContainer.querySelectorAll('.send-request').forEach(btn => {
@@ -1000,6 +1092,16 @@ export class ChatPage implements Page {
                         const userId = btn.getAttribute('data-user-id');
                         if (userId) {
                             await this.sendFriendRequest(userId);
+                            this.hideAddFriendModal();
+                        }
+                    });
+                });
+                
+                resultsContainer.querySelectorAll('.block-user-modal').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const userId = btn.getAttribute('data-user-id');
+                        if (userId) {
+                            await this.blockUser(userId);
                             this.hideAddFriendModal();
                         }
                     });
@@ -1014,7 +1116,13 @@ export class ChatPage implements Page {
     private updateUnreadBadge(): void {
         const badge = document.getElementById('unreadBadge');
         if (!badge) return;
-        const totalUnread = this.chats.reduce((sum, chat) => sum + chat.unread_count, 0);
+        
+        /** Only count unread messages from non-blocked users */
+        const visibleChats = this.chats.filter(chat => 
+            !this.blockedUsers.some(blocked => String(blocked.user_id) === String(chat.friend.user_id))
+        );
+        const totalUnread = visibleChats.reduce((sum, chat) => sum + chat.unread_count, 0);
+        
         if (totalUnread > 0) {
             badge.textContent = totalUnread.toString();
             badge.classList.remove('hidden');
@@ -1031,6 +1139,284 @@ export class ChatPage implements Page {
             badge.classList.remove('hidden');
         } else {
             badge.classList.add('hidden');
+        }
+    }
+
+    private async loadBlockedUsers(): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('/api/chat/users/blocked', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('Failed to load blocked users');
+            const blockedIds = await response.json();
+            
+            /** Get profiles for blocked users */
+            const blockedUserProfiles = await Promise.all(
+                blockedIds.map(async (blocked: any) => {
+                    try {
+                        const profileResponse = await fetch(`/api/user/profile/${blocked.blocked_id}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        if (profileResponse.ok) {
+                            const profile = await profileResponse.json();
+                            return {
+                                ...profile,
+                                blocked_date: new Date().toISOString() /** Default date */
+                            };
+                        }
+                    } catch (error) {
+                        console.error('Failed to load blocked user profile:', error);
+                    }
+                    return null;
+                })
+            );
+            
+            this.blockedUsers = blockedUserProfiles.filter(profile => profile !== null) as BlockedUser[];
+            this.renderBlockedUsers();
+            this.updateBlockedBadge();
+        } catch (error) {
+            console.error('Failed to load blocked users:', error);
+        }
+    }
+
+    private renderBlockedUsers(): void {
+        const container = document.getElementById('blockedList');
+        if (!container) return;
+        
+        if (this.blockedUsers.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636a9 9 0 00-12.728 0M5.636 18.364a9 9 0 0012.728 0"></path>
+                    </svg>
+                    <p>No blocked users</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = this.blockedUsers.map(user => `
+            <div class="p-3 rounded-lg bg-gray-700">
+                <div class="flex items-center mb-3">
+                    <img class="w-10 h-10 rounded-full mr-3"
+                        src="${user.photo?.path ? `${API_CONFIG.GATEWAY_URL}${user.photo.path}` : generateAvatarUrl()}"
+                        alt="${user.display_name}">
+                    <div class="flex-1">
+                        <p class="font-medium text-white">${escapeHtml(user.display_name)}</p>
+                        <p class="text-xs text-gray-400">@${escapeHtml(user.username)}</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="unblock-user flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 px-3 rounded transition-colors" 
+                            data-user-id="${user.user_id}">
+                        Unblock
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        /** Add click listeners for unblock */
+        container.querySelectorAll('.unblock-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const userId = btn.getAttribute('data-user-id');
+                if (userId) await this.unblockUser(userId);
+            });
+        });
+    }
+
+    private updateBlockedBadge(): void {
+        const badge = document.getElementById('blockedBadge');
+        if (!badge) return;
+        if (this.blockedUsers.length > 0) {
+            badge.textContent = this.blockedUsers.length.toString();
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    private async blockUser(userId: string): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('/api/chat/users/block', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target_user_id: userId })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to block user');
+            }
+            
+            /** Get the user's display name for the notification */
+            const blockedUser = this.friends.find(friend => String(friend.user_id) === String(userId)) ||
+                               this.chats.find(chat => String(chat.friend.user_id) === String(userId))?.friend;
+            const displayName = blockedUser?.display_name || 'User';
+            
+            showNotification(`${displayName} has been blocked`, 'success');
+            
+            /** Close chat if it's open with this user */
+            if (this.currentChatFriend && String(this.currentChatFriend.user_id) === String(userId)) {
+                this.closeChat();
+            }
+            
+            /** Reload blocked users and re-render UI */
+            await this.loadBlockedUsers();
+            this.renderChats(); // Re-render to filter out blocked user
+            this.renderFriends(); // Re-render friends list
+        } catch (error) {
+            console.error('Failed to block user:', error);
+            showError(error instanceof Error ? error.message : 'Failed to block user');
+        }
+    }
+
+    private async unblockUser(userId: string): Promise<void> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch('/api/chat/users/unblock', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ target_user_id: userId })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to unblock user');
+            }
+            
+            showNotification('User unblocked successfully', 'success');
+            
+            /** Reload all data to restore chat history and update UI */
+            await Promise.all([
+                this.loadBlockedUsers(),
+                this.loadChats(), // This will restore the chat history
+                this.loadFriends() // This will restore them to friends if they were friends
+            ]);
+            
+            /** If currently chatting with this user, update the block buttons */
+            if (this.currentChatFriend && String(this.currentChatFriend.user_id) === String(userId)) {
+                await this.updateBlockButtons();
+            }
+        } catch (error) {
+            console.error('Failed to unblock user:', error);
+            showError(error instanceof Error ? error.message : 'Failed to unblock user');
+        }
+    }
+
+    private async blockCurrentUser(): Promise<void> {
+        if (!this.currentChatFriend) return;
+        await this.blockUser(this.currentChatFriend.user_id);
+    }
+
+    private async unblockCurrentUser(): Promise<void> {
+        if (!this.currentChatFriend) return;
+        await this.unblockUser(this.currentChatFriend.user_id);
+    }
+
+    private async isUserBlocked(userId: string): Promise<boolean> {
+        return this.blockedUsers.some(blockedUser => String(blockedUser.user_id) === String(userId));
+    }
+
+    private async isCurrentUserBlockedBy(userId: string): Promise<boolean> {
+        try {
+            const token = getStoredToken();
+            const response = await fetch(`/api/chat/users/is-blocked-by`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ user_id: userId })
+            });
+            if (response.ok) {
+                const result = await response.json();
+                return result.is_blocked;
+            }
+        } catch (error) {
+            console.error('Failed to check if blocked by user:', error);
+        }
+        return false;
+    }
+
+    private async updateBlockButtons(): Promise<void> {
+        const blockBtn = document.getElementById('blockBtn');
+        const unblockBtn = document.getElementById('unblockBtn');
+        const messageInput = document.getElementById('messageInput') as HTMLInputElement;
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (!blockBtn || !unblockBtn || !this.currentChatFriend) return;
+        
+        const isBlocked = await this.isUserBlocked(this.currentChatFriend.user_id);
+        const isBlockedByUser = await this.isCurrentUserBlockedBy(this.currentChatFriend.user_id);
+        
+        if (isBlocked) {
+            /** Current user has blocked this user */
+            blockBtn.classList.add('hidden');
+            unblockBtn.classList.remove('hidden');
+            
+            /** Disable messaging for blocked users */
+            if (messageInput) {
+                messageInput.disabled = true;
+                messageInput.placeholder = 'Cannot send messages to blocked user';
+                messageInput.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (sendBtn) {
+                sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                (sendBtn as HTMLButtonElement).disabled = true;
+            }
+        } else if (isBlockedByUser) {
+            /** Current user has been blocked by this user */
+            blockBtn.classList.remove('hidden');
+            unblockBtn.classList.add('hidden');
+            
+            /** Disable messaging - user is blocked by the other person */
+            if (messageInput) {
+                messageInput.disabled = true;
+                messageInput.placeholder = `You cannot send messages because you are blocked by ${this.currentChatFriend.display_name}`;
+                messageInput.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (sendBtn) {
+                sendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                (sendBtn as HTMLButtonElement).disabled = true;
+            }
+            
+            /** Show a status message in the chat header */
+            const chatStatus = document.getElementById('chatStatus');
+            if (chatStatus) {
+                chatStatus.textContent = `You have been blocked by ${this.currentChatFriend.display_name}`;
+                chatStatus.className = 'text-sm text-red-400';
+            }
+        } else {
+            /** Normal state - no blocking */
+            blockBtn.classList.remove('hidden');
+            unblockBtn.classList.add('hidden');
+            
+            /** Enable messaging for non-blocked users */
+            if (messageInput) {
+                messageInput.disabled = false;
+                messageInput.placeholder = 'Type a message...';
+                messageInput.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+            if (sendBtn) {
+                sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                (sendBtn as HTMLButtonElement).disabled = false;
+            }
+            
+            /** Restore normal chat status */
+            const chatStatus = document.getElementById('chatStatus');
+            if (chatStatus) {
+                const isOnline = this.isUserOnline(this.currentChatFriend.user_id);
+                chatStatus.textContent = isOnline ? 'Online' : 'Offline';
+                chatStatus.className = `text-sm ${isOnline ? 'text-green-400' : 'text-gray-400'}`;
+            }
         }
     }
 
