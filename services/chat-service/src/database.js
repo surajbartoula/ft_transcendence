@@ -468,6 +468,13 @@ export const dbService = {
     );
   },
 
+  async markConversationAsRead(userId, friendId) {
+    return await db.runAsync(
+      'UPDATE messages SET read_at = CURRENT_TIMESTAMP WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL',
+      [friendId, userId]
+    );
+  },
+
   async getUnreadCount(userId) {
     const result = await db.getAsync(
       'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND read_at IS NULL',

@@ -300,6 +300,14 @@ export class ChatPage implements Page {
             }, 100);
         });
 
+        socket.on('message_read', (data: { message_id: number }) => {
+            /** Update the local message as read */
+            const message = this.messages.find(m => m.id === data.message_id);
+            if (message) {
+                message.read_at = new Date().toISOString();
+            }
+        });
+
         /** Request online users when chat page loads */
         if (globalSocket.isConnected()) {
             socket.emit('get_online_users');
@@ -317,6 +325,8 @@ export class ChatPage implements Page {
             this.messages.push(messageData);
             this.renderMessages();
             this.scrollToBottom();
+            /** Mark the new message as read since user is viewing the chat */
+            this.markMessageAsRead(messageData.id);
         }
         /** Always update chats list */
         this.loadChats();
@@ -351,7 +361,7 @@ export class ChatPage implements Page {
 		const userIdStr = String(userId);
 		/** Update ALL elements with this user ID (both in chats and friends) */
 		const allUserElements = document.querySelectorAll(`[data-friend-id="${userIdStr}"]`);
-		allUserElements.forEach((element, index) => {
+		allUserElements.forEach((element) => {
 			const statusIndicator = element.querySelector('.online-status');
 			if (statusIndicator) {
 				/** Determine the correct classes based on parent container */
@@ -709,20 +719,6 @@ export class ChatPage implements Page {
         document.getElementById('messagesArea')?.classList.add('hidden');
     }
 
-	private async checkFriendOnlineStatus(friendId: string): Promise<boolean> {
-		try {
-			const token = getStoredToken();
-			const response = await fetch(`/api/chat/friends/online`, {
-				headers: { Authorization: `Bearer ${token}` }
-			});
-			if (!response.ok) throw new Error('Failed to fetch online friends');
-			const onlineFriends = await response.json();
-			return onlineFriends.some((friend: any) => String(friend.user_id) === String(friendId));
-		} catch (error) {
-			console.error('Error checking friend online status:', error);
-			return false;
-		}
-	}
 
     private async loadMessages(friendId: string): Promise<void> {
         try {
@@ -733,6 +729,8 @@ export class ChatPage implements Page {
             if (!response.ok) throw new Error('Failed to load messages');
             this.messages = await response.json();
             this.renderMessages();
+            /** Mark unread messages as read */
+            await this.markUnreadMessagesAsRead();
         } catch (error) {
             console.error('Failed to load messages:', error);
             showError('Failed to load messages');
@@ -783,24 +781,6 @@ export class ChatPage implements Page {
         this.stopTyping();
     }
 
-    private handleNewMessage(messageData: Message & { sender_profile: User }): void {
-        /** If chat is open with this user, add message */
-        if (this.currentChatFriend && String(messageData.sender_id) === String(this.currentChatFriend.user_id)) {
-            this.messages.push(messageData);
-            this.renderMessages();
-            this.scrollToBottom();
-        }
-        /** Update chats list */
-        this.loadChats();
-        /** Show notification if chat is not open or window is not focused */
-        if (!this.currentChatFriend || String(messageData.sender_id) !== String(this.currentChatFriend.user_id) || !document.hasFocus()) {
-            showNotification(
-                `${messageData.sender_profile.display_name}: ${messageData.content}`,
-                'info',
-                5000
-            );
-        }
-    }
 
     private handleTyping(): void {
         if (!this.currentChatFriend) return;
@@ -1060,6 +1040,55 @@ export class ChatPage implements Page {
             setTimeout(() => {
                 container.scrollTop = container.scrollHeight;
             }, 100);
+        }
+    }
+
+    private async markUnreadMessagesAsRead(): Promise<void> {
+        if (!this.currentChatFriend) return;
+        
+        /** Find all unread messages from the current friend */
+        const unreadMessages = this.messages.filter(message => 
+            !message.read_at && 
+            String(message.sender_id) === String(this.currentChatFriend!.user_id)
+        );
+        
+        if (unreadMessages.length === 0) return;
+        
+        try {
+            /** Use the new API endpoint to mark entire conversation as read */
+            const token = getStoredToken();
+            const response = await fetch(`/api/chat/messages/${this.currentChatFriend.user_id}/mark-read`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+                /** Update local messages to mark them as read */
+                unreadMessages.forEach(message => {
+                    message.read_at = new Date().toISOString();
+                });
+                
+                /** Refresh chats list to update unread counts */
+                this.loadChats();
+            }
+        } catch (error) {
+            console.error('Failed to mark conversation as read:', error);
+            /** Fallback to marking individual messages */
+            for (const message of unreadMessages) {
+                await this.markMessageAsRead(message.id);
+            }
+            this.loadChats();
+        }
+    }
+
+    private async markMessageAsRead(messageId: number): Promise<void> {
+        try {
+            const socket = globalSocket.getSocket();
+            if (socket && socket.connected) {
+                socket.emit('mark_read', { message_id: messageId });
+            }
+        } catch (error) {
+            console.error('Failed to mark message as read:', error);
         }
     }
 

@@ -336,4 +336,24 @@ export function registerRoutes(fastify) {
         reply.code(500).send({ error: 'Failed to fetch unread count' });
       }
   });
+
+  fastify.post('/api/chat/messages/:friend_id/mark-read', {
+    preValidation: [fastify.authenticate],
+  }, async (req, reply) => {
+      const user_id = req.user.sub || req.user.user_id || req.user.id;
+      const { friend_id } = req.params;
+      try {
+        /** Check if users are friends */
+        const areFriends = await dbService.areFriends(user_id, friend_id);
+        if (!areFriends) {
+          return reply.code(403).send({ error: 'Can only mark messages as read with friends' });
+        }
+        /** Mark all unread messages from this friend as read */
+        await dbService.markConversationAsRead(user_id, friend_id);
+        reply.send({ success: true });
+      } catch (err) {
+        req.log.error(err);
+        reply.code(500).send({ error: 'Failed to mark messages as read' });
+      }
+  });
 }
