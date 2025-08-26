@@ -859,7 +859,7 @@ export class GUIManager {
         this.scoreFlashEl = document.createElement('div');
         this.scoreFlashEl.id = 'scoreFlashOverlay';
         const { scorer, leftScore, rightScore, imageUrl } = options;
-        const duration = options.durationMs ?? 1800;
+        const duration = options.durationMs ?? 500;
         const titleText = scorer === 'left' ? 'LEFT SCORES!' : 'RIGHT SCORES!';
         const content = imageUrl ? 
             `<img src="${imageUrl}" alt="Score" style="max-height:160px; filter: drop-shadow(0 0 12px #00ffff);"/>` : 

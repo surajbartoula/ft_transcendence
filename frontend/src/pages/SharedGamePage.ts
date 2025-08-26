@@ -10,10 +10,8 @@ export class SharedGamePage implements Page {
     private gameManager: PongGameManager | null = null;
     private gameCanvas: HTMLCanvasElement | null = null;
     private isGameInitialized: boolean = false;
-    private backButton: HTMLElement | null = null;
     private fullscreenButton: HTMLElement | null = null;
     private gameContainer: HTMLElement | null = null;
-    private gameModeIndicator: HTMLElement | null = null;
     private gameMode: 'local' | 'ai' | 'remote' = 'local';
     private player1Name: string = 'Player 1';
     private player2Name: string = 'Player 2';
@@ -28,50 +26,17 @@ export class SharedGamePage implements Page {
     public render(): string {
         return `
             <div class="fixed inset-0 bg-slate-900 flex flex-col h-screen">
-                <!-- Game Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-3 z-20 relative">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors z-30 relative">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                                </svg>
-                                <span>Back to Menu</span>
-                            </button>
-                            <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-lg font-bold text-white">Pong Game</h1>
-                            <div id="gameModeIndicator" class="px-2 py-1 bg-blue-600 text-white text-xs rounded">
-                                Loading...
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center space-x-3">
-                            <div class="text-xs text-gray-400 hidden sm:block">
-                                <span class="text-blue-400">↑↓</span> Left | 
-                                <span class="text-orange-400">WS</span> Right | 
-                                <span class="text-green-400">Space</span> Pause
-                            </div>
-                            <button id="fullscreenButton" class="text-gray-300 hover:text-white transition-colors p-2 rounded z-30 relative">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Game Status Bar -->
-                    <div id="gameStatusBar" class="mt-2 flex items-center justify-between text-xs text-gray-400">
-                        <div class="flex items-center space-x-4">
-                            <div id="gameStatus">Initializing...</div>
-                            <div id="playerNames" class="hidden">
-                                <span id="player1Name" class="text-blue-400"></span> vs <span id="player2Name" class="text-orange-400"></span>
-                            </div>
-                        </div>
-                        <div id="gameStats" class="flex space-x-4">
-                            <span id="currentScore">Score: 0 - 0</span>
-                        </div>
-                    </div>
+                <!-- Small Info Message -->
+                <div class="absolute top-4 left-4 z-30 bg-black bg-opacity-50 text-white text-sm px-3 py-2 rounded">
+                    Press <span class="text-green-400 font-semibold">Space</span> for menu
                 </div>
+                
+                <!-- Fullscreen Button -->
+                <button id="fullscreenButton" class="absolute top-4 right-4 z-30 bg-black bg-opacity-50 text-gray-300 hover:text-white transition-colors p-2 rounded">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                    </svg>
+                </button>
 
                 <!-- Game Container -->
                 <div id="gameContainer" class="flex-1 relative bg-black overflow-hidden">
@@ -185,10 +150,8 @@ export class SharedGamePage implements Page {
         
         this.isGameInitialized = false;
         this.gameCanvas = null;
-        this.backButton = null;
         this.fullscreenButton = null;
         this.gameContainer = null;
-        this.gameModeIndicator = null;
     }
 
     private parseGameMode(): void {
@@ -215,16 +178,11 @@ export class SharedGamePage implements Page {
 
     private bindElements(): void {
         this.gameCanvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-        this.backButton = document.getElementById('backButton');
         this.fullscreenButton = document.getElementById('fullscreenButton');
         this.gameContainer = document.getElementById('gameContainer');
-        this.gameModeIndicator = document.getElementById('gameModeIndicator');
     }
 
     private attachEventListeners(): void {
-        if (this.backButton) {
-            this.backButton.addEventListener('click', this.handleBackClick.bind(this));
-        }
         if (this.fullscreenButton) {
             this.fullscreenButton.addEventListener('click', this.handleFullscreenClick.bind(this));
         }
@@ -240,8 +198,6 @@ export class SharedGamePage implements Page {
             backToMenuButton.addEventListener('click', this.handleBackClick.bind(this));
         }
 
-        // Pause overlay buttons
-
         // Game over buttons
         const playAgainButton = document.getElementById('playAgainButton');
         if (playAgainButton) {
@@ -252,14 +208,10 @@ export class SharedGamePage implements Page {
         if (backToMenuFromGameOver) {
             backToMenuFromGameOver.addEventListener('click', this.handleBackClick.bind(this));
         }
-        
-        // Tournament completion handled by GameStateManager
 
         // System events
         document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
         window.addEventListener('resize', this.handleWindowResize.bind(this));
-        
-
         
         if (this.gameCanvas) {
             this.gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -267,15 +219,11 @@ export class SharedGamePage implements Page {
     }
 
     private removeEventListeners(): void {
-        if (this.backButton) {
-            this.backButton.removeEventListener('click', this.handleBackClick);
-        }
         if (this.fullscreenButton) {
             this.fullscreenButton.removeEventListener('click', this.handleFullscreenClick);
         }
         document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
         window.removeEventListener('resize', this.handleWindowResize);
-
     }
 
     private async initializeGame(): Promise<void> {
@@ -483,45 +431,11 @@ export class SharedGamePage implements Page {
 
     private updateGameStatusDisplay(): void {
         if (!this.gameManager) return;
-
-        try {
-            const gameMode = this.gameManager.getGameMode();
-            const score = this.gameManager.getScore();
-            
-            // Update game mode indicator
-            if (this.gameModeIndicator) {
-                this.gameModeIndicator.textContent = this.getGameModeDisplayName();
-                this.gameModeIndicator.classList.remove('hidden');
-            }
-
-            // Update score display
-            const currentScore = document.getElementById('currentScore');
-            if (currentScore) {
-                currentScore.textContent = `Score: ${score.left} - ${score.right}`;
-            }
-
-            // Update game status
-            const gameStatus = document.getElementById('gameStatus');
-            if (gameStatus) {
-                gameStatus.textContent = gameMode.type !== 'menu' ? 'Playing' : 'Ready';
-            }
-
-        } catch (error) {
-            console.warn('⚠️ Error updating game status display:', error);
-        }
+        // Status display removed - game has its own in-game menu
     }
 
     private updateGameInfo(): void {
-        // Update player names display
-        const player1Element = document.getElementById('player1Name');
-        const player2Element = document.getElementById('player2Name');
-        const playerNamesContainer = document.getElementById('playerNames');
-        
-        if (player1Element && player2Element && playerNamesContainer) {
-            player1Element.textContent = this.player1Name;
-            player2Element.textContent = this.player2Name;
-            playerNamesContainer.classList.remove('hidden');
-        }
+        // Game info now handled by in-game menu system
     }
 
     private checkWebGLSupport(): boolean {

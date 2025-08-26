@@ -71,7 +71,7 @@ export class PongGameManager {
                     scorer, 
                     leftScore, 
                     rightScore,
-                    durationMs: 2000
+                    durationMs: 500
                 });
             });
 
