@@ -102,19 +102,19 @@ export class GameMenuPage implements Page {
                             <h2 class="text-xl font-semibold text-white mb-4 text-center">Game Statistics</h2>
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-blue-400">-</div>
+                                    <div class="text-2xl font-bold text-blue-400" data-stat="total_games">-</div>
                                     <div class="text-sm text-gray-400">Games Played</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-green-400">-</div>
+                                    <div class="text-2xl font-bold text-green-400" data-stat="wins">-</div>
                                     <div class="text-sm text-gray-400">Wins</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-red-400">-</div>
+                                    <div class="text-2xl font-bold text-red-400" data-stat="losses">-</div>
                                     <div class="text-sm text-gray-400">Losses</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-yellow-400">-</div>
+                                    <div class="text-2xl font-bold text-yellow-400" data-stat="tournaments_won">-</div>
                                     <div class="text-sm text-gray-400">Tournaments Won</div>
                                 </div>
                             </div>
@@ -123,8 +123,10 @@ export class GameMenuPage implements Page {
                         <!-- Recent Games -->
                         <div class="mt-8 bg-slate-800 rounded-lg border border-slate-700 p-6">
                             <h2 class="text-xl font-semibold text-white mb-4">Recent Games</h2>
-                            <div class="text-center text-gray-400 py-8">
-                                No recent games found. Start playing to see your match history!
+                            <div id="recentGamesContainer">
+                                <div class="text-center text-gray-400 py-8">
+                                    Loading recent games...
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -136,7 +138,10 @@ export class GameMenuPage implements Page {
     public async initialize(): Promise<void> {
         this.bindElements();
         this.attachEventListeners();
-        await this.loadUserStats();
+        await Promise.all([
+            this.loadUserStats(),
+            this.loadRecentGames()
+        ]);
     }
 
     public cleanup(): void {
@@ -224,36 +229,158 @@ export class GameMenuPage implements Page {
 
     private async loadUserStats(): Promise<void> {
         try {
-            // Use game-service directly for stats
+            console.log('📊 Loading user statistics...');
+            
             const response = await fetch('/api/game/stats', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
+            console.log('📊 Stats API response status:', response.status);
+
             if (response.ok) {
                 const text = await response.text();
+                console.log('📊 Stats API response text:', text);
+                
                 if (text.trim()) {
                     const data = JSON.parse(text);
+                    console.log('📊 Parsed stats data:', data);
+                    
                     if (data && data.stats) {
+                        console.log('📊 Updating stats display with:', data.stats);
                         this.updateStatsDisplay(data.stats);
+                    } else {
+                        console.warn('📊 No stats data found in response');
                     }
+                } else {
+                    console.warn('📊 Empty response from stats API');
                 }
+            } else {
+                console.error('📊 Stats API request failed:', response.status, response.statusText);
             }
         } catch (error) {
-            console.warn('Failed to load user stats:', error);
+            console.error('📊 Failed to load user stats:', error);
             // Continue without stats - they'll show as "-"
         }
     }
 
     private updateStatsDisplay(stats: any): void {
-        // Update statistics display with real data
+        console.log('📊 Updating statistics display...');
+        
         const statElements = document.querySelectorAll('[data-stat]');
-        statElements.forEach(element => {
+        console.log(`📊 Found ${statElements.length} stat elements`);
+        
+        statElements.forEach((element, index) => {
             const statType = element.getAttribute('data-stat');
+            console.log(`📊 Element ${index}: data-stat="${statType}", stats[${statType}]=${statType ? stats[statType] : 'N/A'}`);
+            
             if (statType && stats[statType] !== undefined) {
-                element.textContent = stats[statType].toString();
+                const value = stats[statType].toString();
+                element.textContent = value;
+                console.log(`📊 Updated ${statType} to ${value}`);
+            } else {
+                console.warn(`📊 No value found for stat: ${statType}`);
             }
         });
+    }
+
+    private async loadRecentGames(): Promise<void> {
+        try {
+            console.log('🎮 Loading recent games...');
+            
+            const response = await fetch('/api/game/history?limit=10', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            console.log('🎮 Recent games API response status:', response.status);
+
+            if (response.ok) {
+                const text = await response.text();
+                console.log('🎮 Recent games API response text:', text);
+                
+                if (text.trim()) {
+                    const data = JSON.parse(text);
+                    console.log('🎮 Parsed recent games data:', data);
+                    
+                    if (data && data.games) {
+                        console.log('🎮 Updating recent games display with:', data.games);
+                        this.updateRecentGamesDisplay(data.games);
+                    } else {
+                        console.warn('🎮 No games data found in response');
+                        this.showNoRecentGames();
+                    }
+                } else {
+                    console.warn('🎮 Empty response from recent games API');
+                    this.showNoRecentGames();
+                }
+            } else {
+                console.error('🎮 Recent games API request failed:', response.status, response.statusText);
+                this.showNoRecentGames();
+            }
+        } catch (error) {
+            console.error('🎮 Failed to load recent games:', error);
+            this.showNoRecentGames();
+        }
+    }
+
+    private updateRecentGamesDisplay(games: any[]): void {
+        console.log('🎮 Updating recent games display...');
+        
+        const container = document.getElementById('recentGamesContainer');
+        if (!container) {
+            console.error('🎮 Recent games container not found');
+            return;
+        }
+
+        if (games.length === 0) {
+            this.showNoRecentGames();
+            return;
+        }
+
+        container.innerHTML = games.map(game => {
+            const date = new Date(game.finished_at).toLocaleDateString();
+            const time = new Date(game.finished_at).toLocaleTimeString();
+            const resultClass = game.result === 'won' ? 'text-green-400' : game.result === 'lost' ? 'text-red-400' : 'text-yellow-400';
+            const resultText = game.result === 'won' ? 'Victory' : game.result === 'lost' ? 'Defeat' : 'Draw';
+            
+            return `
+                <div class="bg-slate-700 rounded-lg p-4 mb-3 last:mb-0">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-white font-medium">${game.game_mode || 'Game'}</span>
+                                <span class="px-2 py-1 text-xs rounded ${resultClass} bg-opacity-20">
+                                    ${resultText}
+                                </span>
+                            </div>
+                            <div class="text-sm text-gray-400">
+                                Score: ${game.player1_score || 0} - ${game.player2_score || 0}
+                            </div>
+                            ${game.duration ? `<div class="text-xs text-gray-500">Duration: ${Math.round(game.duration / 60)}m ${game.duration % 60}s</div>` : ''}
+                        </div>
+                        <div class="text-right text-xs text-gray-500">
+                            <div>${date}</div>
+                            <div>${time}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('🎮 Recent games display updated');
+    }
+
+    private showNoRecentGames(): void {
+        const container = document.getElementById('recentGamesContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    No recent games found. Start playing to see your match history!
+                </div>
+            `;
+        }
     }
 }

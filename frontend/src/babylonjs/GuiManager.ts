@@ -815,6 +815,8 @@ export class GUIManager {
         if (!this.countdownEl) {
             this.countdownEl = document.createElement('div');
             this.countdownEl.id = 'countdownOverlay';
+            this.countdownEl.className = 'game-countdown-overlay'; // Add class for easier cleanup
+            this.countdownEl.setAttribute('data-game-element', 'countdown'); // Add data attribute
             this.countdownEl.style.cssText = `
                 position: fixed;
                 top: 0; left: 0; width: 100%; height: 100%;
@@ -825,7 +827,11 @@ export class GUIManager {
                 font-family: 'Orbitron', 'Courier New', monospace;
                 background: rgba(0,0,0,0.3);
             `;
-            document.body.appendChild(this.countdownEl);
+            
+            // Try to append to game container first, fall back to body
+            const gameContainer = document.getElementById('gameContainer') || document.getElementById('main-content') || document.body;
+            gameContainer.appendChild(this.countdownEl);
+            console.log('📍 Countdown attached to:', gameContainer.id || gameContainer.tagName);
         }
         const content = typeof value === 'number' ? value.toString() : value;
         this.countdownEl.innerHTML = `

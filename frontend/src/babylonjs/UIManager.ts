@@ -217,6 +217,7 @@ export class UIManager {
 
     dispose(): void {
         this.hideAllMenus();
+        this.clearCountdown(); // Explicitly clear countdown on disposal
         this.gui.dispose();
     }
 }

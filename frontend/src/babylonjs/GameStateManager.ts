@@ -109,6 +109,37 @@ export class GameStateManager {
     isPaused(): boolean {
         return this.paused;
     }
+
+    public dispose(): void {
+        console.log("🧹 GameStateManager: Disposing and cleaning up...");
+        
+        // Clear countdown timer if it exists in any state
+        const states = Array.from(this.states.values());
+        states.forEach(state => {
+            if ((state as any).countdownTimer) {
+                console.log("🧹 Clearing countdown timer from state");
+                clearTimeout((state as any).countdownTimer);
+                (state as any).countdownTimer = null;
+            }
+            if ((state as any).countdownActive) {
+                (state as any).countdownActive = false;
+            }
+        });
+        
+        // Clear any countdown UI that might still be visible
+        if (this.systems.uiManager) {
+            this.systems.uiManager.clearCountdown();
+        }
+        
+        // Also directly remove countdown from DOM
+        const countdownEl = document.querySelector('[data-game-element="countdown"]');
+        if (countdownEl) {
+            console.log("🧹 Directly removing countdown element from DOM");
+            countdownEl.remove();
+        }
+        
+        console.log("✅ GameStateManager: Disposal complete");
+    }
 }
 
 // =====================================
@@ -215,6 +246,7 @@ class GameSetupState extends GameState {
 class PlayingState extends GameState {
     private isResumingFromPause: boolean = false;
     private countdownActive: boolean = false;
+    private countdownTimer: NodeJS.Timeout | null = null;
     private matchData: any = null;
 
     setResumingFromPause(resuming: boolean): void {
@@ -282,17 +314,22 @@ class PlayingState extends GameState {
             let count = 3;
             
             const tick = () => {
-                if (!this.countdownActive) return;
+                if (!this.countdownActive) {
+                    console.log('🛑 Countdown cancelled - countdownActive is false');
+                    resolve();
+                    return;
+                }
                 
                 this.systems.uiManager.showCountdown(count);
                 
                 if (count <= 0) {
                     this.systems.uiManager.clearCountdown();
                     this.countdownActive = false;
+                    this.countdownTimer = null;
                     resolve();
                 } else {
                     count--;
-                    setTimeout(tick, 1000);
+                    this.countdownTimer = setTimeout(tick, 1000);
                 }
             };
             

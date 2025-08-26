@@ -404,8 +404,8 @@ export class PongGameManager {
             this.audioManager.dispose();
             this.uiManager.dispose();
             
-            // Clear any remaining timers or intervals
-            // (GameStateManager handles its own cleanup)
+            // Dispose GameStateManager to stop timers and cleanup
+            (this.gameState as any)?.dispose?.();
             
             console.log("✅ Enhanced Game Manager disposed successfully");
             

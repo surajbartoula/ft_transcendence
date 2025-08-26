@@ -255,6 +255,13 @@ export class RemoteGamePage implements Page {
             gameSocket.leaveGameRoom();
         }
 
+        // Clean up any lingering countdown UI elements using multiple selectors
+        const countdownElements = document.querySelectorAll('#countdownOverlay, [data-game-element="countdown"], .game-countdown-overlay');
+        countdownElements.forEach(el => {
+            console.log('🧹 RemoteGamePage: Removing countdown element:', el);
+            el.remove();
+        });
+
         const notificationsContainer = document.getElementById('notifications');
         if (notificationsContainer) {
             notificationsContainer.innerHTML = '';
@@ -540,11 +547,16 @@ export class RemoteGamePage implements Page {
     }
 
     private handleBackClick(): void {
-        const confirmed = confirm('Are you sure you want to leave the game? This will forfeit the match.');
-        if (confirmed) {
-            gameSocket.quitGame();
-            this.navigateToLobby();
-        }
+        console.log('🔙 Back button clicked - starting cleanup...');
+        
+        // Quit the game first
+        gameSocket.quitGame();
+        
+        // Explicitly call cleanup to ensure game resources are disposed
+        this.cleanup();
+        
+        // Then navigate
+        this.navigateToLobby();
     }
 
     private handleFullscreenClick(): void {

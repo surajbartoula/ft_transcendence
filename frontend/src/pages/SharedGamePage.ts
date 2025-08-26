@@ -167,6 +167,13 @@ export class SharedGamePage implements Page {
         
         this.removeEventListeners();
 
+        // Clean up any lingering countdown UI elements using multiple selectors
+        const countdownElements = document.querySelectorAll('#countdownOverlay, [data-game-element="countdown"], .game-countdown-overlay');
+        countdownElements.forEach(el => {
+            console.log('🧹 SharedGamePage: Removing countdown element:', el);
+            el.remove();
+        });
+
         const notificationsContainer = document.getElementById('notifications');
         if (notificationsContainer) {
             notificationsContainer.innerHTML = '';
@@ -557,10 +564,10 @@ export class SharedGamePage implements Page {
 
 
     private handleBackClick(): void {
-        if (this.isGameInitialized && this.gameManager) {
-            const confirmed = confirm('Are you sure you want to leave the game? Your progress will be lost.');
-            if (!confirmed) return;
-        }
+        console.log('🔙 Back button clicked - starting cleanup...');
+        
+        // Explicitly call cleanup to ensure game resources are disposed
+        this.cleanup();
         
         if (this.tournamentId) {
             // Navigate back to tournament bracket
