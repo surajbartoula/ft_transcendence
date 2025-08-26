@@ -13,6 +13,40 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 export default async function authRoutes(fastify, options) {
 	/**
+	 * Check username availability endpoint
+	 */
+	fastify.get('/username/check/:username', async (request, reply) => {
+		try {
+			const { username } = request.params;
+			
+			if (!username || username.trim().length < 3) {
+				return reply.status(400).send({ 
+					error: 'Username must be at least 3 characters long' 
+				});
+			}
+			
+			if (username.length > 20) {
+				return reply.status(400).send({ 
+					error: 'Username must be no more than 20 characters long' 
+				});
+			}
+			
+			const available = await checkUsernameAvailability(username.trim());
+			
+			reply.send({
+				username: username.trim(),
+				available: available,
+				exists: !available
+			});
+		} catch (error) {
+			console.error('Username check error:', error);
+			reply.status(500).send({ 
+				error: 'Failed to check username availability' 
+			});
+		}
+	});
+
+	/**
 	 * Register endpoints
 	 */
 	fastify.post('/register', async (request, reply) => {
@@ -21,14 +55,29 @@ export default async function authRoutes(fastify, options) {
 			const { email, password, name } = request.body;
 			if (!email || !password || !name) {
 				return reply.status(400).send({
-					error: 'Email, password, and name are required'
+					error: 'Email, password, and username are required'
 				});
 			}
+			
+			// Validate username
+			const trimmedName = name.trim();
+			if (trimmedName.length < 3) {
+				return reply.status(400).send({
+					error: 'Username must be at least 3 characters long'
+				});
+			}
+			if (trimmedName.length > 20) {
+				return reply.status(400).send({
+					error: 'Username must be no more than 20 characters long'
+				});
+			}
+			
 			if (password.length < 6) {
 				return reply.status(400).send({
 					error: 'Password must be at least 6 characters long'
 				});
 			}
+			
 			/** Check if user already exists by email */
 			const existingUser = await User.findByEmail(email);
 			if (existingUser) {
@@ -36,11 +85,25 @@ export default async function authRoutes(fastify, options) {
 					error: 'User already exists with this email'
 				});
 			}
+			
+			/** Check if username is available */
+			try {
+				const isUsernameAvailable = await checkUsernameAvailability(trimmedName);
+				if (!isUsernameAvailable) {
+					return reply.status(400).send({
+						error: 'Username already exists'
+					});
+				}
+			} catch (usernameError) {
+				console.warn('Username availability check failed, proceeding with registration:', usernameError.message);
+				// Continue with registration even if username check fails - the profile creation will catch duplicates
+			}
+			
 			/** Create new user */
-			const user = await User.create(email, password, name);
+			const user = await User.create(email, password, trimmedName);
 			const verificationCode = emailService.generateVerificationCode();
 			await User.storeVerificationCode(email, verificationCode);
-			const emailSent = await emailService.sendVerificationEmail(email, verificationCode, name);
+			const emailSent = await emailService.sendVerificationEmail(email, verificationCode, trimmedName);
 			if (!emailSent) {
 				return reply.status(500).send({
 					error: 'Failed to send verification email'
@@ -87,7 +150,20 @@ export default async function authRoutes(fastify, options) {
 				bio: ''
 			};
 			/** Create user profile in user service */
-			await createUserProfile(defaultProfile, token);
+			try {
+				await createUserProfile(defaultProfile, token);
+			} catch (profileError) {
+				console.error('Profile creation error during email verification:', profileError);
+				// If username is taken during verification (race condition), return error
+				if (profileError.message === 'Username already exists') {
+					return reply.status(400).send({
+						error: 'Username already exists. Please contact support.'
+					});
+				}
+				// For other profile creation errors, continue with login but log the issue
+				console.warn('Profile creation failed, user can create profile later:', profileError.message);
+			}
+			
 			reply.send({
 				message: 'Email verified successfully!',
 				token,
@@ -444,6 +520,36 @@ export default async function authRoutes(fastify, options) {
 	});
 
 	/**
+	 * Check if user profile exists in user service via gateway
+	 */
+	async function checkUserProfile(jwtToken) {
+		try {
+			const gatewayUrl = process.env.GATEWAY_URL || 'https://localhost:3000';
+			const response = await fetch(`${gatewayUrl}/api/user/profile`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${jwtToken}`
+				}
+			});
+			
+			if (response.status === 404) {
+				// Profile doesn't exist
+				return null;
+			}
+			
+			if (!response.ok) {
+				throw new Error(`Profile check failed with status ${response.status}`);
+			}
+			
+			return await response.json();
+		} catch (error) {
+			console.error('Error checking user profile:', error);
+			// If there's an error checking, assume profile doesn't exist
+			return null;
+		}
+	}
+
+	/**
 	 * Create user profile in user service via gateway
 	 */
 	async function createUserProfile(user, jwtToken) {
@@ -460,8 +566,79 @@ export default async function authRoutes(fastify, options) {
 					bio: user.bio || null
 				})
 			});
+			
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `Profile creation failed with status ${response.status}`);
+			}
+			
+			return await response.json();
 		} catch (error) {
-			fastify.log.error('Error creating user profile:', error);
+			console.error('Error creating user profile:', error);
+			throw error;
+		}
+	}
+	
+	/**
+	 * Check username availability via gateway
+	 */
+	async function checkUsernameAvailability(username) {
+		try {
+			const gatewayUrl = process.env.GATEWAY_URL || 'https://localhost:3000';
+			const response = await fetch(`${gatewayUrl}/api/user/username/check/${encodeURIComponent(username)}`);
+			
+			if (!response.ok) {
+				throw new Error(`Username check failed with status ${response.status}`);
+			}
+			
+			const data = await response.json();
+			return data.available;
+		} catch (error) {
+			console.error('Error checking username availability:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Generate unique username from display name for Google OAuth users
+	 */
+	async function generateUniqueUsername(displayName) {
+		try {
+			// Clean the display name to create a base username
+			let baseUsername = displayName
+				.toLowerCase()
+				.replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric characters
+				.substring(0, 15); // Limit to 15 chars to leave room for numbers
+			
+			// Ensure minimum length
+			if (baseUsername.length < 3) {
+				baseUsername = 'user' + baseUsername;
+			}
+			
+			// Check if base username is available
+			let username = baseUsername;
+			let isAvailable = await checkUsernameAvailability(username);
+			
+			// If not available, append numbers until we find an available one
+			let counter = 1;
+			while (!isAvailable && counter < 1000) {
+				username = baseUsername + counter;
+				isAvailable = await checkUsernameAvailability(username);
+				counter++;
+			}
+			
+			// If we still couldn't find a username, generate a random one
+			if (!isAvailable) {
+				const randomSuffix = Math.random().toString(36).substring(2, 8);
+				username = 'user' + randomSuffix;
+			}
+			
+			return username;
+		} catch (error) {
+			console.error('Error generating unique username:', error);
+			// Fallback to a random username
+			const randomSuffix = Math.random().toString(36).substring(2, 10);
+			return 'user' + randomSuffix;
 		}
 	}
 
@@ -477,7 +654,6 @@ export default async function authRoutes(fastify, options) {
 				});
 			}
 			let user = await User.findByEmail(googleUserInfo.email);
-			let isNewUser = false;
 			if (!user) {
 				user = await User.createGoogleUser(
 					googleUserInfo.email,
@@ -485,21 +661,70 @@ export default async function authRoutes(fastify, options) {
 					googleUserInfo.picture,
 					googleUserInfo.sub //google user ID
 				);
-				isNewUser = true;
 			} else {
 				await User.updateGoogleInfo(user.id, googleUserInfo.picture, googleUserInfo.sub);
 			}
-			const defaultProfile = {
-				username: user.name,
-				bio: ''
-			};
 			/** Create user profile if new user or ensure profile exists */
 			const jwtToken = await reply.jwtSign({
 				id: user.id,
 				email: user.email
 			});
-			await createUserProfile(defaultProfile, jwtToken);
-			return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+			
+			// Only create profile for new users or if profile doesn't exist
+			try {
+				// Check if profile already exists
+				const existingProfile = await checkUserProfile(jwtToken);
+				
+				if (existingProfile) {
+					// Profile already exists, just redirect to success
+					return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+				}
+				
+				// Profile doesn't exist, create it
+				// Generate a unique username for Google OAuth users
+				const uniqueUsername = await generateUniqueUsername(user.name);
+				console.log(`Generated unique username for Google user: ${uniqueUsername} (from ${user.name})`);
+				
+				const defaultProfile = {
+					username: uniqueUsername,
+					bio: ''
+				};
+				
+				await createUserProfile(defaultProfile, jwtToken);
+				return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+				
+			} catch (profileError) {
+				console.error('Profile handling failed for Google user:', profileError);
+				
+				if (profileError.message === 'Username already exists') {
+					// Try one more time with a completely random username as fallback
+					const fallbackUsername = 'user' + Math.random().toString(36).substring(2, 10);
+					const fallbackProfile = {
+						username: fallbackUsername,
+						bio: ''
+					};
+					try {
+						await createUserProfile(fallbackProfile, jwtToken);
+						return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+					} catch (fallbackError) {
+						console.error('Fallback profile creation also failed:', fallbackError);
+						return reply.status(500).send({
+							error: 'Failed to create user profile'
+						});
+					}
+				}
+				
+				// If it's a constraint error about user_id, the profile already exists
+				if (profileError.message.includes('Profile already exists') || 
+					profileError.message.includes('UNIQUE constraint failed: profiles.user_id')) {
+					console.log('Profile already exists for Google user, proceeding with login');
+					return reply.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${jwtToken}`);
+				}
+				
+				return reply.status(500).send({
+					error: 'Google authentication failed during profile creation'
+				});
+			}
 		} catch (error) {
 			console.error('Google OAuth callback error:', error);
 			return reply.status(500).send({

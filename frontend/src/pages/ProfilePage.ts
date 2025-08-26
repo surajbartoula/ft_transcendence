@@ -2,7 +2,7 @@ import { Page } from '../router/Router';
 import { User } from '../utils/auth';
 import { showNotification, showError } from '../utils/ui';
 import { API_CONFIG } from '../config';
-import { generateAvatarUrl } from '../utils/ui';
+import { generateAvatarUrl, debounce } from '../utils/ui';
 
 interface ProfileData {
     username: string;
@@ -28,6 +28,8 @@ export class ProfilePage implements Page {
     private avatarUpload: HTMLInputElement | null = null;
     private saveButton: HTMLButtonElement | null = null;
     private isEditing: boolean = false;
+    private debouncedCheckUsername: ((username: string) => void) | null = null;
+    private originalUsername: string = '';
 
     public render(): string {
         return `
@@ -90,9 +92,25 @@ export class ProfilePage implements Page {
                             <form id="profileForm" class="space-y-6">
                                 <div>
                                     <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username *</label>
-                                    <input type="text" id="username" name="username" required
-                                           class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                           placeholder="Enter your username">
+                                    <div class="relative">
+                                        <input type="text" id="username" name="username" required
+                                               class="w-full p-3 pr-12 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               placeholder="Enter your username">
+                                        <div id="usernameIndicator" class="absolute inset-y-0 right-0 pr-3 items-center hidden">
+                                            <!-- Loading spinner -->
+                                            <div id="usernameLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 hidden"></div>
+                                            <!-- Available checkmark -->
+                                            <svg id="usernameAvailable" class="h-5 w-5 text-green-500 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            <!-- Unavailable X -->
+                                            <svg id="usernameUnavailable" class="h-5 w-5 text-red-500 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div id="usernameMessage" class="text-xs mt-1 hidden"></div>
+                                    <p class="text-xs text-gray-500 mt-1">Username must be 3-20 characters long</p>
                                 </div>
                                 
                                 <div>
@@ -124,6 +142,7 @@ export class ProfilePage implements Page {
         this.bindElements();
         this.loadUserData();
         this.attachEventListeners();
+        this.setupUsernameValidation();
         this.loadProfile();
         this.loadPhoto();
     }
@@ -154,6 +173,13 @@ export class ProfilePage implements Page {
         if (logoutBtn) {
             logoutBtn.removeEventListener('click', this.handleLogout);
         }
+        
+        // Cleanup username validation
+        const usernameInput = document.getElementById('username') as HTMLInputElement;
+        if (usernameInput) {
+            usernameInput.removeEventListener('input', this.handleUsernameInputEvent.bind(this));
+        }
+        this.debouncedCheckUsername = null;
     }
 
     private bindElements(): void {
@@ -195,6 +221,142 @@ export class ProfilePage implements Page {
         }
     }
 
+    private setupUsernameValidation(): void {
+        this.debouncedCheckUsername = debounce(this.checkUsernameAvailability.bind(this), 500);
+        
+        const usernameInput = document.getElementById('username') as HTMLInputElement;
+        if (usernameInput) {
+            // Remove existing listener first to avoid duplicates
+            usernameInput.removeEventListener('input', this.handleUsernameInputEvent.bind(this));
+            usernameInput.addEventListener('input', this.handleUsernameInputEvent.bind(this));
+        }
+    }
+
+    private handleUsernameInputEvent = (e: Event): void => {
+        const username = (e.target as HTMLInputElement).value.trim();
+        this.handleUsernameInput(username);
+    }
+
+    private handleUsernameInput(username: string): void {
+        this.hideUsernameIndicators();
+        this.hideUsernameMessage();
+        
+        if (username.length === 0) {
+            return;
+        }
+        
+        // Check if it's the same as original username (no need to check availability)
+        if (username === this.originalUsername) {
+            this.showUsernameIndicator('available');
+            this.showUsernameMessage('Current username', 'info');
+            return;
+        }
+        
+        if (username.length < 3) {
+            this.showUsernameMessage('Username must be at least 3 characters long', 'error');
+            this.showUsernameIndicator('unavailable');
+            return;
+        }
+        
+        if (username.length > 20) {
+            this.showUsernameMessage('Username must be no more than 20 characters long', 'error');
+            this.showUsernameIndicator('unavailable');
+            return;
+        }
+        
+        this.showUsernameIndicator('loading');
+        this.debouncedCheckUsername!(username);
+    }
+
+    private async checkUsernameAvailability(username: string): Promise<void> {
+        try {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/username/check/${encodeURIComponent(username)}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to check username availability');
+            }
+            
+            const currentUsername = (document.getElementById('username') as HTMLInputElement)?.value?.trim();
+            if (currentUsername !== username) {
+                return;
+            }
+            
+            this.hideUsernameIndicators();
+            
+            if (data.available) {
+                this.showUsernameIndicator('available');
+                this.showUsernameMessage('Username is available', 'success');
+            } else {
+                this.showUsernameIndicator('unavailable');
+                this.showUsernameMessage('Username is already taken', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Username availability check failed:', error);
+            this.hideUsernameIndicators();
+            this.showUsernameMessage('Unable to check username availability', 'error');
+        }
+    }
+
+    private showUsernameIndicator(type: 'loading' | 'available' | 'unavailable'): void {
+        const container = document.getElementById('usernameIndicator');
+        const loading = document.getElementById('usernameLoading');
+        const available = document.getElementById('usernameAvailable');
+        const unavailable = document.getElementById('usernameUnavailable');
+        
+        if (!container) return;
+        
+        container.classList.remove('hidden');
+        
+        loading?.classList.add('hidden');
+        available?.classList.add('hidden');
+        unavailable?.classList.add('hidden');
+        
+        switch (type) {
+            case 'loading':
+                loading?.classList.remove('hidden');
+                break;
+            case 'available':
+                available?.classList.remove('hidden');
+                break;
+            case 'unavailable':
+                unavailable?.classList.remove('hidden');
+                break;
+        }
+    }
+
+    private hideUsernameIndicators(): void {
+        const container = document.getElementById('usernameIndicator');
+        container?.classList.add('hidden');
+    }
+
+    private showUsernameMessage(message: string, type: 'success' | 'error' | 'info'): void {
+        const messageElement = document.getElementById('usernameMessage');
+        if (!messageElement) return;
+        
+        messageElement.textContent = message;
+        let colorClass = '';
+        switch (type) {
+            case 'success':
+                colorClass = 'text-green-400';
+                break;
+            case 'error':
+                colorClass = 'text-red-400';
+                break;
+            case 'info':
+                colorClass = 'text-blue-400';
+                break;
+        }
+        messageElement.className = `text-xs mt-1 ${colorClass}`;
+        messageElement.classList.remove('hidden');
+    }
+
+    private hideUsernameMessage(): void {
+        const messageElement = document.getElementById('usernameMessage');
+        messageElement?.classList.add('hidden');
+    }
+
     private populateUserInfo(): void {
         if (!this.currentUser) return;
 
@@ -222,7 +384,7 @@ export class ProfilePage implements Page {
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/profile`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -257,7 +419,7 @@ export class ProfilePage implements Page {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/photo`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -286,10 +448,15 @@ export class ProfilePage implements Page {
         const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
         if (usernameInput) {
             usernameInput.value = profile.username;
+            this.originalUsername = profile.username; // Store original username for comparison
         }
         if (bioInput) {
             bioInput.value = profile.bio || '';
         }
+        
+        // Reset validation indicators when profile is updated
+        this.hideUsernameIndicators();
+        this.hideUsernameMessage();
     }
 
     private updatePhotoDisplay(photo: PhotoData): void {
@@ -297,7 +464,7 @@ export class ProfilePage implements Page {
         const profileAvatar = document.getElementById('profileAvatar');
 
         if (profilePhoto && profileAvatar) {
-            profilePhoto.src = `${API_CONFIG.GATEWAY_URL}${photo.path}`;
+            profilePhoto.src = photo.path;
             profilePhoto.classList.remove('hidden');
             profileAvatar.classList.add('hidden');
         }
@@ -334,6 +501,18 @@ export class ProfilePage implements Page {
         if (this.saveButton) {
             this.saveButton.textContent = this.currentProfile ? 'Update Profile' : 'Create Profile';
         }
+        
+        // Re-setup username validation when form is shown
+        this.setupUsernameValidation();
+        
+        // If we have current profile, show current username as valid
+        if (this.currentProfile && this.currentProfile.username) {
+            const usernameInput = document.getElementById('username') as HTMLInputElement;
+            if (usernameInput && usernameInput.value === this.originalUsername) {
+                this.showUsernameIndicator('available');
+                this.showUsernameMessage('Current username', 'info');
+            }
+        }
     }
 
     private handleEditClick(): void {
@@ -363,13 +542,33 @@ export class ProfilePage implements Page {
             showError('Username is required');
             return;
         }
+        
+        // Validate username length
+        const username = profileData.username.trim();
+        if (username.length < 3) {
+            showError('Username must be at least 3 characters long');
+            return;
+        }
+        if (username.length > 20) {
+            showError('Username must be no more than 20 characters long');
+            return;
+        }
+        
+        // Check if username is available (unless it's the same as current)
+        if (username !== this.originalUsername) {
+            const usernameUnavailable = document.getElementById('usernameUnavailable');
+            if (usernameUnavailable && !usernameUnavailable.classList.contains('hidden')) {
+                showError('Please choose an available username');
+                return;
+            }
+        }
         this.setLoadingState(true);
         try {
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
 
             const method = this.currentProfile ? 'PATCH' : 'POST';
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/profile`, {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/profile`, {
                 method: method,
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -383,10 +582,11 @@ export class ProfilePage implements Page {
             }
             const updatedProfile = await response.json();
             this.currentProfile = updatedProfile;
+            this.originalUsername = updatedProfile.username; // Update original username
             this.updateProfileDisplay(updatedProfile);
             this.showProfileDisplay();
             
-            const message = this.currentProfile ? 'Profile updated successfully!' : 'Profile created successfully!';
+            const message = method === 'PATCH' ? 'Profile updated successfully!' : 'Profile created successfully!';
             showNotification(message, 'success');
         } catch (error: any) {
             showError(error.message || 'Failed to save profile');
@@ -417,7 +617,7 @@ export class ProfilePage implements Page {
             formData.append('file', file); // Changed from 'avatar' to 'file' to match your backend
             const token = localStorage.getItem('token');
             if (!token) throw new Error('No authentication token found');
-            const response = await fetch(`${API_CONFIG.GATEWAY_URL}${API_CONFIG.ENDPOINTS.USER}/photo`, {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/photo`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

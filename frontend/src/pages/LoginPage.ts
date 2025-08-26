@@ -2,6 +2,7 @@ import { Page } from '../router/Router';
 import { login, register, User, LoginResponse } from '../utils/auth';
 import { showError, hideError } from '../utils/ui';
 import { showModal, hideModal, showNotification } from '../utils/ui';
+import { debounce } from '../utils/ui';
 import { API_CONFIG } from '../config';
 
 export class LoginPage implements Page {
@@ -13,6 +14,7 @@ export class LoginPage implements Page {
     private switchButton: HTMLButtonElement | null = null;
     private googleButton: HTMLButtonElement | null = null;
     private pendingLoginData: { email: string; password: string; } | null = null;
+    private debouncedCheckUsername: ((username: string) => void) | null = null;
 
     public render(): string {
         return `
@@ -32,11 +34,26 @@ export class LoginPage implements Page {
                         <form id="authForm" class="space-y-6">
                             <div id="nameField" class="${this.isLoginMode ? 'hidden' : ''}">
                                 <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                                <input type="text" id="name" name="name" 
-                                       class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                       placeholder="Enter your username"
-                                       ${!this.isLoginMode ? 'required' : ''}
-                                       ${!this.isLoginMode ? 'minlength="3" maxlength="20"' : ''}>
+                                <div class="relative">
+                                    <input type="text" id="name" name="name" 
+                                           class="w-full px-4 py-3 pr-10 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                                           placeholder="Enter your username"
+                                           ${!this.isLoginMode ? 'required' : ''}
+                                           ${!this.isLoginMode ? 'minlength="3" maxlength="20"' : ''}>
+                                    <div id="usernameIndicator" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden">
+                                        <!-- Loading spinner -->
+                                        <div id="usernameLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500 hidden"></div>
+                                        <!-- Available checkmark -->
+                                        <svg id="usernameAvailable" class="h-5 w-5 text-green-500 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                        </svg>
+                                        <!-- Unavailable X -->
+                                        <svg id="usernameUnavailable" class="h-5 w-5 text-red-500 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div id="usernameMessage" class="text-xs mt-1 hidden"></div>
                                 ${!this.isLoginMode ? '<p class="text-xs text-gray-500 mt-1">Username must be 3-20 characters long</p>' : ''}
                             </div>
                             
@@ -178,6 +195,7 @@ export class LoginPage implements Page {
         this.attachEventListeners();
         this.handleGoogleCallback();
         this.setup2FAModalListeners();
+        this.setupUsernameValidation();
     }
 
     public cleanup(): void {
@@ -210,6 +228,123 @@ export class LoginPage implements Page {
         if (this.googleButton) {
             this.googleButton.addEventListener('click', this.handleGoogleSignIn.bind(this));
         }
+    }
+
+    private setupUsernameValidation(): void {
+        this.debouncedCheckUsername = debounce(this.checkUsernameAvailability.bind(this), 500);
+        
+        const nameInput = document.getElementById('name') as HTMLInputElement;
+        if (nameInput) {
+            nameInput.addEventListener('input', (e) => {
+                const username = (e.target as HTMLInputElement).value.trim();
+                this.handleUsernameInput(username);
+            });
+        }
+    }
+
+    private handleUsernameInput(username: string): void {
+        if (this.isLoginMode) return;
+        
+        this.hideUsernameIndicators();
+        this.hideUsernameMessage();
+        
+        if (username.length === 0) {
+            return;
+        }
+        
+        if (username.length < 3) {
+            this.showUsernameMessage('Username must be at least 3 characters long', 'error');
+            this.showUsernameIndicator('unavailable');
+            return;
+        }
+        
+        if (username.length > 20) {
+            this.showUsernameMessage('Username must be no more than 20 characters long', 'error');
+            this.showUsernameIndicator('unavailable');
+            return;
+        }
+        
+        this.showUsernameIndicator('loading');
+        this.debouncedCheckUsername!(username);
+    }
+
+    private async checkUsernameAvailability(username: string): Promise<void> {
+        try {
+            const response = await fetch(`${API_CONFIG.ENDPOINTS.USER}/username/check/${encodeURIComponent(username)}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to check username availability');
+            }
+            
+            const currentUsername = (document.getElementById('name') as HTMLInputElement)?.value?.trim();
+            if (currentUsername !== username) {
+                return;
+            }
+            
+            this.hideUsernameIndicators();
+            
+            if (data.available) {
+                this.showUsernameIndicator('available');
+                this.showUsernameMessage('Username is available', 'success');
+            } else {
+                this.showUsernameIndicator('unavailable');
+                this.showUsernameMessage('Username is already taken', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Username availability check failed:', error);
+            this.hideUsernameIndicators();
+            this.showUsernameMessage('Unable to check username availability', 'error');
+        }
+    }
+
+    private showUsernameIndicator(type: 'loading' | 'available' | 'unavailable'): void {
+        const container = document.getElementById('usernameIndicator');
+        const loading = document.getElementById('usernameLoading');
+        const available = document.getElementById('usernameAvailable');
+        const unavailable = document.getElementById('usernameUnavailable');
+        
+        if (!container) return;
+        
+        container.classList.remove('hidden');
+        
+        loading?.classList.add('hidden');
+        available?.classList.add('hidden');
+        unavailable?.classList.add('hidden');
+        
+        switch (type) {
+            case 'loading':
+                loading?.classList.remove('hidden');
+                break;
+            case 'available':
+                available?.classList.remove('hidden');
+                break;
+            case 'unavailable':
+                unavailable?.classList.remove('hidden');
+                break;
+        }
+    }
+
+    private hideUsernameIndicators(): void {
+        const container = document.getElementById('usernameIndicator');
+        container?.classList.add('hidden');
+    }
+
+    private showUsernameMessage(message: string, type: 'success' | 'error'): void {
+        const messageElement = document.getElementById('usernameMessage');
+        if (!messageElement) return;
+        
+        messageElement.textContent = message;
+        messageElement.className = `text-xs mt-1 ${
+            type === 'success' ? 'text-green-600' : 'text-red-600'
+        }`;
+        messageElement.classList.remove('hidden');
+    }
+
+    private hideUsernameMessage(): void {
+        const messageElement = document.getElementById('usernameMessage');
+        messageElement?.classList.add('hidden');
     }
 
     private setup2FAModalListeners(): void {
@@ -482,6 +617,15 @@ export class LoginPage implements Page {
         if (switchText) switchText.textContent = this.isLoginMode ? "Don't have an account?" : 'Already have an account?';
         if (switchMode) switchMode.textContent = this.isLoginMode ? 'Sign Up' : 'Sign In';
         if (subtitle) subtitle.textContent = this.isLoginMode ? 'Please sign in to your account' : 'Create your new account';
+        
+        /** Reset username validation UI when switching modes */
+        if (this.isLoginMode) {
+            this.hideUsernameIndicators();
+            this.hideUsernameMessage();
+        } else {
+            /** Re-setup username validation after switching to signup mode */
+            this.setupUsernameValidation();
+        }
     }
 
     private clearForm(): void {

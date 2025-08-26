@@ -58,7 +58,7 @@ export class DatabaseService {
 			CREATE TABLE IF NOT EXISTS profiles (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			user_id TEXT NOT NULL UNIQUE,
-			username TEXT NOT NULL,
+			username TEXT NOT NULL UNIQUE,
 			bio TEXT,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 			)
@@ -90,34 +90,71 @@ export class DatabaseService {
 			return this.getProfile(user_id);
 		} catch (error) {
 			if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+				// Check if it's a username or user_id constraint violation
+				if (error.message.includes('profiles.username')) {
+					throw new Error('Username already exists');
+				}
 				throw new Error('Profile already exists for this user');
 			}
 			throw error;
 		}
 	}
 
+	async isUsernameExists(username) {
+		try {
+			const result = await this.db.getAsync(
+				'SELECT COUNT(*) as count FROM profiles WHERE LOWER(username) = LOWER(?)', 
+				[username]
+			);
+			return result.count > 0;
+		} catch (error) {
+			console.error('Error checking username existence:', error);
+			throw new Error('Failed to check username availability');
+		}
+	}
+
 	async updateProfile(user_id, updates) {
-		const fields = [];
-		const values = [];
-		if (updates.username !== undefined) {
-			fields.push('username = ?');
-			values.push(updates.username);
-		}
-		if (updates.bio !== undefined) {
-			fields.push('bio = ?');
-			values.push(updates.bio);
-		}
-		if (fields.length === 0) {
+		try {
+			const fields = [];
+			const values = [];
+			
+			// Check if username is being updated and if it already exists
+			if (updates.username !== undefined) {
+				// First check if the username is different from current one
+				const currentProfile = await this.getProfile(user_id);
+				if (currentProfile && currentProfile.username.toLowerCase() !== updates.username.toLowerCase()) {
+					const usernameExists = await this.isUsernameExists(updates.username);
+					if (usernameExists) {
+						throw new Error('Username already exists');
+					}
+				}
+				fields.push('username = ?');
+				values.push(updates.username);
+			}
+			
+			if (updates.bio !== undefined) {
+				fields.push('bio = ?');
+				values.push(updates.bio);
+			}
+			
+			if (fields.length === 0) {
+				return this.getProfile(user_id);
+			}
+			
+			values.push(user_id);
+			const query = `
+				UPDATE profiles
+				SET ${fields.join(', ')}
+				WHERE user_id = ?
+			`;
+			await this.db.runAsync(query, values);
 			return this.getProfile(user_id);
+		} catch (error) {
+			if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' && error.message.includes('profiles.username')) {
+				throw new Error('Username already exists');
+			}
+			throw error;
 		}
-		values.push(user_id);
-		const query = `
-			UPDATE profiles
-			SET ${fields.join(', ')}
-			WHERE user_id = ?
-		`;
-		await this.db.runAsync(query, values);
-		return this.getProfile(user_id);
 	}
 
 	async getProfile(user_id) {

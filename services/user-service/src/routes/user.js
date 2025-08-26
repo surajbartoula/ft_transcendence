@@ -10,6 +10,36 @@ if (!fs.existsSync(uploadDir)) {
 export default async function userRoutes(fastify, options) {
 	const dbService = fastify.db;
 
+	// Check username availability (public endpoint for registration)
+	fastify.get('/username/check/:username', async (req, reply) => {
+		try {
+			const { username } = req.params;
+			
+			if (!username || username.trim().length < 3) {
+				return reply.code(400).send({ 
+					error: 'Username must be at least 3 characters long' 
+				});
+			}
+			
+			if (username.length > 20) {
+				return reply.code(400).send({ 
+					error: 'Username must be no more than 20 characters long' 
+				});
+			}
+			
+			const exists = await dbService.isUsernameExists(username.trim());
+			
+			reply.send({
+				username: username.trim(),
+				available: !exists,
+				exists: exists
+			});
+		} catch (error) {
+			req.log.error(error);
+			reply.code(500).send({ error: 'Failed to check username availability' });
+		}
+	});
+
 	fastify.post('/profile', {
 		preHandler: fastify.authenticate,
 		handler: async (req, reply) => {
@@ -21,12 +51,25 @@ export default async function userRoutes(fastify, options) {
 			if (!username) {
 				return reply.code(400).send({ error: 'username is required'});
 			}
+			if (username.length < 3) {
+				return reply.code(400).send({ error: 'Username must be at least 3 characters long' });
+			}
+			if (username.length > 20) {
+				return reply.code(400).send({ error: 'Username must be no more than 20 characters long' });
+			}
 			try {
-				const profile = await dbService.createProfile({ user_id, username, bio });
+				const profile = await dbService.createProfile({ user_id, username: username.trim(), bio });
 				// Return profile with default photo information
 				const profileWithPhoto = await dbService.getProfileWithPhoto(user_id);
 				reply.send(profileWithPhoto);
 			} catch (err) {
+				req.log.error(err);
+				if (err.message === 'Username already exists') {
+					return reply.code(409).send({ error: 'Username already exists' });
+				}
+				if (err.message === 'Profile already exists for this user') {
+					return reply.code(409).send({ error: 'Profile already exists for this user' });
+				}
 				reply.code(500).send({ error: 'Failed to create profile' });
 			}
 		}
@@ -54,15 +97,34 @@ export default async function userRoutes(fastify, options) {
 		handler: async (req, reply) => {
 			const user_id = req.user.sub || req.user.user_id || req.user.id;
 			const { username, bio } = req.body;
+			
+			// Validate username if provided
+			if (username !== undefined) {
+				if (username.length < 3) {
+					return reply.code(400).send({ error: 'Username must be at least 3 characters long' });
+				}
+				if (username.length > 20) {
+					return reply.code(400).send({ error: 'Username must be no more than 20 characters long' });
+				}
+			}
+			
 			try {
 				const profile = await dbService.getProfile(user_id);
 				if (!profile) {
 					return reply.code(404).send({ error: 'Profile not found' });
 				}
-				const updatedProfile = await dbService.updateProfile(user_id, { username, bio });
+				
+				const updates = {};
+				if (username !== undefined) updates.username = username.trim();
+				if (bio !== undefined) updates.bio = bio;
+				
+				const updatedProfile = await dbService.updateProfile(user_id, updates);
 				reply.send(updatedProfile);
 			} catch (err) {
 				req.log.error(err);
+				if (err.message === 'Username already exists') {
+					return reply.code(409).send({ error: 'Username already exists' });
+				}
 				reply.code(500).send({ error: 'Failed to update profile' });
 			}
 		}
