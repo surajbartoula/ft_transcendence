@@ -31,11 +31,13 @@ export class LoginPage implements Page {
 
                         <form id="authForm" class="space-y-6">
                             <div id="nameField" class="${this.isLoginMode ? 'hidden' : ''}">
-                                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Username</label>
                                 <input type="text" id="name" name="name" 
                                        class="w-full px-4 py-3 text-gray-700 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                       placeholder="Enter your full name"
-                                       ${!this.isLoginMode ? 'required' : ''}>
+                                       placeholder="Enter your username"
+                                       ${!this.isLoginMode ? 'required' : ''}
+                                       ${!this.isLoginMode ? 'minlength="3" maxlength="20"' : ''}>
+                                ${!this.isLoginMode ? '<p class="text-xs text-gray-500 mt-1">Username must be 3-20 characters long</p>' : ''}
                             </div>
                             
                             <div>
@@ -262,7 +264,9 @@ export class LoginPage implements Page {
             if (this.isLoginMode) {
                 response = await login(email, password);
             } else {
-                if (!name) throw new Error('Name is required');
+                if (!name) throw new Error('Username is required');
+                if (name.length < 3) throw new Error('Username must be at least 3 characters long');
+                if (name.length > 20) throw new Error('Username must be no more than 20 characters long');
                 response = await register(name, email, password);
             }
             /** Handle different response types based on backend behavior */
