@@ -285,13 +285,6 @@ export class SharedGamePage implements Page {
         }
     }
 
-    private getGameModeDisplayName(): string {
-        switch (this.gameMode) {
-            case 'ai': return 'AI';
-            case 'local': return 'Local Multiplayer';
-            default: return 'Game';
-        }
-    }
 
     private async startGameBasedOnMode(): Promise<void> {
         if (!this.gameManager) return;
@@ -305,7 +298,7 @@ export class SharedGamePage implements Page {
                 const tournamentManager = gameStateManager.getTournamentManager();
                 
                 if (tournamentManager) {
-                    const tournament = tournamentManager.getTournament(this.tournamentId!);
+                    tournamentManager.getTournament(this.tournamentId!);
                 }
                 
                 gameStateManager.setGameMode({
@@ -359,7 +352,7 @@ export class SharedGamePage implements Page {
             if (this.tournamentId && this.gameManager) {
                 const gameStateManager = (this.gameManager as any).gameState;
                 if (gameStateManager) {
-                    const gameMode = gameStateManager.getGameMode();
+                    gameStateManager.getGameMode();
                     const tournamentManager = gameStateManager.getTournamentManager();
                     const tournament = tournamentManager?.getTournament(this.tournamentId);
                     

@@ -452,7 +452,10 @@ export class DashboardPage implements Page {
                 </div>
                 <div class="flex items-center ${game.result === 'win' ? 'text-green-400' : 'text-red-400'}">
                     <span class="mr-2">${game.result === 'win' ? '🏆' : '💔'}</span>
-                    ${game.result === 'win' ? 'Win' : 'Loss'} (${game.score})
+                    <div class="flex flex-col">
+                        <div class="font-medium">${game.result === 'win' ? 'WIN' : 'LOSS'}</div>
+                        <div class="text-xs text-gray-400">You ${game.score}</div>
+                    </div>
                 </div>
                 <div class="text-gray-400 text-sm flex items-center">
                     <span class="mr-2">📅</span>

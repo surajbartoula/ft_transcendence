@@ -81,14 +81,30 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
             try {
                 const historyData = await historyResponse.json();
                 if (historyData.success && historyData.games) {
-                    recentGames = historyData.games.slice(0, 5).map((game: any) => ({
-                        id: game.id.toString(),
-                        game: `Pong ${game.game_mode}`,
-                        opponent: getOpponentName(game),
-                        result: game.result as 'win' | 'loss',
-                        score: `${game.player1_score}-${game.player2_score}`,
-                        date: formatGameDate(game.finished_at)
-                    }));
+                    // Get current user ID to determine opponent
+                    const currentUserId = await getCurrentUserId(token);
+                    
+                    // Fetch opponent names for all games
+                    recentGames = await Promise.all(
+                        historyData.games.slice(0, 5).map(async (game: any) => {
+                            const opponent = await getOpponentName(game, currentUserId, token);
+                            const result = game.result === 'won' ? 'win' : 'loss';
+                            
+                            // Format score to show current user's score first
+                            const isPlayer1 = String(game.player1_id) === String(currentUserId);
+                            const myScore = isPlayer1 ? game.player1_score : game.player2_score;
+                            const opponentScore = isPlayer1 ? game.player2_score : game.player1_score;
+                            
+                            return {
+                                id: game.id.toString(),
+                                game: `Pong ${capitalizeGameMode(game.game_mode)}`,
+                                opponent: opponent,
+                                result: result,
+                                score: `${myScore}-${opponentScore}`,
+                                date: formatGameDate(game.finished_at)
+                            };
+                        })
+                    );
                 }
             } catch (historyError) {
                 console.warn('Failed to parse game history:', historyError);
@@ -109,19 +125,76 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
     }
 }
 
-function getOpponentName(game: any): string {
-    // Since we don't have opponent usernames in the game history,
-    // we'll show player IDs or generic names based on game mode
-    if (game.game_mode === 'ai') {
-        return 'AI';
-    } else if (game.game_mode === 'local') {
-        return 'Local Player';
-    } else if (game.game_mode === 'tournament') {
-        return 'Tournament Player';
-    } else {
-        // For remote games, we'd need to fetch the opponent's username
-        // For now, just show a generic name
-        return `Player ${game.player_role === 'player1' ? game.player2_id : game.player1_id}`;
+async function getCurrentUserId(token: string): Promise<string> {
+    try {
+        const response = await fetch('/api/user/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+            const profile = await response.json();
+            return profile.user_id || profile.id;
+        }
+    } catch (error) {
+        console.warn('Failed to get current user ID:', error);
+    }
+    return '';
+}
+
+async function getOpponentName(game: any, currentUserId: string, token: string): Promise<string> {
+    try {
+        // Handle special game modes
+        if (game.game_mode === 'ai') {
+            return 'AI';
+        } else if (game.game_mode === 'local') {
+            return 'Local Player';
+        }
+        
+        // Determine opponent ID
+        const opponentId = String(game.player1_id) === String(currentUserId) 
+            ? game.player2_id 
+            : game.player1_id;
+            
+        // If no opponent ID, fallback
+        if (!opponentId) {
+            return 'Unknown Player';
+        }
+        
+        // Fetch opponent's profile with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+        
+        try {
+            const response = await fetch(`/api/user/profile/${opponentId}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                const profile = await response.json();
+                return profile.display_name || profile.username || `Player ${opponentId}`;
+            }
+            
+            return `Player ${opponentId}`;
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            console.warn(`Failed to fetch opponent profile for ${opponentId}:`, fetchError);
+            return `Player ${opponentId}`;
+        }
+    } catch (error) {
+        console.warn('Failed to get opponent name:', error);
+        return 'Unknown Player';
+    }
+}
+
+function capitalizeGameMode(mode: string): string {
+    switch(mode.toLowerCase()) {
+        case 'ai': return 'AI';
+        case 'local': return 'Local';
+        case 'remote': return 'Online';
+        case 'tournament': return 'Tournament';
+        default: return mode;
     }
 }
 
