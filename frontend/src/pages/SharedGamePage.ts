@@ -1,7 +1,7 @@
 import { Page } from '../router/Router';
 import { PongGameManager } from '../babylonjs/PongManager';
 import { TournamentManager } from '../babylonjs/TournamentManager';
-import { showNotification, showError } from '../utils/ui';
+import { showError } from '../utils/ui';
 
 export class SharedGamePage implements Page {
     public title = 'Pong Game';
@@ -10,8 +10,6 @@ export class SharedGamePage implements Page {
     private gameManager: PongGameManager | null = null;
     private gameCanvas: HTMLCanvasElement | null = null;
     private isGameInitialized: boolean = false;
-    private fullscreenButton: HTMLElement | null = null;
-    private gameContainer: HTMLElement | null = null;
     private gameMode: 'local' | 'ai' | 'remote' = 'local';
     private player1Name: string = 'Player 1';
     private player2Name: string = 'Player 2';
@@ -32,12 +30,6 @@ export class SharedGamePage implements Page {
                     Press <span class="text-green-400 font-semibold">Space</span> for menu
                 </div>
                 
-                <!-- Fullscreen Button -->
-                <button id="fullscreenButton" class="absolute top-4 right-4 z-30 bg-black bg-opacity-50 text-gray-300 hover:text-white transition-colors p-2 rounded">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                    </svg>
-                </button>
 
                 <!-- Game Container -->
                 <div id="gameContainer" class="flex-1 relative bg-black overflow-hidden">
@@ -145,14 +137,9 @@ export class SharedGamePage implements Page {
             notificationsContainer.innerHTML = '';
         }
         
-        if (document.fullscreenElement) {
-            document.exitFullscreen().catch(console.warn);
-        }
         
         this.isGameInitialized = false;
         this.gameCanvas = null;
-        this.fullscreenButton = null;
-        this.gameContainer = null;
         this.hasShownLoading = false;
     }
 
@@ -180,14 +167,9 @@ export class SharedGamePage implements Page {
 
     private bindElements(): void {
         this.gameCanvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-        this.fullscreenButton = document.getElementById('fullscreenButton');
-        this.gameContainer = document.getElementById('gameContainer');
     }
 
     private attachEventListeners(): void {
-        if (this.fullscreenButton) {
-            this.fullscreenButton.addEventListener('click', this.handleFullscreenClick.bind(this));
-        }
 
         // Error handling buttons
         const retryButton = document.getElementById('retryButton');
@@ -212,7 +194,6 @@ export class SharedGamePage implements Page {
         }
 
         // System events
-        document.addEventListener('fullscreenchange', this.handleFullscreenChange.bind(this));
         window.addEventListener('resize', this.handleWindowResize.bind(this));
         
         if (this.gameCanvas) {
@@ -221,10 +202,6 @@ export class SharedGamePage implements Page {
     }
 
     private removeEventListeners(): void {
-        if (this.fullscreenButton) {
-            this.fullscreenButton.removeEventListener('click', this.handleFullscreenClick);
-        }
-        document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
         window.removeEventListener('resize', this.handleWindowResize);
     }
 
@@ -549,34 +526,6 @@ export class SharedGamePage implements Page {
         }
     }
 
-    private handleFullscreenClick(): void {
-        if (!this.gameContainer) return;
-        try {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                this.gameContainer.requestFullscreen();
-            }
-        } catch (error) {
-            console.warn('Fullscreen not supported:', error);
-            showNotification('Fullscreen not supported in this browser', 'error');
-        }
-    }
-
-    private handleFullscreenChange(): void {
-        const isFullscreen = !!document.fullscreenElement;
-        console.log('Fullscreen state:', isFullscreen);
-        
-        setTimeout(() => {
-            if (this.gameCanvas) {
-                console.log(`📐 Canvas dimensions after fullscreen change: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-            }
-            if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
-                (this.gameManager as any).renderEngine.engine.resize();
-                console.log('🔄 Babylon.js engine resized after fullscreen change');
-            }
-        }, 200);
-    }
 
     private handleWindowResize(): void {
         console.log('🔄 Window resize detected');
