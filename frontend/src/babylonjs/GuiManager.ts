@@ -197,7 +197,7 @@ export class GUIManager {
             
             .game-ui-overlay {
                 position: fixed;
-                top: 80px;
+                top: 10px;
                 left: 20px;
                 right: 20px;
                 z-index: 500;
@@ -210,7 +210,7 @@ export class GUIManager {
                 align-items: center;
                 background: rgba(0, 0, 0, 0.7);
                 border: 2px solid #00ffff;
-                padding: 12px 20px;
+                padding: 6px 20px;
                 font-family: 'Orbitron', 'Courier New', monospace;
                 color: #00ffff;
                 box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
