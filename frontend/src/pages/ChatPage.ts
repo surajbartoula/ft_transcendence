@@ -195,6 +195,9 @@ export class ChatPage implements Page {
 								<p id="chatStatus" class="text-sm text-gray-400"></p>
 							</div>
 							<div class="flex items-center space-x-2">
+								<button id="gameInviteBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded-md hidden transition-colors" title="Challenge to a Game">
+									🏓 Challenge
+								</button>
 								<button id="blockBtn" class="text-red-400 hover:text-red-300 p-2" title="Block User">
 									<img class="w-5 h-5 filter brightness-0 invert opacity-70 hover:opacity-100" src="/block-user.svg" alt="Block">
 								</button>
@@ -271,6 +274,33 @@ export class ChatPage implements Page {
 						</div>
 					</div>
 				</div>
+
+				<!-- Game Invite Modal -->
+				<div id="gameInviteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+					<div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+						<h3 class="text-lg font-semibold text-white mb-4">Challenge to a Game</h3>
+						<div class="flex items-center mb-4">
+							<img id="inviteUserAvatar" class="w-12 h-12 rounded-full mr-3" src="" alt="">
+							<div>
+								<p id="inviteUserName" class="font-medium text-white"></p>
+								<p class="text-sm text-gray-400">Ready to play Pong?</p>
+							</div>
+						</div>
+						<textarea id="gameInviteMessage" 
+							placeholder="Optional message..." 
+							class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" 
+							rows="3"></textarea>
+						<div class="flex justify-end space-x-3">
+							<button id="cancelGameInvite" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+							<button id="sendGameInvite" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+								<svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+								</svg>
+								Send Challenge
+							</button>
+						</div>
+					</div>
+				</div>
 			</div>
 		`;
 	}
@@ -290,6 +320,8 @@ export class ChatPage implements Page {
     cleanup(): void {
         window.removeEventListener('globalMessage', this.handleGlobalMessage);
         window.removeEventListener('openSpecificChat', this.handleOpenSpecificChat);
+        window.removeEventListener('game_invitation_response', this.handleGameInvitationResponse as EventListener);
+        window.removeEventListener('game_ready', this.handleGameReady as EventListener);
         /** Clear typing timeouts */
         Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
         this.typingTimeout = {};
@@ -353,6 +385,9 @@ export class ChatPage implements Page {
         /** Listen for global messages */
         window.addEventListener('globalMessage', this.handleGlobalMessage.bind(this));
         window.addEventListener('openSpecificChat', this.handleOpenSpecificChat.bind(this));
+        /** Listen for game events */
+        window.addEventListener('game_invitation_response', this.handleGameInvitationResponse.bind(this) as EventListener);
+        window.addEventListener('game_ready', this.handleGameReady.bind(this) as EventListener);
     }
 
     private handleGlobalMessage = (event: CustomEvent) => {
@@ -393,6 +428,66 @@ export class ChatPage implements Page {
             }, 500);
         }
     }
+
+    private handleGameInvitationResponse = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('🎮 DEBUG: Game invitation response received:', customEvent.detail);
+        const { invitation, responder, response } = customEvent.detail;
+        
+        console.log('🎮 DEBUG: invitation.sender_id =', invitation?.sender_id);
+        console.log('🎮 DEBUG: currentUser.id =', this.currentUser?.id);
+        console.log('🎮 DEBUG: Response =', response);
+        
+        /** Only handle if current user is the sender */
+        if (String(invitation.sender_id) === String(this.currentUser?.id)) {
+            console.log('🎮 DEBUG: Current user is the sender, showing notification');
+            if (response === 'accepted') {
+                showNotification(`${responder.username} accepted your game invitation!`, 'success');
+            } else if (response === 'declined') {
+                showNotification(`${responder.username} declined your game invitation`, 'info');
+            }
+        } else {
+            console.log('🎮 DEBUG: Current user is not the sender, ignoring response');
+        }
+    };
+
+    private handleGameReady = (event: Event) => {
+        const customEvent = event as CustomEvent;
+        console.log('🎮 DEBUG: Game ready event received:', customEvent.detail);
+        const { game_session, room_id } = customEvent.detail;
+        
+        console.log('🎮 DEBUG: game_session =', game_session);
+        console.log('🎮 DEBUG: room_id =', room_id);
+        console.log('🎮 DEBUG: currentUser.id =', this.currentUser?.id);
+        
+        /** Check if current user is involved in this game */
+        if (game_session && this.currentUser) {
+            const currentUserId = String(this.currentUser.id);
+            console.log('🎮 DEBUG: player1_id =', game_session.player1_id);
+            console.log('🎮 DEBUG: player2_id =', game_session.player2_id);
+            
+            if (String(game_session.player1_id) === currentUserId || 
+                String(game_session.player2_id) === currentUserId) {
+                
+                console.log('🎮 DEBUG: Current user is involved in game, navigating...');
+                showNotification('Game is ready! Redirecting to match...', 'success');
+                
+                /** Navigate to the game */
+                setTimeout(() => {
+                    const navigationPath = `/game/remote/match/${game_session.id}?room=${room_id}`;
+                    console.log(`🚀 Game ready! Navigating to: ${navigationPath}`);
+                    const event = new CustomEvent('navigate', {
+                        detail: { path: navigationPath }
+                    });
+                    window.dispatchEvent(event);
+                }, 1000);
+            } else {
+                console.log('🎮 DEBUG: Current user is not involved in this game');
+            }
+        } else {
+            console.log('🎮 DEBUG: Missing game_session or currentUser');
+        }
+    };
 
 	private updateUserOnlineStatus(userId: string, isOnline: boolean): void {
 		const userIdStr = String(userId);
@@ -475,12 +570,17 @@ export class ChatPage implements Page {
         /** Block/Unblock buttons */
         document.getElementById('blockBtn')?.addEventListener('click', () => this.blockCurrentUser());
         document.getElementById('unblockBtn')?.addEventListener('click', () => this.unblockCurrentUser());
+        /** Game invite button */
+        document.getElementById('gameInviteBtn')?.addEventListener('click', () => this.showGameInviteModal());
         /** Add friend modal */
         document.getElementById('addFriendBtn')?.addEventListener('click', () => this.showAddFriendModal());
         document.getElementById('cancelAddFriend')?.addEventListener('click', () => this.hideAddFriendModal());
         /** Friend search in modal */
         const friendSearchInput = document.getElementById('friendSearchInput') as HTMLInputElement;
         friendSearchInput?.addEventListener('input', this.debounce(() => this.searchUsersForFriend(friendSearchInput.value), 300));
+        /** Game invite modal */
+        document.getElementById('cancelGameInvite')?.addEventListener('click', () => this.hideGameInviteModal());
+        document.getElementById('sendGameInvite')?.addEventListener('click', () => this.sendGameInvitation());
     }
 
     private async loadInitialData(): Promise<void> {
@@ -738,9 +838,11 @@ export class ChatPage implements Page {
     }
 
     private async openChat(friend: User): Promise<void> {
+        console.log('🎮 DEBUG: openChat called with friend:', friend);
         this.stopTyping();
         this.isTyping = {};
         this.currentChatFriend = friend;
+        console.log('🎮 DEBUG: currentChatFriend set to:', this.currentChatFriend);
         this.messages = [];
         /** Set global indicator so notifications know which chat is open */
         (window as any).currentOpenChatUserId = friend.user_id;
@@ -757,19 +859,28 @@ export class ChatPage implements Page {
             chatStatus.textContent = isOnline ? 'Online' : 'Offline';
             chatStatus.className = `text-sm ${isOnline ? 'text-green-400': 'text-gray-400'}`;
         }
+        /** Update block/unblock button visibility immediately */
+        console.log('🎮 DEBUG: About to call updateBlockButtons');
+        await this.updateBlockButtons();
+        console.log('🎮 DEBUG: updateBlockButtons completed');
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
-        /** Update block/unblock button visibility */
-        await this.updateBlockButtons();
     }
 
     private closeChat(): void {
+        console.log('🎮 DEBUG: closeChat() called - setting currentChatFriend to null');
+        console.trace('🎮 DEBUG: closeChat() call stack');
         this.stopTyping();
         this.isTyping = {};
         this.currentChatFriend = null;
         this.messages = [];
         /** Clear global indicator */
         (window as any).currentOpenChatUserId = null;
+        /** Hide game invite button */
+        const gameInviteBtn = document.getElementById('gameInviteBtn');
+        if (gameInviteBtn) {
+            gameInviteBtn.classList.add('hidden');
+        }
         document.getElementById('welcomeScreen')?.classList.remove('hidden');
         document.getElementById('chatHeader')?.classList.add('hidden');
         document.getElementById('messagesArea')?.classList.add('hidden');
@@ -1349,6 +1460,7 @@ export class ChatPage implements Page {
     private async updateBlockButtons(): Promise<void> {
         const blockBtn = document.getElementById('blockBtn');
         const unblockBtn = document.getElementById('unblockBtn');
+        const gameInviteBtn = document.getElementById('gameInviteBtn');
         const messageInput = document.getElementById('messageInput') as HTMLInputElement;
         const sendBtn = document.getElementById('sendBtn');
         
@@ -1361,6 +1473,11 @@ export class ChatPage implements Page {
             /** Current user has blocked this user */
             blockBtn.classList.add('hidden');
             unblockBtn.classList.remove('hidden');
+            
+            /** Hide game invite button for blocked users */
+            if (gameInviteBtn) {
+                gameInviteBtn.classList.add('hidden');
+            }
             
             /** Disable messaging for blocked users */
             if (messageInput) {
@@ -1376,6 +1493,11 @@ export class ChatPage implements Page {
             /** Current user has been blocked by this user */
             blockBtn.classList.remove('hidden');
             unblockBtn.classList.add('hidden');
+            
+            /** Hide game invite button when blocked by user */
+            if (gameInviteBtn) {
+                gameInviteBtn.classList.add('hidden');
+            }
             
             /** Disable messaging - user is blocked by the other person */
             if (messageInput) {
@@ -1398,6 +1520,11 @@ export class ChatPage implements Page {
             /** Normal state - no blocking */
             blockBtn.classList.remove('hidden');
             unblockBtn.classList.add('hidden');
+            
+            /** Show game invite button for non-blocked users */
+            if (gameInviteBtn) {
+                gameInviteBtn.classList.remove('hidden');
+            }
             
             /** Enable messaging for non-blocked users */
             if (messageInput) {
@@ -1484,5 +1611,136 @@ export class ChatPage implements Page {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => func.apply(this, args), delay);
         };
+    }
+
+    private showGameInviteModal(): void {
+        console.log('🎮 DEBUG: showGameInviteModal called');
+        console.log('🎮 DEBUG: currentChatFriend =', this.currentChatFriend);
+        
+        // Fallback: try to get current chat friend from global state
+        let currentFriend: User | null = this.currentChatFriend;
+        if (!currentFriend) {
+            const currentUserId = (window as any).currentOpenChatUserId;
+            console.log('🎮 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
+            if (currentUserId) {
+                const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
+                currentFriend = foundFriend || null;
+                console.log('🎮 DEBUG: Fallback found friend =', currentFriend);
+            }
+        }
+        
+        if (!currentFriend) {
+            console.error('🎮 ERROR: No friend selected for game invite (no fallback available)');
+            showError('No friend selected for game invite');
+            return;
+        }
+        
+        // Use the found friend (either currentChatFriend or fallback)
+        const friendToUse = currentFriend;
+
+        const modal = document.getElementById('gameInviteModal');
+        const avatar = document.getElementById('inviteUserAvatar') as HTMLImageElement;
+        const name = document.getElementById('inviteUserName');
+        const message = document.getElementById('gameInviteMessage') as HTMLTextAreaElement;
+
+        if (modal && avatar && name && message) {
+            avatar.src = friendToUse.photo?.path ? 
+                `${API_CONFIG.GATEWAY_URL}${friendToUse.photo.path}` : 
+                generateAvatarUrl();
+            name.textContent = friendToUse.display_name;
+            message.value = `${friendToUse.display_name}, let's play Pong! 🏓`;
+            modal.classList.remove('hidden');
+        }
+    }
+
+    private hideGameInviteModal(): void {
+        const modal = document.getElementById('gameInviteModal');
+        const message = document.getElementById('gameInviteMessage') as HTMLTextAreaElement;
+        
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        if (message) {
+            message.value = '';
+        }
+    }
+
+    private async sendGameInvitation(): Promise<void> {
+        console.log('🎮 DEBUG: sendGameInvitation called');
+        console.log('🎮 DEBUG: currentChatFriend =', this.currentChatFriend);
+        
+        // Fallback: try to get current chat friend from global state
+        let currentFriend: User | null = this.currentChatFriend;
+        if (!currentFriend) {
+            const currentUserId = (window as any).currentOpenChatUserId;
+            console.log('🎮 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
+            if (currentUserId) {
+                const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
+                currentFriend = foundFriend || null;
+                console.log('🎮 DEBUG: Fallback found friend =', currentFriend);
+            }
+        }
+        
+        if (!currentFriend) {
+            console.error('🎮 ERROR: No friend selected for game invite (no fallback available)');
+            showError('No friend selected for game invite');
+            return;
+        }
+        
+        // Use the found friend (either currentChatFriend or fallback)
+        const friendToUse = currentFriend;
+
+        const messageInput = document.getElementById('gameInviteMessage') as HTMLTextAreaElement;
+        const customMessage = messageInput?.value.trim();
+        
+        const sendButton = document.getElementById('sendGameInvite') as HTMLButtonElement;
+        if (sendButton) {
+            sendButton.disabled = true;
+            sendButton.innerHTML = `
+                <svg class="w-4 h-4 inline mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Sending...
+            `;
+        }
+
+        try {
+            const token = getStoredToken();
+            const response = await fetch('/api/game/invite', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    receiver_id: friendToUse.user_id,
+                    game_mode: 'remote',
+                    message: customMessage || `${this.currentUser?.display_name || 'Someone'} invites you to play Pong!`
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to send game invitation');
+            }
+
+            await response.json();
+            showNotification(`Game invitation sent to ${friendToUse.display_name}! You'll be notified when they respond.`, 'success');
+            this.hideGameInviteModal();
+
+        } catch (error) {
+            console.error('Failed to send game invitation:', error);
+            showError(error instanceof Error ? error.message : 'Failed to send game invitation');
+        } finally {
+            if (sendButton) {
+                sendButton.disabled = false;
+                sendButton.innerHTML = `
+                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                    Send Challenge
+                `;
+            }
+        }
     }
 }
