@@ -878,7 +878,7 @@ export class OnlineMatchLobbyPage implements Page {
         const navigationPath = `/game/remote/match/${game_session.id}?room=${room_id}`;
         console.log(`🚀 Game ready! Navigating to: ${navigationPath}`);
         
-        showNotification('Game is ready! Joining match...', 'success');
+        // showNotification('Game is ready! Joining match...', 'success');
         
         // Navigate to the game
         setTimeout(() => {

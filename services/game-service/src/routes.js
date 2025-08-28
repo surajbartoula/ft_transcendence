@@ -182,7 +182,7 @@ export default async function gameRoutes(fastify, options) {
                     };
 
                     await gameDb.updatePlayerStats(gameSession.player1_id, player1Result);
-                    if (gameSession.player2_id) {
+                    if (gameSession.player2_id && gameSession.player2_id !== 'AI') {
                         await gameDb.updatePlayerStats(gameSession.player2_id, player2Result);
                     }
 

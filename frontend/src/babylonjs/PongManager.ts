@@ -23,6 +23,10 @@ export class PongGameManager {
     private tournamentManager: TournamentManager;
     private isRunning: boolean = false;
     private lastTime: number = 0;
+    
+    // Game session tracking
+    private currentGameMode: 'local' | 'ai' | 'remote' | 'tournament' = 'local';
+    private currentGameSessionId: string | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
         console.log("🎮 Initializing Enhanced Pong Game Manager...");
@@ -177,6 +181,9 @@ export class PongGameManager {
      * Start a new local multiplayer game - goes through setup state first
      */
     public async startLocalGame(player1Name?: string, player2Name?: string): Promise<void> {
+        // Create game session for local game
+        await this.createGameSession('local');
+        
         // If names are provided, skip setup and go directly to playing
         if (player1Name && player2Name) {
             this.gameState.setGameMode({
@@ -197,6 +204,9 @@ export class PongGameManager {
     public async startAIGame(playerName?: string): Promise<void> {
         // Set AI to hard difficulty
         this.aiPlayer.setDifficulty('hard');
+        
+        // Create game session for AI game
+        await this.createGameSession('ai');
         
         // If player name is provided, skip setup and go directly to playing
         if (playerName) {
@@ -349,8 +359,6 @@ export class PongGameManager {
         }
     }
 
-    private currentGameSessionId: string | null = null;
-
     /**
      * Update game session with score/results
      */
@@ -368,7 +376,8 @@ export class PongGameManager {
                     player1_score: score.left,
                     player2_score: score.right,
                     winner_id: winner,
-                    status: winner ? 'finished' : 'active'
+                    status: winner ? 'finished' : 'active',
+                    finished_at: winner ? new Date().toISOString() : null
                 })
             });
 
@@ -520,5 +529,46 @@ export class PongGameManager {
             performance: this.getPerformanceMetrics(),
             tournament: this.getCurrentTournament()
         };
+    }
+
+    // =====================================
+    // GAME SESSION MANAGEMENT
+    // =====================================
+    
+    /**
+     * Create a game session for tracking results
+     */
+    public async createGameSession(gameMode: 'local' | 'ai' | 'remote' | 'tournament', player2Id?: string): Promise<void> {
+        this.currentGameMode = gameMode;
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.warn('No auth token, skipping game session creation');
+                return;
+            }
+
+            const response = await fetch('/api/game/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    game_mode: gameMode,
+                    player2_id: gameMode === 'ai' ? 'AI' : (player2Id || null)
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.currentGameSessionId = data.game_session?.id || null;
+                console.log(`🎮 Game session created: ${this.currentGameSessionId} (mode: ${gameMode})`);
+            } else {
+                console.warn('Failed to create game session:', response.statusText);
+            }
+        } catch (error) {
+            console.warn('Game service connection failed:', error);
+        }
     }
 }

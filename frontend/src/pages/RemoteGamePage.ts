@@ -59,14 +59,14 @@ export class RemoteGamePage implements Page {
                         <div class="flex items-center space-x-6">
                             <!-- Player Status -->
                             <div class="flex items-center space-x-4">
+								<div class="text-center">
+									<div id="player2Name" class="text-white font-semibold">${this.player2Name}</div>
+									<div id="player2Score" class="text-2xl font-bold text-red-400">0</div>
+								</div>
+								<div class="text-2xl text-gray-400 font-bold">VS</div>
                                 <div class="text-center">
                                     <div id="player1Name" class="text-white font-semibold">${this.player1Name}</div>
                                     <div id="player1Score" class="text-2xl font-bold text-blue-400">0</div>
-                                </div>
-                                <div class="text-2xl text-gray-400 font-bold">VS</div>
-                                <div class="text-center">
-                                    <div id="player2Name" class="text-white font-semibold">${this.player2Name}</div>
-                                    <div id="player2Score" class="text-2xl font-bold text-red-400">0</div>
                                 </div>
                             </div>
                             <!-- Connection Status -->
@@ -788,8 +788,8 @@ export class RemoteGamePage implements Page {
         const player2Element = document.getElementById('player2Name');
         
         if (player1Element && player2Element) {
-            const player1Name = this.isPlayer1 ? 'You (GREEN LEFT)' : 'Opponent (GREEN LEFT)';
-            const player2Name = this.isPlayer1 ? 'Opponent (RED RIGHT)' : 'You (RED RIGHT)';
+            const player1Name = this.isPlayer1 ? 'You (BLUE RIGHT)' : 'Opponent (BLUE RIGHT)';
+            const player2Name = this.isPlayer1 ? 'Opponent (YELLOW LEFT)' : 'You (YELLOW LEFT)';
             
             console.log(`🏷️ Setting player names - Player 1: ${player1Name}, Player 2: ${player2Name}`);
             
@@ -896,7 +896,7 @@ export class RemoteGamePage implements Page {
         
         if (user && user.username) {
             console.log(`✅ ${user.username} joined the game`);
-            showNotification(`${user.username} joined the game`, 'info');
+            // showNotification(`${user.username} joined the game`, 'info');
             
             // Store opponent information when they join
             const currentUserId = this.currentUser?.id;

@@ -525,7 +525,7 @@ export class ChatPage implements Page {
                 String(game_session.player2_id) === currentUserId) {
                 
                 console.log('🎮 DEBUG: Current user is involved in game, navigating...');
-                showNotification('Game is ready! Redirecting to match...', 'success');
+                // showNotification('Game is ready! Redirecting to match...', 'success');
                 
                 /** Navigate to the game */
                 setTimeout(() => {

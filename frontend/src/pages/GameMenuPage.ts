@@ -114,8 +114,8 @@ export class GameMenuPage implements Page {
                                     <div class="text-sm text-gray-400">Losses</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="text-2xl font-bold text-yellow-400" data-stat="tournaments_won">-</div>
-                                    <div class="text-sm text-gray-400">Tournaments Won</div>
+                                    <div class="text-2xl font-bold text-yellow-400" data-stat="ranking_points">-</div>
+                                    <div class="text-sm text-gray-400">Rating</div>
                                 </div>
                             </div>
                         </div>

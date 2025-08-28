@@ -558,9 +558,21 @@ export class GUIManager {
     }): void {
         this.removeGameOver();
 
-        const winnerText = options.winner === 'left' ? 
-            options.gameMode.player1Name || 'Player 1' : 
-            options.gameMode.player2Name || 'Player 2';
+        // Handle AI games where display positions are swapped
+        const isAIGameOver = options.gameMode.type === 'ai';
+        let winnerText: string;
+        
+        if (isAIGameOver) {
+            // For AI games: AI is displayed on left, player on right
+            winnerText = options.winner === 'left' ?
+                options.gameMode.player2Name || 'AI' :  // AI wins (displayed left)
+                options.gameMode.player1Name || 'Player'; // Player wins (displayed right)
+        } else {
+            // For other games: standard left/right mapping
+            winnerText = options.winner === 'left' ? 
+                options.gameMode.player1Name || 'Player 1' : 
+                options.gameMode.player2Name || 'Player 2';
+        }
 
         this.gameOver = document.createElement('div');
         this.gameOver.id = 'gameOver';

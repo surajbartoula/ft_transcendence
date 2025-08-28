@@ -129,6 +129,32 @@ export class GameStateManager {
         return this.systems.tournamentManager;
     }
 
+    /**
+     * Update game session from a state (called by states that don't have direct access to pongManager)
+     */
+    public updateGameSessionFromState(score: { left: number; right: number }, winnerId: string | null): void {
+        if (this.pongManager) {
+            this.pongManager.updateGameSession(score, winnerId);
+        }
+    }
+
+    /**
+     * Get current user ID from JWT token
+     */
+    public getCurrentUserId(): string | null {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return null;
+            
+            // Decode JWT token to get user ID
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            return payload.sub || payload.user_id || payload.id || null;
+        } catch (error) {
+            console.warn('Failed to get user ID from token:', error);
+            return null;
+        }
+    }
+
     isPaused(): boolean {
         return this.paused;
     }
@@ -405,6 +431,26 @@ class PlayingState extends GameState {
         const score = this.systems.scoreManager.getScore();
         const winner = score.left > score.right ? 'left' : 'right';
         const gameMode = this.stateManager.getGameMode();
+        
+        // Update game session with results (for AI, local games)
+        if ((gameMode.type === 'ai' || gameMode.type === 'local')) {
+            // Get current user ID to determine if they won
+            const userId = this.stateManager.getCurrentUserId();
+            let winnerId: string | null = null;
+            
+            if (gameMode.type === 'ai') {
+                // For AI games, display is swapped: AI is shown on left, player on right
+                winnerId = winner === 'right' ? userId : 'AI'; // 'AI' when AI (left) wins
+            } else if (gameMode.type === 'local') {
+                // For local games, we can't determine the specific user, so just pass null
+                winnerId = null;
+            }
+            
+            console.log(`🎮 Game ended: ${gameMode.type}, winner: ${winner}, userId: ${userId}, winnerId: ${winnerId}`);
+            
+            // Update the game session with results through the state manager
+            this.stateManager.updateGameSessionFromState(score, winnerId);
+        }
         
         if (gameMode.type === 'tournament' && gameMode.tournamentId) {
             // Handle tournament match end
