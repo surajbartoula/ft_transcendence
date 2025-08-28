@@ -583,10 +583,22 @@ class TournamentResultsState extends GameState {
 
         // Show game over screen first with tournament context
         const score = this.systems.scoreManager.getScore();
+        
+        // For tournaments, we need to create a proper gameMode with player names
+        // so the winner display works correctly
+        const tournamentGameMode = {
+            type: 'tournament' as const,
+            player1Name: data.lastMatch?.player1?.name || 'Player 1',
+            player2Name: data.lastMatch?.player2?.name || 'Player 2'
+        };
+        
+        // Determine which side won based on the winner name
+        const winner = (data.winner === data.lastMatch?.player1?.name) ? 'left' : 'right';
+        
         this.systems.uiManager.showGameOver({
-            winner: data.winner,
+            winner: winner,
             score: score,
-            gameMode: { type: 'tournament' },
+            gameMode: tournamentGameMode,
             onPlayAgain: () => this.navigateToTournamentBracket(tournament, data),
             onMainMenu: () => this.navigateToTournamentBracket(tournament, data)
         });
