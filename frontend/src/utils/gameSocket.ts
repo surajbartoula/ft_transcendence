@@ -18,13 +18,9 @@ class GameSocket {
         this.currentUser = getStoredUser();
         
         const token = getStoredToken();
-        // console.log('🔌 GameSocket: Attempting to connect...');
-        // console.log('🔑 Token available:', !!token);
-        // console.log('👤 Current user available:', !!this.currentUser);
-        // console.log('🔌 Already connected:', this.socket?.connected);
         
-        if (!token) {
-            console.error('❌ GameSocket: No token available for connection');
+        if (!token || !this.currentUser) {
+            console.error('❌ GameSocket: No token or user data available for connection');
             return;
         }
         
@@ -351,6 +347,8 @@ class GameSocket {
             this.socket = null;
         }
         this.reconnectAttempts = 0;
+        // Clear current user data to prevent stale authentication
+        this.currentUser = null;
     }
 
     getSocket(): Socket | null {

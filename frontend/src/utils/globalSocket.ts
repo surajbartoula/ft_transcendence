@@ -40,7 +40,7 @@ class GlobalSocket {
         // Update current user data
         this.currentUser = getStoredUser();
         const token = getStoredToken();
-        if (!token || this.socket?.connected) return;
+        if (!token || !this.currentUser || this.socket?.connected) return;
 
         // Connect to chat service through gateway proxy
         this.socket = io('/', {
@@ -152,6 +152,8 @@ class GlobalSocket {
             this.socket.disconnect();
             this.socket = null;
         }
+        // Clear current user data to prevent stale authentication
+        this.currentUser = null;
     }
 
     /** Method for ChatPage to use the same socket */
