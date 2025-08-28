@@ -8,6 +8,9 @@ class GameSocket {
     private currentUser: any = null;
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
+    private isConnecting = false;
+    private lastDisconnectTime = 0;
+    private connectionCooldown = 500; // Minimum time between connections
 
     constructor() {
         this.currentUser = getStoredUser();
@@ -24,9 +27,30 @@ class GameSocket {
             return;
         }
         
-        if (this.socket?.connected) {
-            console.log('✅ GameSocket: Already connected, skipping');
+        // Check if already connected or connecting
+        if (this.socket?.connected || this.isConnecting) {
+            console.log('✅ GameSocket: Already connected or connecting, skipping');
             return;
+        }
+        
+        // Respect connection cooldown period
+        const timeSinceLastDisconnect = Date.now() - this.lastDisconnectTime;
+        if (timeSinceLastDisconnect < this.connectionCooldown) {
+            console.log(`⏳ GameSocket: Connection cooldown active (${this.connectionCooldown - timeSinceLastDisconnect}ms remaining)`);
+            setTimeout(() => this.connect(), this.connectionCooldown - timeSinceLastDisconnect);
+            return;
+        }
+        
+        // Set connecting state
+        this.isConnecting = true;
+        
+        // Clean up any existing socket before creating new one
+        if (this.socket) {
+            console.log('🧹 GameSocket: Cleaning up existing socket');
+            this.socket.removeAllListeners();
+            this.socket.disconnect();
+            this.socket.close();
+            this.socket = null;
         }
 
         console.log('🌐 GameSocket: Creating socket connection to game service');
@@ -50,6 +74,7 @@ class GameSocket {
             console.log('✅ GameSocket: Connected successfully!');
             console.log('🔌 Socket ID:', this.socket?.id);
             this.reconnectAttempts = 0;
+            this.isConnecting = false;
             
             // Authenticate with game service
             if (this.currentUser) {
@@ -76,6 +101,7 @@ class GameSocket {
 
         this.socket.on('connect_error', (error: any) => {
             console.error('Game socket connection error:', error);
+            this.isConnecting = false;
             this.handleReconnection();
         });
 
@@ -343,10 +369,15 @@ class GameSocket {
 
     disconnect(): void {
         if (this.socket) {
+            // Force close the socket completely to prevent reuse of old session
+            this.socket.removeAllListeners();
             this.socket.disconnect();
+            this.socket.close();
             this.socket = null;
         }
         this.reconnectAttempts = 0;
+        this.isConnecting = false;
+        this.lastDisconnectTime = Date.now();
         // Clear current user data to prevent stale authentication
         this.currentUser = null;
     }

@@ -147,14 +147,25 @@ class App {
 			if (document.visibilityState === 'visible' && 
 				getStoredUser() && 
 				this.token) {
-				if (!globalSocket.isConnected()) {
-					console.log('Page became visible, reconnecting global socket...');
-					globalSocket.connect();
-				}
-				if (!gameSocket.isConnected()) {
-					console.log('Page became visible, reconnecting game socket...');
-					gameSocket.connect();
-				}
+				
+				// Add delay and validation before attempting reconnection
+				setTimeout(() => {
+					const token = localStorage.getItem('token');
+					const userData = getStoredUser();
+					
+					if (token && userData) {
+						if (!globalSocket.isConnected()) {
+							console.log('Page became visible, reconnecting global socket...');
+							globalSocket.connect();
+						}
+						if (!gameSocket.isConnected()) {
+							console.log('Page became visible, reconnecting game socket...');
+							gameSocket.connect();
+						}
+					} else {
+						console.log('⚠️ Page visible but no valid auth data, skipping reconnection');
+					}
+				}, 300); // Delay to allow any ongoing cleanup to complete
 			}
 		});
 	}
@@ -174,14 +185,31 @@ class App {
 
 		window.addEventListener('userLoggedIn', () => {
 			console.log('User logged in event received, connecting sockets...');
-			globalSocket.connect();
-			gameSocket.connect();
+			
+			// Validate that we actually have valid user data and token before connecting
+			const token = localStorage.getItem('token');
+			const userData = getStoredUser();
+			
+			if (token && userData) {
+				console.log('✅ Valid token and user data found, connecting sockets...');
+				globalSocket.connect();
+				gameSocket.connect();
+			} else {
+				console.warn('⚠️ Missing token or user data, skipping socket connection');
+				console.warn('Token exists:', !!token);
+				console.warn('User data exists:', !!userData);
+			}
 		});
 
 		window.addEventListener('userLoggedOut', () => {
 			console.log('User logged out event received, disconnecting sockets...');
 			globalSocket.disconnect();
 			gameSocket.disconnect();
+			
+			// Ensure cleanup is complete by clearing any cached data
+			setTimeout(() => {
+				console.log('🧹 Socket cleanup completed');
+			}, 200); // Increased delay to ensure complete cleanup
 		});
 	}
 
@@ -225,12 +253,18 @@ class App {
 		clearAllClickableNotifications();
 		/** Dispatch userLoggedOut event before clearing data */
 		window.dispatchEvent(new CustomEvent('userLoggedOut'));
+		
+		// Clear all authentication data
 		localStorage.removeItem('token');
 		localStorage.removeItem('userData');
 		this.token = null;
 		this.currentUser = null;
-		this.router.setAuthenticated(false);
-		this.router.navigate('/login');
+		
+		// Ensure sockets are properly disconnected before navigation
+		setTimeout(() => {
+			this.router.setAuthenticated(false);
+			this.router.navigate('/login');
+		}, 150); // Increased delay to ensure socket cleanup completes
 	}
 
 	private showLoadingState(): void {

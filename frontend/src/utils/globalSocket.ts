@@ -28,6 +28,9 @@ interface PhotoInfo {
 class GlobalSocket {
     private socket: Socket | null = null;
     private currentUser: any = null;
+    private isConnecting = false;
+    private lastDisconnectTime = 0;
+    private connectionCooldown = 500; // Minimum time between connections
 
     constructor() {
         this.currentUser = getStoredUser();
@@ -40,14 +43,46 @@ class GlobalSocket {
         // Update current user data
         this.currentUser = getStoredUser();
         const token = getStoredToken();
-        if (!token || !this.currentUser || this.socket?.connected) return;
+        
+        if (!token || !this.currentUser) {
+            console.warn('❌ GlobalSocket: No token or user data available for connection');
+            return;
+        }
+        
+        // Check if already connected or connecting
+        if (this.socket?.connected || this.isConnecting) {
+            console.log('✅ GlobalSocket: Already connected or connecting, skipping');
+            return;
+        }
+        
+        // Respect connection cooldown period
+        const timeSinceLastDisconnect = Date.now() - this.lastDisconnectTime;
+        if (timeSinceLastDisconnect < this.connectionCooldown) {
+            console.log(`⏳ GlobalSocket: Connection cooldown active (${this.connectionCooldown - timeSinceLastDisconnect}ms remaining)`);
+            setTimeout(() => this.connect(), this.connectionCooldown - timeSinceLastDisconnect);
+            return;
+        }
+        
+        // Set connecting state
+        this.isConnecting = true;
+        
+        // Clean up any existing socket before creating new one
+        if (this.socket) {
+            console.log('🧹 GlobalSocket: Cleaning up existing socket');
+            this.socket.removeAllListeners();
+            this.socket.disconnect();
+            this.socket.close();
+            this.socket = null;
+        }
 
         // Connect to chat service through gateway proxy
         this.socket = io('/', {
             path: '/chat-socket/socket.io',
             auth: { token },
             timeout: 10000,
-            withCredentials: true
+            withCredentials: true,
+            forceNew: true, // Always create a new connection
+            transports: ['websocket', 'polling']
         });
 
         this.setupEventListeners();
@@ -57,6 +92,7 @@ class GlobalSocket {
         if (!this.socket) return;
         this.socket.on('connect', () => {
             console.log('Global socket connected');
+            this.isConnecting = false;
             
             // Authenticate with chat service
             if (this.currentUser) {
@@ -149,9 +185,14 @@ class GlobalSocket {
 
     disconnect(): void {
         if (this.socket) {
+            // Force close the socket completely to prevent reuse of old session
+            this.socket.removeAllListeners();
             this.socket.disconnect();
+            this.socket.close();
             this.socket = null;
         }
+        this.isConnecting = false;
+        this.lastDisconnectTime = Date.now();
         // Clear current user data to prevent stale authentication
         this.currentUser = null;
     }
