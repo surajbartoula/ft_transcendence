@@ -1221,7 +1221,13 @@ export function setupSocketHandlers(io) {
             if (currentRoom) {
                 const gameData = activeGames.get(currentRoom);
                 if (gameData && currentUser) {
-                    delete gameData.players[currentUser.user_id];
+                    // Store user data before any potential modifications
+                    const disconnectingUser = {
+                        user_id: currentUser.user_id,
+                        username: currentUser.username || 'Unknown Player'
+                    };
+                    
+                    delete gameData.players[disconnectingUser.user_id];
                     
                     socket.to(currentRoom).emit('player_left', {
                         user: currentUser,
@@ -1245,7 +1251,7 @@ export function setupSocketHandlers(io) {
                                         match_data: {
                                             ...currentGameSession.match_data,
                                             disconnect: true,
-                                            disconnected_player: currentUser.user_id
+                                            disconnected_player: disconnectingUser.user_id
                                         }
                                     });
 
@@ -1262,9 +1268,9 @@ export function setupSocketHandlers(io) {
                                                     tournament_id: currentGameSession.tournament_id,
                                                     match_id: tournamentMatch.id,
                                                     winner_id: winnerUserId,
-                                                    loser_id: currentUser.user_id,
+                                                    loser_id: disconnectingUser.user_id,
                                                     result_type: 'disconnect',
-                                                    disconnected_player: currentUser.user_id
+                                                    disconnected_player: disconnectingUser.user_id
                                                 });
                                             }
                                         } catch (error) {
@@ -1278,7 +1284,7 @@ export function setupSocketHandlers(io) {
 
                             socket.to(currentRoom).emit('game_ended', {
                                 reason: 'disconnect',
-                                disconnected_player: currentUser.username,
+                                disconnected_player: disconnectingUser.username,
                                 winner_user_id: winnerUserId
                             });
                         }

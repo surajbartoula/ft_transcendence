@@ -68,8 +68,6 @@ export class SharedGamePage implements Page {
                         </div>
                     </div>
 
-
-                    <!-- Game Over Overlay -->
                     <!-- Game Over Overlay -->
                     <div id="gameOverOverlay" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 z-20" style="display: none;">
                         <div class="text-center max-w-md mx-auto p-6">

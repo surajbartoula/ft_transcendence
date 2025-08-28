@@ -497,16 +497,22 @@ export class GUIManager {
 
         this.gameUI = document.createElement('div');
         this.gameUI.id = 'gameUI';
+        
+        /** For AI games, swap the positions: AI on left, human player on right */
+        const isAIGame = options.gameMode === 'ai';
+        const leftPlayerName = isAIGame ? options.player2Name : options.player1Name;
+        const rightPlayerName = isAIGame ? options.player1Name : options.player2Name;
+        
         this.gameUI.innerHTML = `
             <div class="game-ui-overlay">
                 <div class="game-scoreboard">
                     <div class="player-score">
-                        <div class="player-name">${options.player1Name}</div>
+                        <div class="player-name">${leftPlayerName}</div>
                         <div class="score-value" id="leftScore">0</div>
                     </div>
                     <div class="game-mode-indicator">
                         <div class="mode-title">
-                            ${options.gameMode.toUpperCase()}
+                            ${options.gameMode === 'ai' ? 'Challenge the Computer' : options.gameMode.toUpperCase()}
                         </div>
                         <div class="mode-subtitle">
                             ${options.gameMode === 'local' ? 'Two Players' : 
@@ -514,7 +520,7 @@ export class GUIManager {
                         </div>
                     </div>
                     <div class="player-score">
-                        <div class="player-name">${options.player2Name}</div>
+                        <div class="player-name">${rightPlayerName}</div>
                         <div class="score-value" id="rightScore">0</div>
                     </div>
                 </div>

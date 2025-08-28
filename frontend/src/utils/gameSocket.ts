@@ -70,7 +70,7 @@ class GameSocket {
             }
         });
 
-        this.socket.on('disconnect', (reason) => {
+        this.socket.on('disconnect', (reason: any) => {
             console.log('Game socket disconnected:', reason);
             if (reason === 'io server disconnect') {
                 // Server disconnected, try to reconnect
@@ -78,16 +78,16 @@ class GameSocket {
             }
         });
 
-        this.socket.on('connect_error', (error) => {
+        this.socket.on('connect_error', (error: any) => {
             console.error('Game socket connection error:', error);
             this.handleReconnection();
         });
 
-        this.socket.on('authenticated', (data) => {
+        this.socket.on('authenticated', (data: any) => {
             console.log('✅ GameSocket: Authentication successful!', data);
         });
 
-        this.socket.on('auth_error', (data) => {
+        this.socket.on('auth_error', (data: any) => {
             console.error('❌ GameSocket: Authentication failed!', data);
         });
 
@@ -384,11 +384,11 @@ class GameSocket {
         this.socket.emit('join_game_room', joinData);
         
         // Add temporary listener for immediate feedback
-        this.socket.once('game_state', (data) => {
+        this.socket.once('game_state', (data: any) => {
             console.log('✅ GameSocket: Received game_state immediately after join:', data);
         });
         
-        this.socket.once('error', (data) => {
+        this.socket.once('error', (data: any) => {
             console.error('❌ GameSocket: Error after join_game_room:', data);
         });
     }
@@ -416,7 +416,7 @@ class GameSocket {
         console.log('✅ GameSocket: Player ready signal sent successfully');
         
         // Add temporary listener to track response
-        this.socket.once('player_ready', (data) => {
+        this.socket.once('player_ready', (data: any) => {
             console.log('🔄 GameSocket: Received player_ready response:', data);
         });
     }

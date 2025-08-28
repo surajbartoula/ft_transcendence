@@ -88,7 +88,10 @@ export async function register(name: string, email: string, password: string): P
 
 export async function getCurrentUser(token: string): Promise<User> {
     const response = await fetch(`${API_BASE}/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+			"Content-Type": "application/json",
+			"Authorization": `Bearer ${token}` 
+		},
     });
     
     const data = await response.json();
