@@ -195,6 +195,9 @@ export class ChatPage implements Page {
 								<p id="chatStatus" class="text-sm text-gray-400"></p>
 							</div>
 							<div class="flex items-center space-x-2">
+								<button id="viewProfileBtn" class="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1.5 rounded-md hidden transition-colors" title="View Profile">
+									👤 Profile
+								</button>
 								<button id="gameInviteBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded-md hidden transition-colors" title="Challenge to a Game">
 									🏓 Challenge
 								</button>
@@ -298,6 +301,58 @@ export class ChatPage implements Page {
 								</svg>
 								Send Challenge
 							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Profile View Modal -->
+				<div id="profileModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+					<div class="bg-gray-800 rounded-lg p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+						<div class="flex justify-between items-center mb-6">
+							<h3 class="text-xl font-semibold text-white">User Profile</h3>
+							<button id="closeProfileModal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+						</div>
+						
+						<!-- Profile Header -->
+						<div class="flex items-center mb-6">
+							<div class="relative">
+								<img id="profileUserAvatar" class="w-20 h-20 rounded-full object-cover" src="" alt="Profile Avatar">
+								<div id="profileUserStatus" class="absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-gray-800 rounded-full hidden"></div>
+							</div>
+							<div class="ml-4">
+								<h4 id="profileUserName" class="text-xl font-semibold text-white"></h4>
+								<p id="profileUsername" class="text-gray-400">@username</p>
+								<p id="profileUserStatusText" class="text-sm text-gray-500"></p>
+							</div>
+						</div>
+
+						<!-- Profile Details -->
+						<div class="space-y-4">
+							<!-- Bio Section -->
+							<div class="bg-gray-700 rounded-lg p-4">
+								<h5 class="text-sm font-medium text-gray-300 mb-2">Bio</h5>
+								<p id="profileUserBio" class="text-white text-sm">No bio available</p>
+							</div>
+
+							<!-- Member Since -->
+							<div class="bg-gray-700 rounded-lg p-4">
+								<h5 class="text-sm font-medium text-gray-300 mb-2">Member Since</h5>
+								<p id="profileMemberSince" class="text-white text-sm"></p>
+							</div>
+
+							<!-- Friendship Info -->
+							<div class="bg-gray-700 rounded-lg p-4" id="friendshipInfo" style="display: none;">
+								<h5 class="text-sm font-medium text-gray-300 mb-2">Friends Since</h5>
+								<p id="profileFriendshipDate" class="text-white text-sm"></p>
+							</div>
+						</div>
+
+						<!-- Action Buttons -->
+						<div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-700">
+							<button id="profileGameInvite" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+								🏓 Challenge
+							</button>
+							<button id="closeProfileModalBtn" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Close</button>
 						</div>
 					</div>
 				</div>
@@ -572,6 +627,8 @@ export class ChatPage implements Page {
         document.getElementById('unblockBtn')?.addEventListener('click', () => this.unblockCurrentUser());
         /** Game invite button */
         document.getElementById('gameInviteBtn')?.addEventListener('click', () => this.showGameInviteModal());
+        /** Profile view button */
+        document.getElementById('viewProfileBtn')?.addEventListener('click', () => this.showProfileModal());
         /** Add friend modal */
         document.getElementById('addFriendBtn')?.addEventListener('click', () => this.showAddFriendModal());
         document.getElementById('cancelAddFriend')?.addEventListener('click', () => this.hideAddFriendModal());
@@ -581,6 +638,10 @@ export class ChatPage implements Page {
         /** Game invite modal */
         document.getElementById('cancelGameInvite')?.addEventListener('click', () => this.hideGameInviteModal());
         document.getElementById('sendGameInvite')?.addEventListener('click', () => this.sendGameInvitation());
+        /** Profile modal */
+        document.getElementById('closeProfileModal')?.addEventListener('click', () => this.hideProfileModal());
+        document.getElementById('closeProfileModalBtn')?.addEventListener('click', () => this.hideProfileModal());
+        document.getElementById('profileGameInvite')?.addEventListener('click', () => this.profileToGameInvite());
     }
 
     private async loadInitialData(): Promise<void> {
@@ -876,10 +937,14 @@ export class ChatPage implements Page {
         this.messages = [];
         /** Clear global indicator */
         (window as any).currentOpenChatUserId = null;
-        /** Hide game invite button */
+        /** Hide game invite and profile buttons */
         const gameInviteBtn = document.getElementById('gameInviteBtn');
+        const viewProfileBtn = document.getElementById('viewProfileBtn');
         if (gameInviteBtn) {
             gameInviteBtn.classList.add('hidden');
+        }
+        if (viewProfileBtn) {
+            viewProfileBtn.classList.add('hidden');
         }
         document.getElementById('welcomeScreen')?.classList.remove('hidden');
         document.getElementById('chatHeader')?.classList.add('hidden');
@@ -1461,6 +1526,7 @@ export class ChatPage implements Page {
         const blockBtn = document.getElementById('blockBtn');
         const unblockBtn = document.getElementById('unblockBtn');
         const gameInviteBtn = document.getElementById('gameInviteBtn');
+        const viewProfileBtn = document.getElementById('viewProfileBtn');
         const messageInput = document.getElementById('messageInput') as HTMLInputElement;
         const sendBtn = document.getElementById('sendBtn');
         
@@ -1474,9 +1540,12 @@ export class ChatPage implements Page {
             blockBtn.classList.add('hidden');
             unblockBtn.classList.remove('hidden');
             
-            /** Hide game invite button for blocked users */
+            /** Hide game invite and profile buttons for blocked users */
             if (gameInviteBtn) {
                 gameInviteBtn.classList.add('hidden');
+            }
+            if (viewProfileBtn) {
+                viewProfileBtn.classList.add('hidden');
             }
             
             /** Disable messaging for blocked users */
@@ -1494,9 +1563,12 @@ export class ChatPage implements Page {
             blockBtn.classList.remove('hidden');
             unblockBtn.classList.add('hidden');
             
-            /** Hide game invite button when blocked by user */
+            /** Hide game invite button when blocked by user, but keep profile button */
             if (gameInviteBtn) {
                 gameInviteBtn.classList.add('hidden');
+            }
+            if (viewProfileBtn) {
+                viewProfileBtn.classList.remove('hidden');
             }
             
             /** Disable messaging - user is blocked by the other person */
@@ -1521,9 +1593,12 @@ export class ChatPage implements Page {
             blockBtn.classList.remove('hidden');
             unblockBtn.classList.add('hidden');
             
-            /** Show game invite button for non-blocked users */
+            /** Show game invite and profile buttons for non-blocked users */
             if (gameInviteBtn) {
                 gameInviteBtn.classList.remove('hidden');
+            }
+            if (viewProfileBtn) {
+                viewProfileBtn.classList.remove('hidden');
             }
             
             /** Enable messaging for non-blocked users */
@@ -1742,5 +1817,135 @@ export class ChatPage implements Page {
                 `;
             }
         }
+    }
+
+    private async showProfileModal(): Promise<void> {
+        console.log('👤 DEBUG: showProfileModal called');
+        console.log('👤 DEBUG: currentChatFriend =', this.currentChatFriend);
+        
+        // Fallback: try to get current chat friend from global state
+        let currentFriend: User | null = this.currentChatFriend;
+        if (!currentFriend) {
+            const currentUserId = (window as any).currentOpenChatUserId;
+            console.log('👤 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
+            if (currentUserId) {
+                const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
+                currentFriend = foundFriend || null;
+                console.log('👤 DEBUG: Fallback found friend =', currentFriend);
+            }
+        }
+        
+        if (!currentFriend) {
+            console.error('👤 ERROR: No friend selected for profile view');
+            showError('No friend selected to view profile');
+            return;
+        }
+
+        try {
+            // Fetch detailed profile information
+            const token = getStoredToken();
+            const response = await fetch(`/api/user/profile/${currentFriend.user_id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch profile');
+            }
+
+            const profileData = await response.json();
+            console.log('👤 DEBUG: Profile data fetched:', profileData);
+
+            // Populate modal with profile information
+            this.populateProfileModal(currentFriend, profileData);
+            
+            // Show the modal
+            const modal = document.getElementById('profileModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+
+        } catch (error) {
+            console.error('Failed to fetch profile:', error);
+            showError('Failed to load profile information');
+        }
+    }
+
+    private populateProfileModal(friend: User, profileData: any): void {
+        // Profile avatar
+        const avatar = document.getElementById('profileUserAvatar') as HTMLImageElement;
+        if (avatar) {
+            avatar.src = friend.photo?.path ? 
+                `${API_CONFIG.GATEWAY_URL}${friend.photo.path}` : 
+                generateAvatarUrl();
+        }
+
+        // Profile name and username
+        const nameElement = document.getElementById('profileUserName');
+        const usernameElement = document.getElementById('profileUsername');
+        if (nameElement) nameElement.textContent = friend.display_name || friend.username;
+        if (usernameElement) usernameElement.textContent = `@${profileData.username || friend.username}`;
+
+        // Online status
+        const statusElement = document.getElementById('profileUserStatus');
+        const statusTextElement = document.getElementById('profileUserStatusText');
+        const isOnline = this.onlineUsers.has(String(friend.user_id));
+        
+        if (statusElement && statusTextElement) {
+            if (isOnline) {
+                statusElement.classList.remove('hidden');
+                statusElement.className = 'absolute bottom-1 right-1 w-4 h-4 bg-green-500 border-2 border-gray-800 rounded-full';
+                statusTextElement.textContent = 'Online';
+            } else {
+                statusElement.classList.add('hidden');
+                statusTextElement.textContent = 'Offline';
+            }
+        }
+
+        // Bio
+        const bioElement = document.getElementById('profileUserBio');
+        if (bioElement) {
+            bioElement.textContent = profileData.bio || 'No bio available';
+        }
+
+        // Member since
+        const memberSinceElement = document.getElementById('profileMemberSince');
+        if (memberSinceElement && profileData.created_at) {
+            const createdDate = new Date(profileData.created_at);
+            memberSinceElement.textContent = createdDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Friendship info
+        const friendshipInfoDiv = document.getElementById('friendshipInfo');
+        const friendshipDateElement = document.getElementById('profileFriendshipDate');
+        if (friendshipInfoDiv && friendshipDateElement && (friend as any).friendship_date) {
+            const friendshipDate = new Date((friend as any).friendship_date);
+            friendshipDateElement.textContent = friendshipDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            friendshipInfoDiv.style.display = 'block';
+        } else if (friendshipInfoDiv) {
+            friendshipInfoDiv.style.display = 'none';
+        }
+    }
+
+    private hideProfileModal(): void {
+        const modal = document.getElementById('profileModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    private profileToGameInvite(): void {
+        // Hide profile modal and show game invite modal
+        this.hideProfileModal();
+        setTimeout(() => {
+            this.showGameInviteModal();
+        }, 100); // Small delay for smooth transition
     }
 }
