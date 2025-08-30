@@ -82,12 +82,16 @@ class GameSocket {
                     user_id: this.currentUser.id,
                     username: this.currentUser.name
                 };
-                // console.log('🔑 GameSocket: Sending authentication data:', authData);
-                // console.log('🔑 User ID type:', typeof this.currentUser.id, 'Value:', this.currentUser.id);
+                console.log('🔑 GameSocket: Sending authentication data:', authData);
+                console.log('🔑 User ID type:', typeof this.currentUser.id, 'Value:', this.currentUser.id);
                 this.socket?.emit('authenticate', authData);
             } else {
                 console.warn('⚠️ GameSocket: No current user data for authentication');
                 console.warn('⚠️ Stored user data:', getStoredUser());
+                // Dispatch auth error if no user data
+                window.dispatchEvent(new CustomEvent('auth_error', { 
+                    detail: { error: 'No user data available' } 
+                }));
             }
         });
 
@@ -107,10 +111,12 @@ class GameSocket {
 
         this.socket.on('authenticated', (data: any) => {
             console.log('✅ GameSocket: Authentication successful!', data);
+            window.dispatchEvent(new CustomEvent('authenticated', { detail: data }));
         });
 
         this.socket.on('auth_error', (data: any) => {
             console.error('❌ GameSocket: Authentication failed!', data);
+            window.dispatchEvent(new CustomEvent('auth_error', { detail: data }));
         });
 
         // Tournament event handlers
@@ -569,6 +575,37 @@ class GameSocket {
         if (this.socket && this.isConnected()) {
             this.socket.emit('ping');
         }
+    }
+
+    forceAuthenticate(): void {
+        console.log('🔄 GameSocket: Force authentication requested');
+        
+        if (!this.socket || !this.isConnected()) {
+            console.error('❌ GameSocket: Cannot authenticate - socket not connected');
+            window.dispatchEvent(new CustomEvent('auth_error', { 
+                detail: { error: 'Socket not connected' } 
+            }));
+            return;
+        }
+        
+        // Refresh current user data
+        this.currentUser = getStoredUser();
+        
+        if (!this.currentUser) {
+            console.error('❌ GameSocket: No user data available for authentication');
+            window.dispatchEvent(new CustomEvent('auth_error', { 
+                detail: { error: 'No user data available' } 
+            }));
+            return;
+        }
+        
+        const authData = {
+            user_id: this.currentUser.id,
+            username: this.currentUser.name
+        };
+        
+        console.log('🔑 GameSocket: Force sending authentication data:', authData);
+        this.socket.emit('authenticate', authData);
     }
 }
 

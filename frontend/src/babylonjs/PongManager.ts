@@ -251,7 +251,6 @@ export class PongGameManager {
      * Pause the current game
      */
     public pauseGame(): void {
-        console.log('🎯 PongManager.pauseGame() called');
         this.gameState.setState('paused');
     }
 

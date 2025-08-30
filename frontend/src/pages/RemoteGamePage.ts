@@ -10,6 +10,7 @@ export class RemoteGamePage implements Page {
     private gameManager: PongGameManager | null = null;
     private gameCanvas: HTMLCanvasElement | null = null;
     private isGameInitialized: boolean = false;
+    private isInitializing: boolean = false;
     private gameSessionId: string = '';
     private roomId: string = '';
     private isPlayer1: boolean = false;
@@ -205,23 +206,37 @@ export class RemoteGamePage implements Page {
         this.attachEventListeners();
         this.setupSocketEventListeners();
 
-        // Connect to game socket if not already connected
+        // Connect and authenticate socket
         const socketConnected = gameSocket.isConnected();
         console.log(`🔌 Socket connection status: ${socketConnected}`);
         
         if (!socketConnected) {
             console.log('🔌 Connecting to game socket...');
             gameSocket.connect();
+            // Give it a moment to connect
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Always force authentication to ensure server knows who we are
+        console.log('🔄 Ensuring authentication...');
+        try {
+            await this.forceReauthentication();
+        } catch (error) {
+            console.error('❌ Failed to authenticate:', error);
+            // Try to initialize anyway to show error overlay
+            this.initializeRemoteGame();
+            return;
         }
 
-        console.log('⏱️ Waiting 100ms before initializing remote game...');
-        setTimeout(() => {
-            this.initializeRemoteGame();
-        }, 100);
+        console.log('⏱️ Socket authenticated, initializing remote game...');
+        this.initializeRemoteGame();
     }
 
     public cleanup(): void {
         console.log('🎮 Cleaning up Remote Game Page...');
+        console.log('🔍 Cleanup called - current gameManager:', !!this.gameManager);
+        console.log('🔍 Cleanup called - isInitializing:', this.isInitializing);
+        console.log('🔍 Cleanup called - isGameInitialized:', this.isGameInitialized);
         
         // Stop any ongoing paddle movement
         if (this.currentPaddleDirection !== null) {
@@ -262,7 +277,52 @@ export class RemoteGamePage implements Page {
             notificationsContainer.innerHTML = '';
         }
         
+        // Reset initialization state
+        this.isGameInitialized = false;
+        this.isInitializing = false;
     }
+
+    private forceReauthentication(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            console.log('🔄 Forcing socket re-authentication...');
+            let isAuthenticated = false;
+            
+            // Listen for authentication success
+            const authHandler = () => {
+                console.log('✅ Re-authentication successful!');
+                isAuthenticated = true;
+                window.removeEventListener('authenticated', authHandler);
+                window.removeEventListener('auth_error', authErrorHandler);
+                resolve();
+            };
+            
+            // Listen for authentication failure
+            const authErrorHandler = (event: any) => {
+                console.error('❌ Re-authentication failed:', event.detail);
+                window.removeEventListener('authenticated', authHandler);
+                window.removeEventListener('auth_error', authErrorHandler);
+                reject(new Error('Re-authentication failed'));
+            };
+            
+            // Set up temporary event listeners
+            window.addEventListener('authenticated', authHandler);
+            window.addEventListener('auth_error', authErrorHandler);
+            
+            // Force authentication by triggering the authenticate event
+            gameSocket.forceAuthenticate();
+            
+            // Set timeout for re-authentication
+            setTimeout(() => {
+                if (!isAuthenticated) {
+                    window.removeEventListener('authenticated', authHandler);
+                    window.removeEventListener('auth_error', authErrorHandler);
+                    console.error('❌ Re-authentication timeout');
+                    reject(new Error('Re-authentication timeout'));
+                }
+            }, 3000); // 3 second timeout for re-auth
+        });
+    }
+
 
     private parseGameParameters(): void {
         console.log('🔍 RemoteGamePage: Parsing game parameters...');
@@ -393,11 +453,28 @@ export class RemoteGamePage implements Page {
     }
 
     private async initializeRemoteGame(): Promise<void> {
+        if (this.isInitializing) {
+            console.log('⚠️ RemoteGamePage: Already initializing, skipping duplicate call');
+            return;
+        }
+        
+        if (this.isGameInitialized) {
+            console.log('⚠️ RemoteGamePage: Already initialized, skipping duplicate call');
+            return;
+        }
+        
+        if (this.gameManager) {
+            console.log('⚠️ RemoteGamePage: Game manager already exists, skipping duplicate call');
+            return;
+        }
+        
+        this.isInitializing = true;
         console.log('🎮 RemoteGamePage: Starting remote game initialization...');
         
         if (!this.gameCanvas) {
             console.error('❌ RemoteGamePage: Game canvas not found');
             this.showError('Game canvas not available');
+            this.isInitializing = false;
             return;
         }
         console.log('✅ Game canvas found:', this.gameCanvas);
@@ -405,6 +482,7 @@ export class RemoteGamePage implements Page {
         if (!this.gameSessionId || !this.roomId) {
             console.error(`❌ RemoteGamePage: Missing parameters - Session: "${this.gameSessionId}", Room: "${this.roomId}"`);
             this.showError('Invalid game parameters');
+            this.isInitializing = false;
             return;
         }
         console.log('✅ Game parameters validated');
@@ -429,18 +507,34 @@ export class RemoteGamePage implements Page {
             console.log('🏓 Step 4: Creating PongGameManager...');
             this.gameManager = new PongGameManager(this.gameCanvas);
             console.log('✅ PongGameManager created:', this.gameManager);
+            console.log('🔍 GameManager null check:', this.gameManager === null);
+            console.log('🔍 GameManager undefined check:', this.gameManager === undefined);
             
             this.updateLoadingMessage('Initializing remote game session...');
             console.log('⏱️ Step 4: Initializing game session...');
             
             // Small delay to let 3D engine initialize properly
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
+            console.log('🔍 About to check gameManager:', this.gameManager);
+            console.log('🔍 GameManager exists:', !!this.gameManager);
+            console.log('🔍 GameManager type:', typeof this.gameManager);
+            
             if (this.gameManager) {
                 console.log('🎮 Step 6: Initializing game session with mode "remote"...');
                 console.log(`🆔 Using existing session ID: ${this.gameSessionId}`);
-                await this.gameManager.initializeGameSession('remote', undefined, this.gameSessionId);
-                console.log('✅ Remote game session initialized successfully');
+                
+                // Store reference to prevent race conditions
+                const gameManagerRef = this.gameManager;
+                await gameManagerRef.initializeGameSession('remote', undefined, this.gameSessionId);
+                
+                // Double-check that our game manager is still the same instance
+                if (this.gameManager === gameManagerRef) {
+                    console.log('✅ Remote game session initialized successfully');
+                } else {
+                    console.error('⚠️ Game manager changed during initialization, using stored reference');
+                    this.gameManager = gameManagerRef;
+                }
                 
                 console.log('💻 Hiding loading screen and showing waiting overlay...');
                 this.hideGameLoading();
@@ -448,15 +542,21 @@ export class RemoteGamePage implements Page {
                 this.updateConnectionStatus('connected');
                 
                 this.isGameInitialized = true;
+                this.isInitializing = false;
                 console.log('✅ RemoteGamePage: Initialization complete!');
             } else {
                 console.error('❌ Game manager is null after creation');
+                console.error('🔍 GameManager value:', this.gameManager);
+                console.error('🔍 GameManager null:', this.gameManager === null);
+                console.error('🔍 GameManager undefined:', this.gameManager === undefined);
                 this.showError('Failed to create game manager');
+                this.isInitializing = false;
             }
         } catch (error) {
             console.error('❌ RemoteGamePage: Failed to initialize remote game:', error);
             console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
             this.showError('Failed to initialize game. Please try again.');
+            this.isInitializing = false;
         }
     }
 
@@ -638,8 +738,23 @@ export class RemoteGamePage implements Page {
     }
 
     private handleKeyDown(event: KeyboardEvent): void {
+        // Only handle keys if we're on the remote game page
+        if (!window.location.pathname.includes('/game/remote/')) {
+            return;
+        }
+        
         if (!this.isGameInitialized) {
             console.log('⚠️ RemoteGamePage: Key pressed but game not initialized yet');
+            return;
+        }
+        
+        // Ignore key presses when user is typing in input fields
+        const activeElement = document.activeElement;
+        if (activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.hasAttribute('contenteditable')
+        )) {
             return;
         }
         
@@ -685,7 +800,22 @@ export class RemoteGamePage implements Page {
     }
 
     private handleKeyUp(event: KeyboardEvent): void {
+        // Only handle keys if we're on the remote game page
+        if (!window.location.pathname.includes('/game/remote/')) {
+            return;
+        }
+        
         if (!this.isGameInitialized) {
+            return;
+        }
+
+        // Ignore key presses when user is typing in input fields
+        const activeElement = document.activeElement;
+        if (activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.hasAttribute('contenteditable')
+        )) {
             return;
         }
 
@@ -999,12 +1129,12 @@ export class RemoteGamePage implements Page {
         }
     }
 
-    private handlePaddleUpdate(event: Event): void {
+    private handlePaddleUpdate(_event: Event): void {
         // Handle paddle position updates if needed
     }
 
     private handleGoalScored(event: Event): void {
-        const { scorer, player1_score, player2_score } = (event as CustomEvent).detail;
+        const { player1_score, player2_score } = (event as CustomEvent).detail;
         
         // Play score sound
         if (this.gameManager) {
@@ -1036,7 +1166,7 @@ export class RemoteGamePage implements Page {
     }
 
     private handleChatMessage(event: Event): void {
-        const { user, message, timestamp } = (event as CustomEvent).detail;
+        const { user, message } = (event as CustomEvent).detail;
         
         const chatMessages = document.getElementById('chatMessages');
         if (chatMessages) {

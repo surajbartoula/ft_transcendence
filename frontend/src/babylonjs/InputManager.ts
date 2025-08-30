@@ -4,6 +4,8 @@
 export class InputManager {
     private keyStates: Map<string, boolean> = new Map();
     private inputHandlers: Map<string, (pressed: boolean) => void> = new Map();
+    private keydownHandler!: (event: KeyboardEvent) => void;
+    private keyupHandler!: (event: KeyboardEvent) => void;
 
     initialize(): void {
         this.setupEventListeners();
@@ -11,8 +13,25 @@ export class InputManager {
     }
 
     private setupEventListeners(): void {
-        window.addEventListener('keydown', (event) => {
+        this.keydownHandler = (event) => {
             if (!event.key) return; // Handle undefined key
+            
+            // Only handle keys on game pages
+            const isGamePage = window.location.pathname.includes('/game/');
+            if (!isGamePage) {
+                return;
+            }
+            
+            // Ignore key presses when user is typing in input fields
+            const activeElement = document.activeElement;
+            if (activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.hasAttribute('contenteditable')
+            )) {
+                return;
+            }
+            
             const key = event.key.toLowerCase();
             if (key === ' ') {
                 console.log('🎯 InputManager: Space key detected in keydown, looking for handler');
@@ -27,15 +46,35 @@ export class InputManager {
                     handler(true);
                 }
             }
-        });
+        };
 
-        window.addEventListener('keyup', (event) => {
+        this.keyupHandler = (event) => {
             if (!event.key) return; // Handle undefined key
+            
+            // Only handle keys on game pages
+            const isGamePage = window.location.pathname.includes('/game/');
+            if (!isGamePage) {
+                return;
+            }
+            
+            // Ignore key presses when user is typing in input fields
+            const activeElement = document.activeElement;
+            if (activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.hasAttribute('contenteditable')
+            )) {
+                return;
+            }
+            
             const key = event.key.toLowerCase();
             this.keyStates.set(key, false);
             const handler = this.inputHandlers.get(key);
             if (handler) handler(false);
-        });
+        };
+
+        window.addEventListener('keydown', this.keydownHandler);
+        window.addEventListener('keyup', this.keyupHandler);
     }
 
     isKeyPressed(key: string): boolean {
@@ -59,7 +98,16 @@ export class InputManager {
     }
 
     dispose(): void {
+        // Remove event listeners
+        if (this.keydownHandler) {
+            window.removeEventListener('keydown', this.keydownHandler);
+        }
+        if (this.keyupHandler) {
+            window.removeEventListener('keyup', this.keyupHandler);
+        }
+        
         this.inputHandlers.clear();
         this.keyStates.clear();
+        console.log("🎮 Input manager disposed and event listeners removed");
     }
 }
