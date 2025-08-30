@@ -25,8 +25,9 @@ interface GameInvitation {
     receiver_id: string;
     game_mode: string;
     message: string;
-    status: 'pending' | 'accepted' | 'declined';
+    status: 'pending' | 'accepted' | 'declined' | 'expired';
     created_at: string;
+    expires_at?: string;  // When the invitation expires
     sender_username?: string;  // Added from backend
     receiver_username?: string; // Added from backend
     sender?: {
@@ -483,12 +484,28 @@ export class OnlineMatchLobbyPage implements Page {
                 
                 // Convert currentUserId to string for comparison
                 const currentUserIdStr = String(currentUserId);
+                const now = new Date();
+                
+                // Helper function to check if invitation is not expired
+                const isNotExpired = (inv: GameInvitation) => {
+                    if (!inv.expires_at) return true; // No expiry date means it doesn't expire
+                    const expiryDate = new Date(inv.expires_at);
+                    const isValid = expiryDate > now;
+                    if (!isValid) {
+                        console.log(`⏰ Filtering out expired invitation ${inv.id}: expires_at=${inv.expires_at}, now=${now.toISOString()}`);
+                    }
+                    return isValid;
+                };
                 
                 this.pendingInvitations = invitations.filter((inv: GameInvitation) => 
-                    inv.receiver_id === currentUserIdStr && inv.status === 'pending'
+                    inv.receiver_id === currentUserIdStr && 
+                    inv.status === 'pending' && 
+                    isNotExpired(inv)
                 );
                 this.sentInvitations = invitations.filter((inv: GameInvitation) => 
-                    inv.sender_id === currentUserIdStr && inv.status === 'pending'
+                    inv.sender_id === currentUserIdStr && 
+                    inv.status === 'pending' && 
+                    isNotExpired(inv)
                 );
                 
                 console.log(`📨 Filtered pending invitations (${this.pendingInvitations.length}):`, this.pendingInvitations);
