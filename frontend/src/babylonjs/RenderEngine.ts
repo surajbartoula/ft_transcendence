@@ -758,7 +758,7 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 	}
 }
 
-// Enhanced debugging method - visualize rays and boundaries
+// Debugging method - visualize rays and boundaries
 private debugVisualizeRays(rayPositions: BABYLON.Vector3[], rayDirection: BABYLON.Vector3, rayDistance: number): void {
 	// Enable this for debugging
 	const DEBUG_RAYS = true;

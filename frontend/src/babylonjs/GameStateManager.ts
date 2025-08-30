@@ -8,7 +8,7 @@ import { AIPlayer } from "./AIPlayer";
 import { TournamentManager } from "./TournamentManager";
 
 // =====================================
-// ENHANCED GAME STATE MANAGER
+// GAME STATE MANAGER
 // =====================================
 interface SystemReferences {
     renderEngine: RenderEngine; 

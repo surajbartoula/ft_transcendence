@@ -61,7 +61,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // GAME ROOM MANAGEMENT (enhanced)
+        // GAME ROOM MANAGEMENT
         // ========================================
 
         socket.on('join_game_room', async (data) => {
@@ -233,7 +233,7 @@ export function setupSocketHandlers(io) {
 		});
 
         // ========================================
-        // GAME CONTROL EVENTS (enhanced)
+        // GAME CONTROL EVENTS
         // ========================================
 
         socket.on('player_ready', async () => {
@@ -469,7 +469,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // ENHANCED TOURNAMENT EVENTS
+        // TOURNAMENT EVENTS
         // ========================================
 
         socket.on('join_tournament_room', async (data) => {
@@ -610,7 +610,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // CHAT & COMMUNICATION (enhanced)
+        // CHAT & COMMUNICATION
         // ========================================
 
         socket.on('game_chat', (data) => {
@@ -679,7 +679,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // CONNECTION MANAGEMENT (enhanced)
+        // CONNECTION MANAGEMENT
         // ========================================
 
         socket.on('disconnect', () => {
@@ -706,7 +706,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ========================================
-        // HELPER FUNCTIONS (enhanced)
+        // HELPER FUNCTIONS
         // ========================================
 
         async function startGame(roomId) {
@@ -890,14 +890,13 @@ export function setupSocketHandlers(io) {
             const prevBallX = ball.x - ball.vx;
             const prevBallY = ball.y - ball.vy;
 
-            // Enhanced collision detection with improved edge handling
             // Left paddle collision (Player 1 - GREEN paddle)
             if (ball.vx < 0) { // Ball moving left
                 const paddleRight = PADDLE_WIDTH;
                 const paddleTop = paddle1.y;
                 const paddleBottom = paddle1.y + PADDLE_HEIGHT;
                 
-                // Enhanced collision detection - check both continuous movement and current overlap
+                //Collision detection - check both continuous movement and current overlap
                 const ballWasRightOfPaddle = prevBallX - BALL_RADIUS > paddleRight;
                 const ballIsAtOrInPaddle = ball.x - BALL_RADIUS <= paddleRight;
                 const ballCurrentlyOverlapsPaddle = ball.x - BALL_RADIUS <= paddleRight && ball.x + BALL_RADIUS >= 0;
@@ -911,7 +910,7 @@ export function setupSocketHandlers(io) {
                     const timeToIntersection = Math.abs(ball.vx) > 0 ? (prevBallX - intersectX) / Math.abs(ball.vx) : 0;
                     const intersectY = prevBallY + (ball.vy * timeToIntersection);
                     
-                    // Enhanced tolerance for edge detection - larger tolerance for better edge catching
+                    // Tolerance for edge detection
                     const tolerance = BALL_RADIUS * 0.8; // Increased tolerance for better edge hits
                     const minY = paddleTop - tolerance;
                     const maxY = paddleBottom + tolerance;
@@ -925,7 +924,7 @@ export function setupSocketHandlers(io) {
                         // Use the more accurate Y position for collision
                         const collisionY = intersectionInBounds ? intersectY : ballCenterY;
                         
-                        // Enhanced angle calculation with better edge handling
+                        // Angle calculation with better edge handling
                         const paddleCenter = paddleTop + (PADDLE_HEIGHT / 2);
                         const hitOffset = Math.max(-1, Math.min(1, (collisionY - paddleCenter) / (PADDLE_HEIGHT / 2))); // Clamp to -1 to 1
                         
@@ -967,12 +966,12 @@ export function setupSocketHandlers(io) {
                 const paddleTop = paddle2.y;
                 const paddleBottom = paddle2.y + PADDLE_HEIGHT;
                 
-                // Enhanced collision detection - check both continuous movement and current overlap
+                // Check both continuous movement and current overlap
                 const ballWasLeftOfPaddle = prevBallX + BALL_RADIUS < paddleLeft;
                 const ballIsAtOrInPaddle = ball.x + BALL_RADIUS >= paddleLeft;
                 const ballCurrentlyOverlapsPaddle = ball.x + BALL_RADIUS >= paddleLeft && ball.x - BALL_RADIUS <= GAME_WIDTH;
                 
-                // Additional edge case: check if ball is already overlapping from previous frame
+                // Check if ball is already overlapping from previous frame
                 const ballWasOverlapping = prevBallX + BALL_RADIUS >= paddleLeft && prevBallX - BALL_RADIUS <= GAME_WIDTH;
                 
                 if ((ballWasLeftOfPaddle && ballIsAtOrInPaddle) || (ballCurrentlyOverlapsPaddle && !ballWasOverlapping)) {
@@ -981,7 +980,7 @@ export function setupSocketHandlers(io) {
                     const timeToIntersection = Math.abs(ball.vx) > 0 ? (intersectX - prevBallX) / Math.abs(ball.vx) : 0;
                     const intersectY = prevBallY + (ball.vy * timeToIntersection);
                     
-                    // Enhanced tolerance for edge detection - larger tolerance for better edge catching
+                    // larger tolerance for better edge catching
                     const tolerance = BALL_RADIUS * 0.8; // Increased tolerance for better edge hits
                     const minY = paddleTop - tolerance;
                     const maxY = paddleBottom + tolerance;
@@ -995,7 +994,7 @@ export function setupSocketHandlers(io) {
                         // Use the more accurate Y position for collision
                         const collisionY = intersectionInBounds ? intersectY : ballCenterY;
                         
-                        // Enhanced angle calculation with better edge handling
+                        // Angle calculation with better edge handling
                         const paddleCenter = paddleTop + (PADDLE_HEIGHT / 2);
                         const hitOffset = Math.max(-1, Math.min(1, (collisionY - paddleCenter) / (PADDLE_HEIGHT / 2))); // Clamp to -1 to 1
                         
@@ -1323,7 +1322,7 @@ export function setupSocketHandlers(io) {
     });
 
     // ========================================
-    // PERIODIC CLEANUP TASKS (enhanced)
+    // PERIODIC CLEANUP TASKS
     // ========================================
 
     // Clean up expired invitations every 5 minutes
@@ -1409,6 +1408,4 @@ export function setupSocketHandlers(io) {
             }
         }
     }, 30 * 60 * 1000);
-
-    console.log('🎮 Enhanced Pong Game Socket handlers with tournament support initialized');
 }

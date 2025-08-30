@@ -98,7 +98,7 @@ export function initializeDatabase() {
                 `, (err) => {
                     if (err) return reject(err);
                     
-                    // Tournament Matches table - enhanced with bracket positioning
+                    // Tournament Matches table
                     db.run(`
                         CREATE TABLE IF NOT EXISTS tournament_matches (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -269,7 +269,7 @@ export function initializeDatabase() {
     });
 }
 
-// Database service class with enhanced tournament features
+// Database service class with tournament features
 export class GameDatabaseService {
     // ========================================
     // GAME SESSIONS (existing methods unchanged)
@@ -398,7 +398,7 @@ export class GameDatabaseService {
     }
 
     // ========================================
-    // ENHANCED TOURNAMENTS WITH SEEDING
+    // TOURNAMENTS WITH SEEDING
     // ========================================
     
     createTournament(data) {
@@ -501,7 +501,6 @@ export class GameDatabaseService {
         }
     }
     
-    // Enhanced method to get participants with seeding info
     getTournamentParticipants(tournamentId) {
         return new Promise((resolve, reject) => {
             db.all(`
@@ -557,7 +556,7 @@ export class GameDatabaseService {
         }
     }
     
-    // Enhanced tournament start with proper seeding and bracket generation
+    // tournament start with proper seeding and bracket generation
     async startTournament(tournamentId) {
         try {
             const tournament = await this.getTournament(tournamentId);
@@ -607,7 +606,7 @@ export class GameDatabaseService {
         }
     }
     
-    // Enhanced match generation with proper bracket positioning
+    // Match generation with proper bracket positioning
     generateSeededTournamentMatches(tournamentId, participants) {
         return new Promise((resolve, reject) => {
             const round = 1;
@@ -680,7 +679,7 @@ export class GameDatabaseService {
         return pairs;
     }
     
-    // Enhanced method to get matches with bracket info
+    // Method to get matches with bracket info
     getTournamentMatches(tournamentId, roundNumber = null) {
         return new Promise((resolve, reject) => {
             let query = `

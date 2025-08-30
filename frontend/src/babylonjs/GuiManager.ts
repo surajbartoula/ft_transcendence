@@ -732,9 +732,6 @@ export class GUIManager {
         }
     }
 
-    // =====================================
-    // EXISTING METHODS (Enhanced)
-    // =====================================
     createPauseMenu(options?: { 
         onResume?: () => void; 
         onRestart?: () => void;

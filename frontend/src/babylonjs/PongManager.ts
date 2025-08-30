@@ -9,7 +9,7 @@ import { AIPlayer } from "./AIPlayer";
 import { TournamentManager } from "./TournamentManager";
 
 // =====================================
-// ENHANCED PONG GAME MANAGER
+// PONG GAME MANAGER
 // =====================================
 export class PongGameManager {
     private gameState: GameStateManager;
@@ -29,8 +29,6 @@ export class PongGameManager {
     private currentGameSessionId: string | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
-        console.log("🎮 Initializing Enhanced Pong Game Manager...");
-        
         // Initialize core systems
         this.renderEngine = new RenderEngine(canvas);
         this.inputManager = new InputManager();
@@ -58,8 +56,6 @@ export class PongGameManager {
     }
 
     private async initialize(): Promise<void> {
-        console.log("🎮 Initializing Enhanced Pong Game Systems...");
-
         try {
             // Initialize all systems in proper order
             await this.renderEngine.initialize();
@@ -69,7 +65,6 @@ export class PongGameManager {
             this.uiManager.initialize();
             this.scoreManager.initialize();
 
-            // Set up score change callback with enhanced UI features
             this.scoreManager.setScoreChangeCallback(({ leftScore, rightScore, scorer }) => {
                 this.uiManager.showScoreFlash({ 
                     scorer, 
@@ -80,9 +75,6 @@ export class PongGameManager {
             });
 
             this.startGameLoop();
-
-            console.log("✅ Enhanced Game Manager initialized successfully!");
-            
         } catch (error) {
             console.error("❌ Failed to initialize game systems:", error);
             throw error;
@@ -128,7 +120,6 @@ export class PongGameManager {
         };
 
         requestAnimationFrame(gameLoop);
-        console.log("🔄 Enhanced game loop started");
     }
 
     // =====================================
@@ -291,7 +282,6 @@ export class PongGameManager {
         renderTime: number;
         physicsTime: number;
     } {
-        // Basic performance tracking - could be enhanced
         return {
             fps: Math.round(1000 / (this.lastTime - (this.lastTime - 16.67))),
             renderTime: 0, // Would need to implement timing
@@ -415,11 +405,9 @@ export class PongGameManager {
     }
 
     // =====================================
-    // ENHANCED DISPOSE METHOD
+    // DISPOSE METHOD
     // =====================================
     public dispose(): void {
-        console.log("🎮 Disposing Enhanced Pong Game Manager...");
-        
         this.isRunning = false;
 
         try {
@@ -435,9 +423,6 @@ export class PongGameManager {
             
             // Dispose GameStateManager to stop timers and cleanup
             (this.gameState as any)?.dispose?.();
-            
-            console.log("✅ Enhanced Game Manager disposed successfully");
-            
         } catch (error) {
             console.warn("⚠️ Error during disposal:", error);
         }

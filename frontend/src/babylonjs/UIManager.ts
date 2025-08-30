@@ -13,7 +13,7 @@ export class UIManager {
     private currentMenus: Set<string> = new Set();
 
     initialize(): void {
-        console.log("🖥️ Enhanced UI manager initialized");
+        console.log("🖥️ UI manager initialized");
     }
 
     // =====================================
@@ -136,10 +136,7 @@ export class UIManager {
         this.currentMenus.delete('tournamentComplete');
         this.currentMenus.delete('matchResults');
     }
-
-    // =====================================
-    // EXISTING METHODS (Enhanced)
-    // =====================================
+	
     showStart(options?: { titleImageUrl?: string }): void {
         this.gui.createStartMenu(options);
         this.currentMenus.add('startMenu');

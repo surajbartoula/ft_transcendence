@@ -148,7 +148,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Update game session (enhanced with tournament advancement)
+    // Update game session
     fastify.patch('/api/game/session/:sessionId', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -241,10 +241,10 @@ export default async function gameRoutes(fastify, options) {
     });
 
     // ========================================
-    // ENHANCED TOURNAMENT ROUTES
+    // TOURNAMENT ROUTES
     // ========================================
 
-    // Create a new tournament (enhanced with seeding options)
+    // Create a new tournament (With seeding options)
     fastify.post('/api/game/tournament', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -286,7 +286,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get tournament details (enhanced with announcements)
+    // Get tournament details
     fastify.get('/api/game/tournament/:tournamentId', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -319,7 +319,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Join a tournament (enhanced)
+    // Join a tournament
     fastify.post('/api/game/tournament/:tournamentId/join', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -424,7 +424,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Start a tournament (enhanced)
+    // Start a tournament
     fastify.post('/api/game/tournament/:tournamentId/start', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -479,7 +479,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get tournament bracket/matches (enhanced)
+    // Get tournament bracket/matches
     fastify.get('/api/game/tournament/:tournamentId/matches', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -511,7 +511,7 @@ export default async function gameRoutes(fastify, options) {
         }
     });
 
-    // Get active tournaments (enhanced)
+    // Get active tournaments
     fastify.get('/api/game/tournaments', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {
@@ -1161,7 +1161,7 @@ export default async function gameRoutes(fastify, options) {
         });
     });
 
-    // Clean up expired data (enhanced)
+    // Clean up expired data
     fastify.post('/api/game/admin/cleanup', {
         preHandler: fastify.authenticate,
         handler: async (req, reply) => {

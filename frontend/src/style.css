@@ -174,7 +174,6 @@
   transition: all 0.3s ease;
 }
 
-/* Enhanced loading spinner */
 .loading-spinner {
   width: 20px;
   height: 20px;
@@ -189,7 +188,6 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Enhanced hover effects */
 .card-hover {
   transition: all 0.3s ease;
 }

@@ -48,7 +48,7 @@ try {
 		cert: fs.readFileSync(process.env.SSL_CERT)
 	};
 	
-	console.log('HTTPS configuration loaded for enhanced game service');
+	console.log('HTTPS configuration loaded for game service');
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);
 	process.exit(1);
@@ -74,8 +74,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN;
 
 async function start() {
     try {
-        // Initialize enhanced database with tournament features
-        console.log('🎮 Initializing Enhanced Pong Game Service with Tournament Support...');
+        // Initialize database with tournament features
         await initializeDatabase();
 
         // Register CORS
@@ -92,7 +91,7 @@ async function start() {
             }
         });
 
-        // Register Socket.IO with enhanced configuration
+        // Register Socket.IO
         await fastify.register(socketio, {
             cors: {
                 origin: true,
@@ -106,10 +105,10 @@ async function start() {
             allowEIO3: true // Allow Engine.IO v3 clients
         });
 
-        // Setup enhanced Socket.IO handlers with tournament support
+        // Setup Socket.IO handlers with tournament support
         setupSocketHandlers(fastify.io);
 
-        // Register enhanced routes
+        // Register routes
         await fastify.register(gameRoutes);
 
         // Global error handler
@@ -138,10 +137,10 @@ async function start() {
             });
         });
 
-        // Enhanced health check endpoint
+        // Health check endpoint
         fastify.get('/', async (request, reply) => {
             return {
-                service: 'Enhanced Pong Game Service',
+                service: 'Pong Game Service',
                 status: 'healthy',
                 version: '2.0.0',
                 timestamp: new Date().toISOString(),
@@ -175,10 +174,10 @@ async function start() {
             };
         });
 
-        // Enhanced API documentation endpoint
+        // API documentation endpoint
         fastify.get('/api/docs', async (request, reply) => {
             return {
-                title: 'Enhanced Pong Game Service API',
+                title: 'Pong Game Service API',
                 version: '2.0.0',
                 description: 'Complete tournament and game management system for Pong',
                 tournament_features: {
@@ -217,7 +216,7 @@ async function start() {
             host: '0.0.0.0' 
         });
 
-        console.log(`🚀 Enhanced Pong Game Service running at: ${address}`);
+        console.log(`🚀 Pong Game Service running at: ${address}`);
         console.log(`🔌 Socket.IO enabled for real-time gameplay and tournaments`);
         console.log(`🏆 Tournament features: Seeding, Brackets, Announcements, Live Spectating`);
         console.log(`📊 Advanced analytics and player statistics enabled`);
@@ -237,7 +236,7 @@ async function start() {
         console.log('   ✅ Game Event Recording & Replay Data');
 
     } catch (error) {
-        console.error('💥 Failed to start enhanced server:', error);
+        console.error('💥 Failed to start server:', error);
         process.exit(1);
     }
 }
@@ -259,7 +258,6 @@ signals.forEach((signal) => {
             
             // Close server
             await fastify.close();
-            console.log('✅ Enhanced server closed successfully');
             process.exit(0);
         } catch (error) {
             console.error('❌ Error during shutdown:', error);

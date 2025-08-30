@@ -47,8 +47,6 @@ export class AIPlayer {
         
         // Set AI to hard difficulty by default
         this.setDifficulty('hard');
-        
-        console.log("🤖 AI Player initialized with enhanced responsiveness and real physics data");
     }
 
     stop(): void {
