@@ -165,8 +165,6 @@ export class AIPlayer {
         }
     }
 
-    // Removed calculateBallVelocity - now using real physics data
-
     private predictBallPosition(): void {
         const paddleX = this.paddlePosition.x;
         const ballX = this.ballPosition.x;
@@ -178,18 +176,11 @@ export class AIPlayer {
         if (ballVelX > 0.5 && ballX < paddleX) {
             const timeToReach = (paddleX - ballX) / ballVelX;
             const distance = paddleX - ballX;
-            
-            // Special handling for direct shots (close range, little time to react)
             if (distance < 8 && timeToReach < 0.8) {
-                // Direct shot - use simple linear prediction, no complex bounces
                 let directPrediction = ballZ + (ballVelZ * timeToReach);
-                
-                // Simple clamp for direct shots
                 const wallTop = 9.5;
                 const wallBottom = -9.5;
                 directPrediction = Math.max(wallBottom, Math.min(wallTop, directPrediction));
-                
-                // For direct shots, be more aggressive and accurate
                 this.predictedBallY = directPrediction;
                 
                 console.log(`🤖 DIRECT SHOT detected! Z: ${this.predictedBallY.toFixed(2)} (dist: ${distance.toFixed(1)}, time: ${timeToReach.toFixed(2)}s)`);
@@ -238,8 +229,6 @@ export class AIPlayer {
             this.predictedBallY = ballZ * 0.7;
         }
     }
-
-    // Removed complex wall bounce prediction - using simpler method now
 
     private calculateInput(): void {
         const paddleZ = this.paddlePosition.z;
@@ -290,8 +279,6 @@ export class AIPlayer {
         this.scheduleInput(desiredInput, reactionTime);
     }
 
-    // Simplified strategic behavior - removed for better responsiveness
-
     private scheduleInput(input: number, customReactionTime?: number): void {
         // Use custom reaction time or default
         const reactionTime = customReactionTime ?? this.reactionTime;
@@ -311,14 +298,13 @@ export class AIPlayer {
         };
     }
 
-    // Method to make AI miss occasionally (for realism)
+    // Method to make AI miss occasionally
     private shouldMiss(): boolean {
         const missChance = this.difficulty === 'easy' ? 0.15 : 
                           this.difficulty === 'medium' ? 0.08 : 0.03;
         return Math.random() < missChance;
     }
 
-    // Alternative AI algorithms for different strategies
     private useDefensiveStrategy(): void {
         // Focus on returning ball to center
         this.accuracy = Math.min(this.accuracy, 0.9);

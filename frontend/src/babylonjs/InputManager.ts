@@ -98,7 +98,6 @@ export class InputManager {
     }
 
     dispose(): void {
-        // Remove event listeners
         if (this.keydownHandler) {
             window.removeEventListener('keydown', this.keydownHandler);
         }
