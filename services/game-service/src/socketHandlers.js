@@ -345,7 +345,7 @@ export function setupSocketHandlers(io) {
             const { direction, y } = data;
             
             // Paddle dimensions for boundary checking  
-            const maxPaddleY = 600 - 100; // GAME_HEIGHT - PADDLE_HEIGHT = 500
+            const maxPaddleY = 600 - 120; // GAME_HEIGHT - PADDLE_HEIGHT = 480
             
             
             if (player.is_player1) {
@@ -927,10 +927,10 @@ export function setupSocketHandlers(io) {
             // Game constants (physics function scope)
             const BALL_RADIUS = 10;
             const PADDLE_WIDTH = 20;
-            const PADDLE_HEIGHT = 100;
+            const PADDLE_HEIGHT = 120;
             const GAME_WIDTH = 800;
             const GAME_HEIGHT = 600;
-            const MAX_PADDLE_Y = GAME_HEIGHT - PADDLE_HEIGHT; // 500
+            const MAX_PADDLE_Y = GAME_HEIGHT - PADDLE_HEIGHT; // 480
             
             // Update paddle positions based on velocity
             if (paddle1.isMoving && paddle1.velocity !== 0) {
