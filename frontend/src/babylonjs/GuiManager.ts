@@ -677,6 +677,11 @@ export class GUIManager {
 
         this.matchResults = document.createElement('div');
         this.matchResults.id = 'matchResults';
+        
+        // Check if tournament is complete (no more matches to play)
+        const tournamentComplete = !options.nextMatch && (!options.tournament.matches || 
+            options.tournament.matches.every((match: any) => match.isComplete));
+        
         this.matchResults.innerHTML = `
             <div class="tron-container">
                 <div class="tron-grid-bg"></div>
@@ -693,11 +698,18 @@ export class GUIManager {
                     </div>
                     <div style="margin-top: 40px;">
                         <button id="continueBtn" class="tron-button">Continue Tournament</button>
+                    </div>
+                ` : tournamentComplete ? `
+                    <div style="margin: 20px 0; color: #ffff00; font-weight: bold;">
+                        Tournament Complete!
+                    </div>
+                    <div style="margin-top: 40px;">
+                        <button id="continueBtn" class="tron-button">View Final Results</button>
                         <button id="mainMenuBtn" class="tron-button">Main Menu</button>
                     </div>
                 ` : `
                     <div style="margin-top: 40px;">
-                        <button id="mainMenuBtn" class="tron-button">Main Menu</button>
+                        <button id="continueBtn" class="tron-button">Continue Tournament</button>
                     </div>
                 `}
             </div>

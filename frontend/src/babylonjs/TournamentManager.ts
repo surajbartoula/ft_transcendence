@@ -318,6 +318,12 @@ export class TournamentManager {
         return this.tournaments.delete(tournamentId);
     }
 
+    // Clear all tournaments (for starting fresh)
+    clearAllTournaments(): void {
+        this.tournaments.clear();
+        console.log('🧹 TournamentManager: All tournament data cleared');
+    }
+
     // Get all tournaments (for management)
     getAllTournaments(): Tournament[] {
         return Array.from(this.tournaments.values());

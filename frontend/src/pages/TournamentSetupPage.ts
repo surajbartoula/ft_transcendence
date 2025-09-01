@@ -1,5 +1,6 @@
 import { Page } from '../router/Router';
 import { showNotification, showError } from '../utils/ui';
+import { TournamentManager } from '../babylonjs/TournamentManager';
 
 export class TournamentSetupPage implements Page {
     public title = 'Tournament Setup';
@@ -8,6 +9,7 @@ export class TournamentSetupPage implements Page {
     private players: string[] = [];
     private maxPlayers: number = 8;
     private minPlayers: number = 2;
+    private tournamentManager!: TournamentManager;
 
     public render(): string {
         return `
@@ -220,6 +222,12 @@ export class TournamentSetupPage implements Page {
 
     public async initialize(): Promise<void> {
         console.log('🏆 TournamentSetupPage: Initializing...');
+        
+        // Initialize tournament manager and clear any existing data
+        this.tournamentManager = TournamentManager.getInstance();
+        this.tournamentManager.clearAllTournaments();
+        console.log('🧹 TournamentSetupPage: Cleared existing tournament data');
+        
         this.bindElements();
         this.attachEventListeners();
         this.updateUI();

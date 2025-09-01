@@ -627,26 +627,18 @@ class TournamentResultsState extends GameState {
         const tournament = this.systems.tournamentManager.getTournament(data.tournamentId);
         if (!tournament) return;
 
-        // Show game over screen first with tournament context
-        const score = this.systems.scoreManager.getScore();
+        // Show tournament-specific match results screen
+        const winnerDisplayName = data.winner;
         
-        // For tournaments, we need to create a proper gameMode with player names
-        // so the winner display works correctly
-        const tournamentGameMode = {
-            type: 'tournament' as const,
-            player1Name: data.lastMatch?.player1?.name || 'Player 1',
-            player2Name: data.lastMatch?.player2?.name || 'Player 2'
-        };
+        // Find the next match in the tournament
+        const nextMatch = this.findNextMatch(tournament);
         
-        // Determine which side won based on the winner name
-        const winner = (data.winner === data.lastMatch?.player1?.name) ? 'left' : 'right';
-        
-        this.systems.uiManager.showGameOver({
-            winner: winner,
-            score: score,
-            gameMode: tournamentGameMode,
-            onPlayAgain: () => this.navigateToTournamentBracket(tournament, data),
-            onMainMenu: () => this.navigateToTournamentBracket(tournament, data)
+        this.systems.uiManager.showMatchResults({
+            winner: winnerDisplayName,
+            nextMatch: nextMatch,
+            tournament: tournament,
+            onContinue: () => this.navigateToTournamentBracket(tournament, data),
+            onMainMenu: () => this.navigateToTournamentBracket(tournament, data) // Keep them in tournament flow
         });
 
         // Auto-continue after showing celebration
@@ -655,14 +647,24 @@ class TournamentResultsState extends GameState {
         }, 3000);
     }
 
+    private findNextMatch(tournament: any): any {
+        // Find the next incomplete match in the tournament
+        for (const match of tournament.matches) {
+            if (!match.isComplete && match.player1 && match.player2) {
+                return match;
+            }
+        }
+        return null;
+    }
+
     private navigateToTournamentBracket(tournament: any, data: { tournamentId: string, lastMatch: any, winner: string }): void {
         if (this.celebrationTimer) {
             clearTimeout(this.celebrationTimer);
             this.celebrationTimer = null;
         }
 
-        // Hide game over screen
-        this.systems.uiManager.hideGameOver();
+        // Hide tournament results screen
+        this.systems.uiManager.hideTournamentResults();
 
         // Navigate back to tournament bracket with updated tournament state
         const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map((p: any) => p.name)));

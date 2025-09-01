@@ -448,6 +448,10 @@ export class TournamentBracketPage implements Page {
     }
 
     private handleBackClick(): void {
+        // Clear all tournament data to allow fresh start
+        this.tournamentManager.clearAllTournaments();
+        console.log('🔄 Tournament data cleared, navigating to setup');
+        
         const event = new CustomEvent('navigate', {
             detail: { path: '/game/tournament/setup' }
         });
