@@ -157,3 +157,34 @@ export function clearStoredAuth(): void {
     /** Trigger global socket disconnection */
     window.dispatchEvent(new CustomEvent('userLoggedOut'));
 }
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const token = getStoredToken();
+    if (!token) {
+        throw new Error('Authentication token not found');
+    }
+
+    const response = await fetch(`${API_BASE}/change-password`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            currentPassword,
+            newPassword
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || 'Password change failed');
+    }
+
+    // Update stored token if new token is provided (for security)
+    if (data.token) {
+        localStorage.setItem('token', data.token);
+    }
+
+    return data;
+}

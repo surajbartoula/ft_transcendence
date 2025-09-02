@@ -72,7 +72,7 @@ export class User {
 
 	static async findById(id) {
 		return new Promise((resolve, reject) => {
-			db.get('SELECT id, email, name, picture, google_id, created_at, two_factor_enabled FROM users WHERE id = ?', [id], (err, row) => {
+			db.get('SELECT id, email, name, picture, google_id, created_at, two_factor_enabled, password FROM users WHERE id = ?', [id], (err, row) => {
 				if (err) reject(err);
 				else resolve(row);
 			});
@@ -364,6 +364,44 @@ export class User {
 					else resolve(this.changes);
 				}
 			);
+		});
+	}
+
+	/**
+	 * Change user password
+	 */
+	static async changePassword(userId, currentPassword, newPassword) {
+		return new Promise((resolve, reject) => {
+			// First get the current user to verify the current password
+			db.get('SELECT password FROM users WHERE id = ?', [userId], async (err, row) => {
+				if (err) return reject(err);
+				if (!row) return reject(new Error('User not found'));
+				
+				// Verify current password
+				const isCurrentPasswordValid = await User.verifyPassword(currentPassword, row.password);
+				if (!isCurrentPasswordValid) {
+					return reject(new Error('Current password is incorrect'));
+				}
+				
+				try {
+					// Hash the new password
+					const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+					
+					// Update the password in database
+					const stmt = db.prepare(`
+						UPDATE users 
+						SET password = ? 
+						WHERE id = ?
+					`);
+					stmt.run([hashedNewPassword, userId], function(updateErr) {
+						if (updateErr) reject(updateErr);
+						else resolve({ success: true, message: 'Password changed successfully' });
+					});
+					stmt.finalize();
+				} catch (hashError) {
+					reject(hashError);
+				}
+			});
 		});
 	}
 }

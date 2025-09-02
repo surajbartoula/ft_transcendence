@@ -11,6 +11,10 @@ class GameSocket {
     private isConnecting = false;
     private lastDisconnectTime = 0;
     private connectionCooldown = 500; // Minimum time between connections
+    private isDisposed = false;
+    
+    // Track active listeners to prevent duplicates
+    private activeSocketListeners = new Set<string>();
 
     constructor() {
         this.currentUser = getStoredUser();
@@ -43,10 +47,12 @@ class GameSocket {
         
         // Set connecting state
         this.isConnecting = true;
+        this.isDisposed = false;
         
         // Clean up any existing socket before creating new one
         if (this.socket) {
             console.log('🧹 GameSocket: Cleaning up existing socket');
+            this.cleanupSocketListeners();
             this.socket.removeAllListeners();
             this.socket.disconnect();
             this.socket.close();
@@ -69,6 +75,9 @@ class GameSocket {
 
     private setupEventListeners(): void {
         if (!this.socket) return;
+        
+        // Clear any existing active listeners to prevent duplicates
+        this.cleanupSocketListeners();
 
         this.socket.on('connect', () => {
             console.log('✅ GameSocket: Connected successfully!');
@@ -142,38 +151,52 @@ class GameSocket {
 
         // Game-specific events
         this.socket.on('game_state', (data: any) => {
+            if (this.isDisposed) return;
             console.log('🎮 GameSocket: Game state update:', data);
             window.dispatchEvent(new CustomEvent('gameState', { detail: data }));
         });
+        this.activeSocketListeners.add('game_state');
 
         this.socket.on('game_started', (data: any) => {
+            if (this.isDisposed) return;
             console.log('🚀 GameSocket: Game started!', data);
             window.dispatchEvent(new CustomEvent('gameStarted', { detail: data }));
         });
+        this.activeSocketListeners.add('game_started');
 
         this.socket.on('game_ended', (data: any) => {
+            if (this.isDisposed) return;
             console.log('🏁 GameSocket: Game ended!', data);
             window.dispatchEvent(new CustomEvent('gameEnded', { detail: data }));
         });
+        this.activeSocketListeners.add('game_ended');
 
         this.socket.on('player_joined', (data: any) => {
+            if (this.isDisposed) return;
             console.log('👤 GameSocket: Player joined:', data);
             window.dispatchEvent(new CustomEvent('playerJoined', { detail: data }));
         });
+        this.activeSocketListeners.add('player_joined');
 
         this.socket.on('player_left', (data: any) => {
+            if (this.isDisposed) return;
             console.log('🚪 GameSocket: Player left:', data);
             window.dispatchEvent(new CustomEvent('playerLeft', { detail: data }));
         });
+        this.activeSocketListeners.add('player_left');
 
         this.socket.on('player_ready', (data: any) => {
+            if (this.isDisposed) return;
             console.log('✅ GameSocket: Player ready:', data);
             window.dispatchEvent(new CustomEvent('playerReady', { detail: data }));
         });
+        this.activeSocketListeners.add('player_ready');
 
         this.socket.on('game_update', (data: any) => {
+            if (this.isDisposed) return;
             window.dispatchEvent(new CustomEvent('gameUpdate', { detail: data }));
         });
+        this.activeSocketListeners.add('game_update');
 
         this.socket.on('paddle_update', (data: any) => {
             window.dispatchEvent(new CustomEvent('paddleUpdate', { detail: data }));
@@ -374,7 +397,12 @@ class GameSocket {
     }
 
     disconnect(): void {
+        this.isDisposed = true;
+        
         if (this.socket) {
+            // Clean up socket listeners before disconnecting
+            this.cleanupSocketListeners();
+            
             // Force close the socket completely to prevent reuse of old session
             this.socket.removeAllListeners();
             this.socket.disconnect();
@@ -386,6 +414,18 @@ class GameSocket {
         this.lastDisconnectTime = Date.now();
         // Clear current user data to prevent stale authentication
         this.currentUser = null;
+    }
+    
+    private cleanupSocketListeners(): void {
+        if (!this.socket) return;
+        
+        // Remove specific listeners we've tracked
+        this.activeSocketListeners.forEach(eventName => {
+            this.socket?.off(eventName);
+        });
+        
+        this.activeSocketListeners.clear();
+        console.log('🧹 GameSocket: Cleaned up all tracked socket listeners');
     }
 
     getSocket(): Socket | null {

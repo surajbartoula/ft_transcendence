@@ -175,14 +175,42 @@ export class LeaderboardPage implements Page {
         console.log('Leaderboard page initialized');
         (window as any).leaderboardPage = this;
         
+        // Set up event listeners
+        this.setupEventListeners();
+        
         // Initial load
         await this.fetchLeaderboard();
-        
+    }
+
+    private setupEventListeners(): void {
         // Set up refresh button
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.fetchLeaderboard());
         }
+
+        // Set up logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Dispatch logout event to be handled by main.ts
+                window.dispatchEvent(new CustomEvent('logout'));
+            });
+        }
+
+        // Set up sidebar navigation
+        const sidebarItems = document.querySelectorAll('.sidebar-item:not(#logoutBtn)');
+        sidebarItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const route = item.getAttribute('data-route');
+                if (route) {
+                    window.location.hash = route;
+                }
+            });
+        });
     }
 
     public cleanup(): void {

@@ -23,6 +23,8 @@ export class PongGameManager {
     private tournamentManager: TournamentManager;
     private isRunning: boolean = false;
     private lastTime: number = 0;
+    private animationFrameId: number | null = null;
+    private gameLoopFn: ((timestamp: number) => void) | null = null;
     
     // Game session tracking
     private currentGameMode: 'local' | 'ai' | 'remote' | 'tournament' = 'local';
@@ -82,10 +84,19 @@ export class PongGameManager {
     }
 
     private startGameLoop(): void {
+        this.lastTime = performance.now();
         this.isRunning = true;
         
-        const gameLoop = (timestamp: number) => {
-            if (!this.isRunning) return;
+        // Store the game loop function reference for cleanup
+        this.gameLoopFn = (timestamp: number) => {
+            if (!this.isRunning || !this.gameLoopFn) {
+                // Clear the animation frame ID when stopping
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
+                    this.animationFrameId = null;
+                }
+                return;
+            }
 
             const deltaTime = timestamp - this.lastTime;
             this.lastTime = timestamp;
@@ -114,12 +125,31 @@ export class PongGameManager {
 
             } catch (error) {
                 console.error("❌ Error in game loop:", error);
+                // Stop the loop on error to prevent infinite error spam
+                this.stopGameLoop();
+                return;
             }
 
-            requestAnimationFrame(gameLoop);
+            // Schedule next frame only if still running
+            if (this.isRunning && this.gameLoopFn) {
+                this.animationFrameId = requestAnimationFrame(this.gameLoopFn);
+            }
         };
 
-        requestAnimationFrame(gameLoop);
+        // Start the loop
+        this.animationFrameId = requestAnimationFrame(this.gameLoopFn);
+    }
+    
+    private stopGameLoop(): void {
+        this.isRunning = false;
+        
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
+        
+        // Clear the function reference to prevent memory leaks
+        this.gameLoopFn = null;
     }
 
     // =====================================
@@ -408,7 +438,10 @@ export class PongGameManager {
     // DISPOSE METHOD
     // =====================================
     public dispose(): void {
-        this.isRunning = false;
+        console.log('🧹 PongGameManager: Starting disposal...');
+        
+        // Stop render loop first to prevent any further frame requests
+        this.stopGameLoop();
 
         try {
             // Stop AI
@@ -423,6 +456,8 @@ export class PongGameManager {
             
             // Dispose GameStateManager to stop timers and cleanup
             (this.gameState as any)?.dispose?.();
+            
+            console.log('✅ PongGameManager: Disposal complete');
         } catch (error) {
             console.warn("⚠️ Error during disposal:", error);
         }

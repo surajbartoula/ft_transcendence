@@ -496,6 +496,84 @@ export default async function authRoutes(fastify, options) {
 	});
 
 	/**
+	 * Change password endpoint
+	 */
+	fastify.put('/change-password', {
+		preHandler: authenticationToken
+	}, async (request, reply) => {
+		try {
+			const { currentPassword, newPassword } = request.body;
+			const userId = request.user.id;
+
+			// Validation
+			if (!currentPassword || !newPassword) {
+				return reply.status(400).send({
+					error: 'Current password and new password are required'
+				});
+			}
+
+			if (newPassword.length < 6) {
+				return reply.status(400).send({
+					error: 'New password must be at least 6 characters long'
+				});
+			}
+
+			if (currentPassword === newPassword) {
+				return reply.status(400).send({
+					error: 'New password must be different from current password'
+				});
+			}
+
+			// Check if user is a Google OAuth user (no password set)
+			const user = await User.findById(userId);
+			if (!user) {
+				return reply.status(404).send({
+					error: 'User not found'
+				});
+			}
+
+			if (user.google_id && !user.password) {
+				return reply.status(400).send({
+					error: 'Cannot change password for Google OAuth users'
+				});
+			}
+
+			// Change password
+			const result = await User.changePassword(userId, currentPassword, newPassword);
+			
+			// Generate new token for security (invalidates old sessions)
+			const newToken = await reply.jwtSign({
+				id: user.id,
+				email: user.email
+			});
+			
+			reply.send({
+				message: result.message,
+				token: newToken
+			});
+		} catch (error) {
+			console.error('Password change error:', error);
+			
+			// Handle specific error cases
+			if (error.message === 'Current password is incorrect') {
+				return reply.status(400).send({
+					error: 'Current password is incorrect'
+				});
+			}
+			
+			if (error.message === 'User not found') {
+				return reply.status(404).send({
+					error: 'User not found'
+				});
+			}
+
+			reply.status(500).send({
+				error: 'Internal server error'
+			});
+		}
+	});
+
+	/**
 	 * Google authentication code below
 	 */
 
