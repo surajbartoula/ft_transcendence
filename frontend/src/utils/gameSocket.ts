@@ -27,20 +27,20 @@ class GameSocket {
         const token = getStoredToken();
         
         if (!token || !this.currentUser) {
-            console.error('❌ GameSocket: No token or user data available for connection');
+            return;
             return;
         }
         
         // Check if already connected or connecting
         if (this.socket?.connected || this.isConnecting) {
-            console.log('✅ GameSocket: Already connected or connecting, skipping');
+            return;
             return;
         }
         
         // Respect connection cooldown period
         const timeSinceLastDisconnect = Date.now() - this.lastDisconnectTime;
         if (timeSinceLastDisconnect < this.connectionCooldown) {
-            console.log(`⏳ GameSocket: Connection cooldown active (${this.connectionCooldown - timeSinceLastDisconnect}ms remaining)`);
+            return;
             setTimeout(() => this.connect(), this.connectionCooldown - timeSinceLastDisconnect);
             return;
         }
@@ -51,7 +51,7 @@ class GameSocket {
         
         // Clean up any existing socket before creating new one
         if (this.socket) {
-            console.log('🧹 GameSocket: Cleaning up existing socket');
+            // Clean up existing socket
             this.cleanupSocketListeners();
             this.socket.removeAllListeners();
             this.socket.disconnect();
@@ -59,7 +59,6 @@ class GameSocket {
             this.socket = null;
         }
 
-        console.log('🌐 GameSocket: Creating socket connection to game service');
         this.socket = io('/', {
             path: '/game-socket/socket.io',
             auth: { token },
@@ -69,7 +68,7 @@ class GameSocket {
             withCredentials: true
         });
         
-        console.log('🔌 GameSocket: Socket instance created, setting up event listeners...');
+        // Set up event listeners
         this.setupEventListeners();
     }
 
@@ -80,8 +79,7 @@ class GameSocket {
         this.cleanupSocketListeners();
 
         this.socket.on('connect', () => {
-            console.log('✅ GameSocket: Connected successfully!');
-            console.log('🔌 Socket ID:', this.socket?.id);
+            // Connected successfully
             this.reconnectAttempts = 0;
             this.isConnecting = false;
             
@@ -91,12 +89,10 @@ class GameSocket {
                     user_id: this.currentUser.id,
                     username: this.currentUser.name
                 };
-                console.log('🔑 GameSocket: Sending authentication data:', authData);
-                console.log('🔑 User ID type:', typeof this.currentUser.id, 'Value:', this.currentUser.id);
+                // Authenticate user
                 this.socket?.emit('authenticate', authData);
             } else {
-                console.warn('⚠️ GameSocket: No current user data for authentication');
-                console.warn('⚠️ Stored user data:', getStoredUser());
+                // No current user data for authentication
                 // Dispatch auth error if no user data
                 window.dispatchEvent(new CustomEvent('auth_error', { 
                     detail: { error: 'No user data available' } 
@@ -105,7 +101,7 @@ class GameSocket {
         });
 
         this.socket.on('disconnect', (reason: any) => {
-            console.log('Game socket disconnected:', reason);
+            // Socket disconnected
             if (reason === 'io server disconnect') {
                 // Server disconnected, try to reconnect
                 this.handleReconnection();
@@ -113,18 +109,18 @@ class GameSocket {
         });
 
         this.socket.on('connect_error', (error: any) => {
-            console.error('Game socket connection error:', error);
+            // Connection error
             this.isConnecting = false;
             this.handleReconnection();
         });
 
         this.socket.on('authenticated', (data: any) => {
-            console.log('✅ GameSocket: Authentication successful!', data);
+            // Authentication successful
             window.dispatchEvent(new CustomEvent('authenticated', { detail: data }));
         });
 
         this.socket.on('auth_error', (data: any) => {
-            console.error('❌ GameSocket: Authentication failed!', data);
+            // Authentication failed
             window.dispatchEvent(new CustomEvent('auth_error', { detail: data }));
         });
 
@@ -152,42 +148,42 @@ class GameSocket {
         // Game-specific events
         this.socket.on('game_state', (data: any) => {
             if (this.isDisposed) return;
-            console.log('🎮 GameSocket: Game state update:', data);
+            // Game state update
             window.dispatchEvent(new CustomEvent('gameState', { detail: data }));
         });
         this.activeSocketListeners.add('game_state');
 
         this.socket.on('game_started', (data: any) => {
             if (this.isDisposed) return;
-            console.log('🚀 GameSocket: Game started!', data);
+            // Game started
             window.dispatchEvent(new CustomEvent('gameStarted', { detail: data }));
         });
         this.activeSocketListeners.add('game_started');
 
         this.socket.on('game_ended', (data: any) => {
             if (this.isDisposed) return;
-            console.log('🏁 GameSocket: Game ended!', data);
+            // Game ended
             window.dispatchEvent(new CustomEvent('gameEnded', { detail: data }));
         });
         this.activeSocketListeners.add('game_ended');
 
         this.socket.on('player_joined', (data: any) => {
             if (this.isDisposed) return;
-            console.log('👤 GameSocket: Player joined:', data);
+            // Player joined
             window.dispatchEvent(new CustomEvent('playerJoined', { detail: data }));
         });
         this.activeSocketListeners.add('player_joined');
 
         this.socket.on('player_left', (data: any) => {
             if (this.isDisposed) return;
-            console.log('🚪 GameSocket: Player left:', data);
+            // Player left
             window.dispatchEvent(new CustomEvent('playerLeft', { detail: data }));
         });
         this.activeSocketListeners.add('player_left');
 
         this.socket.on('player_ready', (data: any) => {
             if (this.isDisposed) return;
-            console.log('✅ GameSocket: Player ready:', data);
+            // Player ready
             window.dispatchEvent(new CustomEvent('playerReady', { detail: data }));
         });
         this.activeSocketListeners.add('player_ready');
@@ -245,11 +241,11 @@ class GameSocket {
 
         // Game invitation events
         this.socket.on('game_invitation', (data: any) => {
-            console.log('📨 GameSocket: Game invitation received:', data);
+            // Game invitation received
             
             // Show global notification regardless of current page
             if (data.sender && data.sender.username) {
-                console.log('📢 Showing global invitation notification');
+                // Show global invitation notification
                 import('../utils/ui').then(({ showClickableNotification }) => {
                     showClickableNotification(
                         `${data.sender.username} challenged you to a match! Click to respond.`,
@@ -257,7 +253,7 @@ class GameSocket {
                         0, // Don't auto-dismiss
                         () => {
                             // Navigate to online lobby page
-                            console.log('🎮 Navigating to online lobby to handle invitation');
+                            // Navigate to online lobby
                             const event = new CustomEvent('navigate', {
                                 detail: { path: '/game/online' }
                             });
@@ -272,42 +268,42 @@ class GameSocket {
         });
 
         this.socket.on('game_invitation_response', (data: any) => {
-            console.log('📝 GameSocket: Game invitation response:', data);
+            // Game invitation response
             window.dispatchEvent(new CustomEvent('game_invitation_response', { detail: data }));
         });
 
         this.socket.on('game_ready', (data: any) => {
-            console.log('🎮 GameSocket: Game ready!', data);
+            // Game ready
             window.dispatchEvent(new CustomEvent('game_ready', { detail: data }));
         });
 
         this.socket.on('user_room_rejoined', (data: any) => {
-            console.log('✅ GameSocket: Successfully rejoined user room:', data);
+            // Successfully rejoined user room
         });
 
         this.socket.on('user_room_error', (data: any) => {
-            console.error('❌ GameSocket: Failed to rejoin user room:', data);
+            // Failed to rejoin user room
         });
 
         this.socket.on('error', (data: any) => {
-            console.error('Game socket error:', data);
+            // Socket error
         });
     }
 
     private handleReconnection(): void {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
-            console.log(`Attempting to reconnect game socket (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+            // Attempting reconnection
             setTimeout(() => {
                 this.connect();
             }, Math.pow(2, this.reconnectAttempts) * 1000); // Exponential backoff
         } else {
-            console.error('Max reconnection attempts reached for game socket');
+            // Max reconnection attempts reached
         }
     }
 
     private handleTournamentUpdate(data: any): void {
-        console.log('Tournament updated:', data);
+        // Tournament updated
         
         window.dispatchEvent(new CustomEvent('tournamentUpdate', { detail: data }));
         
@@ -319,7 +315,7 @@ class GameSocket {
     }
     
     private handleTournamentStarted(data: any): void {
-        console.log('Tournament started:', data);
+        // Tournament started
         
         window.dispatchEvent(new CustomEvent('tournamentStarted', { detail: data }));
         
@@ -334,7 +330,7 @@ class GameSocket {
     }
     
     private handleMatchReady(data: any): void {
-        console.log('Match ready:', data);
+        // Match ready
         
         window.dispatchEvent(new CustomEvent('matchReady', { detail: data }));
         
@@ -352,7 +348,7 @@ class GameSocket {
     }
     
     private handleMatchCompleted(data: any): void {
-        console.log('Match completed:', data);
+        // Match completed
         
         window.dispatchEvent(new CustomEvent('matchCompleted', { detail: data }));
         
@@ -366,7 +362,7 @@ class GameSocket {
     }
     
     private handleTournamentAnnouncement(data: any): void {
-        console.log('Tournament announcement:', data);
+        // Tournament announcement
         
         window.dispatchEvent(new CustomEvent('tournamentAnnouncement', { detail: data }));
         
@@ -425,7 +421,7 @@ class GameSocket {
         });
         
         this.activeSocketListeners.clear();
-        console.log('🧹 GameSocket: Cleaned up all tracked socket listeners');
+        // Socket listeners cleaned up
     }
 
     getSocket(): Socket | null {
@@ -438,15 +434,15 @@ class GameSocket {
 
     // Game room methods
     joinGameRoom(roomId: string, gameSessionId: number): void {
-        console.log(`🏠 GameSocket: Attempting to join game room - Room: ${roomId}, Session: ${gameSessionId}`);
+        // Attempting to join game room
         
         if (!this.socket) {
-            console.error('❌ GameSocket: No socket instance available');
+            // No socket instance available
             return;
         }
         
         if (!this.isConnected()) {
-            console.error('❌ GameSocket: Socket not connected');
+            // Socket not connected
             return;
         }
         
@@ -455,16 +451,16 @@ class GameSocket {
             game_session_id: gameSessionId
         };
         
-        console.log('📤 GameSocket: Sending join_game_room event with data:', joinData);
+        // Sending join_game_room event
         this.socket.emit('join_game_room', joinData);
         
         // Add temporary listener for immediate feedback
         this.socket.once('game_state', (data: any) => {
-            console.log('✅ GameSocket: Received game_state immediately after join:', data);
+            // Received game_state after join
         });
         
         this.socket.once('error', (data: any) => {
-            console.error('❌ GameSocket: Error after join_game_room:', data);
+            // Error after join_game_room
         });
     }
 
@@ -475,56 +471,50 @@ class GameSocket {
     }
 
     playerReady(): void {
-        console.log('✅ GameSocket: Sending player ready signal');
-        console.log('🔌 Socket connected:', this.isConnected());
-        console.log('🔌 Socket ID:', this.socket?.id);
+        // Sending player ready signal
         
         if (!this.socket || !this.isConnected()) {
-            console.error('❌ GameSocket: Cannot send ready - socket not connected');
-            console.error('❌ Socket instance exists:', !!this.socket);
-            console.error('❌ Socket connected:', this.socket?.connected);
+            // Cannot send ready - socket not connected
             return;
         }
         
-        console.log('📤 GameSocket: Emitting player_ready event...');
         this.socket.emit('player_ready');
-        console.log('✅ GameSocket: Player ready signal sent successfully');
         
         // Add temporary listener to track response
         this.socket.once('player_ready', (data: any) => {
-            console.log('🔄 GameSocket: Received player_ready response:', data);
+            // Received player_ready response
         });
     }
 
     movePaddle(direction: 'up' | 'down', y?: number): void {
         if (!this.socket || !this.isConnected()) {
-            console.warn('⚠️ GameSocket: Cannot move paddle - socket not connected');
+            // Cannot move paddle - socket not connected
             return;
         }
         
         const moveData = { direction, y };
-        console.log('🏓 GameSocket: Sending paddle move:', moveData);
+        // Sending paddle move
         this.socket.emit('paddle_move', moveData);
     }
 
     // Velocity-based paddle movement methods
     startMovingPaddle(direction: 'up' | 'down'): void {
         if (!this.socket || !this.isConnected()) {
-            console.warn('⚠️ GameSocket: Cannot start moving paddle - socket not connected');
+            // Cannot start moving paddle - socket not connected
             return;
         }
         
-        console.log(`🏓 PADDLE_DEBUG: Starting paddle movement - Direction: ${direction}`);
+        // Starting paddle movement
         this.socket.emit('paddle_move_start', { direction });
     }
 
     stopMovingPaddle(): void {
         if (!this.socket || !this.isConnected()) {
-            console.warn('⚠️ GameSocket: Cannot stop moving paddle - socket not connected');
+            // Cannot stop moving paddle - socket not connected
             return;
         }
         
-        console.log('🏓 PADDLE_DEBUG: Stopping paddle movement');
+        // Stopping paddle movement
         this.socket.emit('paddle_move_stop');
     }
 
@@ -542,24 +532,21 @@ class GameSocket {
 
     rejoinUserRoom(): void {
         if (!this.socket || !this.isConnected()) {
-            console.warn('⚠️ GameSocket: Cannot rejoin user room - socket not connected');
+            // Cannot rejoin user room - socket not connected
             return;
         }
         
         // Use current user data instead of parsing from localStorage again
         const userData = this.currentUser || getStoredUser();
         if (!userData || !userData.id) {
-            console.warn('⚠️ GameSocket: Cannot rejoin user room - no user data');
-            console.warn('⚠️ Current user data:', userData);
+            // Cannot rejoin user room - no user data
             return;
         }
         
-        console.log('🔄 GameSocket: Requesting to rejoin user room...');
         const rejoinData = {
             user_id: userData.id,
             username: userData.name // Use 'name' field, not 'username'
         };
-        console.log('📤 GameSocket: Rejoin data:', rejoinData);
         this.socket.emit('rejoin_user_room', rejoinData);
     }
 
@@ -618,10 +605,10 @@ class GameSocket {
     }
 
     forceAuthenticate(): void {
-        console.log('🔄 GameSocket: Force authentication requested');
+        // Force authentication requested
         
         if (!this.socket || !this.isConnected()) {
-            console.error('❌ GameSocket: Cannot authenticate - socket not connected');
+            // Cannot authenticate - socket not connected
             window.dispatchEvent(new CustomEvent('auth_error', { 
                 detail: { error: 'Socket not connected' } 
             }));
@@ -632,7 +619,7 @@ class GameSocket {
         this.currentUser = getStoredUser();
         
         if (!this.currentUser) {
-            console.error('❌ GameSocket: No user data available for authentication');
+            // No user data available for authentication
             window.dispatchEvent(new CustomEvent('auth_error', { 
                 detail: { error: 'No user data available' } 
             }));
@@ -644,7 +631,7 @@ class GameSocket {
             username: this.currentUser.name
         };
         
-        console.log('🔑 GameSocket: Force sending authentication data:', authData);
+        // Force sending authentication data
         this.socket.emit('authenticate', authData);
     }
 }

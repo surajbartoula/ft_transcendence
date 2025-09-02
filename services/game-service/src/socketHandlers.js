@@ -8,7 +8,6 @@ const tournamentRooms = new Map(); // Track tournament spectators
 
 export function setupSocketHandlers(io) {
     io.on('connection', (socket) => {
-        console.log(`🔌 Player connected: ${socket.id}`);
         
         let currentUser = null;
         let currentRoom = null;
@@ -26,9 +25,7 @@ export function setupSocketHandlers(io) {
                 
                 // Join user-specific room for notifications
                 await socket.join(`user_${user_id}`);
-                console.log(`🔔 DEBUG: User ${username} joined room user_${user_id}`);
                 
-                console.log(`✅ User authenticated: ${username} (${user_id})`);
                 socket.emit('authenticated', { success: true, user: currentUser });
             } catch (error) {
                 console.error('Authentication error:', error);
@@ -41,9 +38,7 @@ export function setupSocketHandlers(io) {
             try {
                 if (!currentUser) {
                     const { user_id, username } = data;
-                    console.log(`🔍 DEBUG: rejoin_user_room data:`, data);
                     if (!user_id || !username) {
-                        console.error('❌ DEBUG: Missing required data in rejoin_user_room:', { user_id, username });
                         return socket.emit('user_room_error', { error: 'user_id and username required' });
                     }
                     currentUser = { user_id, username };
@@ -51,11 +46,9 @@ export function setupSocketHandlers(io) {
                 
                 const userRoom = `user_${currentUser.user_id}`;
                 await socket.join(userRoom);
-                console.log(`🔄 DEBUG: User ${currentUser.username} rejoined room ${userRoom}`);
                 
                 socket.emit('user_room_rejoined', { success: true });
             } catch (error) {
-                console.error('❌ DEBUG: Failed to rejoin user room:', error);
                 socket.emit('user_room_error', { error: 'Failed to rejoin user room' });
             }
         });
@@ -67,48 +60,28 @@ export function setupSocketHandlers(io) {
         socket.on('join_game_room', async (data) => {
             try {
                 const { room_id, game_session_id } = data;
-                console.log(`🏠 DEBUG: Join game room request - Room: ${room_id}, Session: ${game_session_id}, User: ${currentUser?.username || 'NOT_AUTH'}`);
                 
                 if (!currentUser) {
-                    console.error('❌ DEBUG: User not authenticated for join_game_room');
                     return socket.emit('error', { error: 'Not authenticated' });
                 }
 
-                console.log(`🔍 DEBUG: Fetching game session ${game_session_id}...`);
                 const gameSession = await gameDb.getGameSession(game_session_id);
                 if (!gameSession) {
-                    console.error(`❌ DEBUG: Game session ${game_session_id} not found`);
                     return socket.emit('error', { error: 'Game session not found' });
                 }
-                console.log(`✅ DEBUG: Game session found:`, { 
-                    id: gameSession.id, 
-                    player1_id: gameSession.player1_id, 
-                    player2_id: gameSession.player2_id,
-                    status: gameSession.status 
-                });
 
                 const currentUserId = currentUser.user_id;
                 const player1Id = gameSession.player1_id;
                 const player2Id = gameSession.player2_id;
                 
-                console.log(`🔍 DEBUG: Authorization check details:`);
-                console.log(`  Current user ID: "${currentUserId}" (type: ${typeof currentUserId})`);
-                console.log(`  Player 1 ID: "${player1Id}" (type: ${typeof player1Id})`);
-                console.log(`  Player 2 ID: "${player2Id}" (type: ${typeof player2Id})`);
-                console.log(`  Match P1: ${currentUserId === player1Id}`);
-                console.log(`  Match P2: ${currentUserId === player2Id}`);
-                console.log(`  String Match P1: ${String(currentUserId) === String(player1Id)}`);
-                console.log(`  String Match P2: ${String(currentUserId) === String(player2Id)}`);
                 
                 const isPlayer = String(currentUserId) === String(player1Id) || 
                                 String(currentUserId) === String(player2Id);
                 
                 if (!isPlayer) {
-                    console.error(`❌ DEBUG: User ${currentUserId} not authorized for game (P1: ${player1Id}, P2: ${player2Id})`);
                     return socket.emit('error', { error: 'Not authorized to join this game' });
                 }
 
-                console.log(`🔌 DEBUG: Joining socket room ${room_id}...`);
                 await socket.join(room_id);
                 currentRoom = room_id;
                 currentGameSession = gameSession;
@@ -117,25 +90,17 @@ export function setupSocketHandlers(io) {
                 if (gameSession.tournament_id) {
                     currentTournamentId = gameSession.tournament_id;
                     await socket.join(`tournament_${gameSession.tournament_id}`);
-                    console.log(`🏆 DEBUG: Also joined tournament room ${gameSession.tournament_id}`);
                 }
 
                 const isPlayer1 = String(gameSession.player1_id) === String(currentUser.user_id);
-                console.log(`👤 DEBUG: Player role determination:`);
-                console.log(`  - Current user ID: ${currentUser.user_id} (type: ${typeof currentUser.user_id})`);
-                console.log(`  - Game session player1_id: ${gameSession.player1_id} (type: ${typeof gameSession.player1_id})`);
-                console.log(`  - Game session player2_id: ${gameSession.player2_id} (type: ${typeof gameSession.player2_id})`);
-                console.log(`  - Comparison result (isPlayer1): ${isPlayer1}`);
                 
                 const updateData = {};
                 updateData[isPlayer1 ? 'player1_socket_id' : 'player2_socket_id'] = socket.id;
                 updateData.last_activity = new Date().toISOString();
 
                 await gameDb.updateGameRoom(room_id, updateData);
-                console.log(`💾 DEBUG: Updated game room ${room_id} with socket ID ${socket.id}`);
 
                 if (!activeGames.has(room_id)) {
-                    console.log(`🆕 DEBUG: Creating new active game for room ${room_id}`);
                     activeGames.set(room_id, {
                         gameSession,
                         players: {},
@@ -150,7 +115,6 @@ export function setupSocketHandlers(io) {
                         spectators: []
                     });
                 } else {
-                    console.log(`♻️ DEBUG: Using existing active game for room ${room_id}`);
                 }
 
                 const gameData = activeGames.get(room_id);
@@ -162,10 +126,7 @@ export function setupSocketHandlers(io) {
                 };
 
                 const currentPlayerCount = Object.keys(gameData.players).length;
-                console.log(`👥 DEBUG: Player ${currentUser.username} joined game room: ${room_id} (${currentPlayerCount} players total)`);
-                console.log(`👥 DEBUG: Current players:`, Object.values(gameData.players).map(p => ({ username: p.username, ready: p.ready, is_player1: p.is_player1 })));
                 
-                console.log(`📡 DEBUG: Emitting player_joined to other players in room ${room_id}`);
                 socket.to(room_id).emit('player_joined', {
                     user: currentUser,
                     players_count: currentPlayerCount
@@ -173,7 +134,6 @@ export function setupSocketHandlers(io) {
 
                 // If tournament game, notify tournament room about active match
                 if (gameSession.tournament_id) {
-                    console.log(`🏆 DEBUG: Notifying tournament room about match start`);
                     socket.to(`tournament_${gameSession.tournament_id}`).emit('tournament_match_started', {
                         game_session_id: game_session_id,
                         room_id: room_id,
@@ -192,27 +152,15 @@ export function setupSocketHandlers(io) {
                     your_role: isPlayer1 ? 'player1' : 'player2'
                 };
                 
-                console.log(`📤 DEBUG: Emitting game_state to ${currentUser.username}:`, {
-                    room_id,
-                    your_role: gameStateResponse.your_role,
-                    players_count: Object.keys(gameData.players).length,
-                    game_running: gameData.gameState.isRunning,
-                    game_paused: gameData.gameState.isPaused
-                });
                 
                 socket.emit('game_state', gameStateResponse);
-                console.log(`✅ DEBUG: Join game room complete for ${currentUser.username}`);
 
             } catch (error) {
-                console.error('❌ DEBUG: Join room error:', error);
-                console.error('❌ DEBUG: Error stack:', error.stack);
                 socket.emit('error', { error: 'Failed to join game room' });
             }
         });
 
 		socket.on('leave_game_room', () => {
-			console.log(`🚪 DEBUG: Leave game room request from ${currentUser?.username || 'UNKNOWN'}`);
-			console.log(`🚪 DEBUG: Current room: ${currentRoom}`);
 			
 			if (currentRoom && currentUser) {
 				handlePlayerLeave();
@@ -224,9 +172,7 @@ export function setupSocketHandlers(io) {
 				/** Callback approach */
 				socket.join(userRoom, (err) => {
 					if (err) {
-						console.error(`❌ DEBUG: Failed to rejoin user room ${userRoom}:`, err);
 					} else {
-						console.log(`🔔 DEBUG: Rejoined user room ${userRoom} for ${currentUser.username}`);
 					}
 				});
 			}
@@ -237,35 +183,26 @@ export function setupSocketHandlers(io) {
         // ========================================
 
         socket.on('player_ready', async () => {
-            console.log(`✅ DEBUG: Player ready signal received from ${currentUser?.username || 'UNKNOWN'}`);
             
             if (!currentRoom || !currentUser) {
-                console.error(`❌ DEBUG: Missing currentRoom (${currentRoom}) or currentUser (${currentUser?.username || 'null'})`);
                 return;
             }
 
             const gameData = activeGames.get(currentRoom);
             if (!gameData) {
-                console.error(`❌ DEBUG: No game data found for room ${currentRoom}`);
                 return;
             }
             
             if (!gameData.players[currentUser.user_id]) {
-                console.error(`❌ DEBUG: Player ${currentUser.user_id} not found in game room ${currentRoom}`);
-                console.error(`❌ DEBUG: Available players:`, Object.keys(gameData.players));
                 return;
             }
 
-            console.log(`🎯 DEBUG: Marking player ${currentUser.username} as ready in room ${currentRoom}`);
             gameData.players[currentUser.user_id].ready = true;
             
             const playerCount = Object.keys(gameData.players).length;
             const readyCount = Object.values(gameData.players).filter(p => p.ready).length;
             
-            console.log(`📊 DEBUG: Ready status - ${readyCount}/${playerCount} players ready`);
-            console.log(`📊 DEBUG: Player ready states:`, Object.values(gameData.players).map(p => ({ username: p.username, ready: p.ready })));
 
-            console.log(`📡 DEBUG: Emitting player_ready to other players in room ${currentRoom}`);
             socket.to(currentRoom).emit('player_ready', {
                 user: currentUser,
                 ready_count: readyCount,
@@ -274,7 +211,6 @@ export function setupSocketHandlers(io) {
 
             // Notify tournament room if applicable
             if (currentTournamentId) {
-                console.log(`🏆 DEBUG: Notifying tournament room about player ready`);
                 socket.to(`tournament_${currentTournamentId}`).emit('tournament_player_ready', {
                     user: currentUser,
                     game_session_id: currentGameSession?.id,
@@ -285,10 +221,8 @@ export function setupSocketHandlers(io) {
 
             // Start game if both players are ready
             if (playerCount === 2 && readyCount === 2) {
-                console.log(`🚀 DEBUG: Both players ready! Starting game in room ${currentRoom}`);
                 await startGame(currentRoom);
             } else {
-                console.log(`⏳ DEBUG: Not ready to start - need 2 players (have ${playerCount}) and both ready (${readyCount} ready)`);
             }
         });
 
@@ -683,7 +617,6 @@ export function setupSocketHandlers(io) {
         // ========================================
 
         socket.on('disconnect', () => {
-            console.log(`🔌 Player disconnected: ${socket.id}`);
             
             if (currentRoom && currentUser) {
                 handlePlayerLeave();
@@ -710,35 +643,27 @@ export function setupSocketHandlers(io) {
         // ========================================
 
         async function startGame(roomId) {
-            console.log(`🚀 DEBUG: Starting game in room ${roomId}`);
             
             const gameData = activeGames.get(roomId);
             if (!gameData) {
-                console.error(`❌ DEBUG: No game data found for room ${roomId} in startGame`);
                 return;
             }
 
-            console.log(`🎮 DEBUG: Setting game state to running for room ${roomId}`);
             gameData.gameState.isRunning = true;
             gameData.gameState.isPaused = false;
             gameData.gameState.lastUpdate = Date.now();
 
             if (currentGameSession) {
                 try {
-                    console.log(`💾 DEBUG: Updating game session ${currentGameSession.id} to active status`);
                     await gameDb.updateGameSession(currentGameSession.id, {
                         status: 'active',
                         started_at: new Date().toISOString()
                     });
-                    console.log(`✅ DEBUG: Game session updated successfully`);
                 } catch (error) {
-                    console.error('❌ DEBUG: Error updating game session:', error);
                 }
             } else {
-                console.warn(`⚠️ DEBUG: No currentGameSession to update`);
             }
 
-            console.log(`📡 DEBUG: Emitting game_started to all players in room ${roomId}`);
             io.to(roomId).emit('game_started', {
                 game_state: gameData.gameState,
                 message: 'Game started! Good luck!'
@@ -746,7 +671,6 @@ export function setupSocketHandlers(io) {
 
             // Notify tournament room if applicable
             if (currentTournamentId && currentGameSession) {
-                console.log(`🏆 DEBUG: Notifying tournament room ${currentTournamentId} about live match`);
                 io.to(`tournament_${currentTournamentId}`).emit('tournament_match_live', {
                     game_session_id: currentGameSession.id,
                     room_id: roomId,
@@ -754,13 +678,10 @@ export function setupSocketHandlers(io) {
                 });
             }
 
-            console.log(`🔄 DEBUG: Starting game loop for room ${roomId}`);
             startGameLoop(roomId);
-            console.log(`✅ DEBUG: Game start sequence complete for room ${roomId}`);
         }
 
         function startGameLoop(roomId) {
-            console.log(`🔄 DEBUG: Game loop started for room ${roomId}`);
             let updateCount = 0;
             
             // Fixed timestep accumulator variables
@@ -772,13 +693,11 @@ export function setupSocketHandlers(io) {
             const gameInterval = setInterval(async () => {
                 const gameData = activeGames.get(roomId);
                 if (!gameData || !gameData.gameState.isRunning) {
-                    console.log(`🔴 DEBUG: Game loop stopping for room ${roomId} - Data exists: ${!!gameData}, Running: ${gameData?.gameState?.isRunning}`);
                     clearInterval(gameInterval);
                     return;
                 }
 
                 if (gameData.gameState.isPaused) {
-                    console.log(`⏸️ DEBUG: Game paused, skipping update for room ${roomId}`);
                     lastTime = Date.now(); // Reset time to prevent large accumulator after unpause
                     return;
                 }
@@ -801,7 +720,6 @@ export function setupSocketHandlers(io) {
                         // Check scoring after each physics step
                         await checkScoring(roomId, gameData);
                     } catch (error) {
-                        console.error(`❌ DEBUG: Error in physics update for room ${roomId}:`, error);
                         // Continue the game loop even if physics update fails
                         accumulator -= FIXED_TIMESTEP; // Still consume the timestep to prevent loop lock
                     }
@@ -815,9 +733,6 @@ export function setupSocketHandlers(io) {
                 };
                 
                 // Log every 300th update (once every 5 seconds at 60fps) to avoid spam
-                if (updateCount % 300 === 1) {
-                    console.log(`🎮 Game update #${updateCount} for room ${roomId} - Players: ${Object.keys(gameData.players).length}`);
-                }
                 
                 io.to(roomId).emit('game_update', updateData);
 
@@ -1152,7 +1067,6 @@ export function setupSocketHandlers(io) {
                     try {
                         await endGame(roomId, gameData);
                     } catch (error) {
-                        console.error(`❌ DEBUG: Error ending game for room ${roomId}:`, error);
                         // Force game to end even if database operations fail
                         gameData.gameState.isRunning = false;
                         io.to(roomId).emit('game_ended', {
@@ -1177,12 +1091,10 @@ export function setupSocketHandlers(io) {
 
             if (currentGameSession) {
                 try {
-                    console.log(`🏁 DEBUG: Ending game - Session: ${currentGameSession.id}, Winner: ${winner}`);
                     
                     const gameDuration = currentGameSession.started_at ? 
                         Math.floor((Date.now() - new Date(currentGameSession.started_at).getTime()) / 1000) : 0;
 
-                    console.log(`💾 DEBUG: Updating game session in database...`);
                     await gameDb.updateGameSession(currentGameSession.id, {
                         player1_score: paddle1.score,
                         player2_score: paddle2.score,
@@ -1192,7 +1104,6 @@ export function setupSocketHandlers(io) {
                         game_duration: gameDuration
                     });
 
-                    console.log(`📊 DEBUG: Updating player statistics...`);
                     // Update player statistics
                     await gameDb.updatePlayerStats(winnerUserId, { 
                         result: 'won', 
@@ -1205,9 +1116,7 @@ export function setupSocketHandlers(io) {
                         duration: gameDuration
                     });
                     
-                    console.log(`✅ DEBUG: Game session and stats updated successfully`);
                 } catch (error) {
-                    console.error(`❌ DEBUG: Database error during game end:`, error);
                     // Don't throw - continue with emitting game_ended event
                 }
 

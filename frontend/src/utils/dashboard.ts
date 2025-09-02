@@ -44,14 +44,14 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
         ]);
         
         if (!statsResponse.ok) {
-            console.warn('Game service not available, using default stats');
+            // Game service not available, using default stats
             return getDefaultGameData();
         }
         
         // Parse stats
         const statsText = await statsResponse.text();
         if (!statsText.trim()) {
-            console.warn('Empty response from game service, using default stats');
+            // Empty response from game service, using default stats
             return getDefaultGameData();
         }
         
@@ -67,11 +67,11 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
                     winRate: statsData.stats.win_rate || 0
                 };
             } else {
-                console.warn('Invalid stats response structure');
+                // Invalid stats response structure
                 return getDefaultGameData();
             }
         } catch (parseError) {
-            console.warn('Invalid JSON from game service:', parseError);
+            // Invalid JSON from game service
             return getDefaultGameData();
         }
         
@@ -107,7 +107,7 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
                     );
                 }
             } catch (historyError) {
-                console.warn('Failed to parse game history:', historyError);
+                // Failed to parse game history
             }
         }
         
@@ -120,7 +120,7 @@ export async function fetchUserGameData(token: string): Promise<GameData> {
             achievements
         };
     } catch (error) {
-        console.warn('Game service connection failed, using default stats:', error);
+        // Game service connection failed, using default stats
         return getDefaultGameData();
     }
 }
@@ -135,7 +135,7 @@ async function getCurrentUserId(token: string): Promise<string> {
             return profile.user_id || profile.id;
         }
     } catch (error) {
-        console.warn('Failed to get current user ID:', error);
+        // Failed to get current user ID
     }
     return '';
 }
@@ -179,11 +179,11 @@ async function getOpponentName(game: any, currentUserId: string, token: string):
             return `Player ${opponentId}`;
         } catch (fetchError) {
             clearTimeout(timeoutId);
-            console.warn(`Failed to fetch opponent profile for ${opponentId}:`, fetchError);
+            // Failed to fetch opponent profile
             return `Player ${opponentId}`;
         }
     } catch (error) {
-        console.warn('Failed to get opponent name:', error);
+        // Failed to get opponent name
         return 'Unknown Player';
     }
 }

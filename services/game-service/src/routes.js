@@ -77,7 +77,6 @@ export default async function gameRoutes(fastify, options) {
                 const { player2_id, game_mode, tournament_id } = req.body;
                 const token = req.headers.authorization;
                 
-                console.log(`🎮 Creating game session - User: ${userId}, Player2: ${player2_id}, Mode: ${game_mode}, Tournament: ${tournament_id}`);
 
                 const validModes = ['local', 'remote', 'ai', 'tournament'];
                 if (!validModes.includes(game_mode)) {
@@ -810,11 +809,6 @@ export default async function gameRoutes(fastify, options) {
                     message: message || `${senderProfile.username} invites you to play Pong!`
                 });
 
-                console.log(`📨 DEBUG: Sending game_invitation to user_${receiver_id}`, {
-                    invitation_id: invitation.id,
-                    sender_username: senderProfile.username,
-                    receiver_id: receiver_id
-                });
                 
                 fastify.io.to(`user_${receiver_id}`).emit('game_invitation', {
                     invitation,
@@ -844,7 +838,6 @@ export default async function gameRoutes(fastify, options) {
                     return reply.code(400).send({ error: 'Response must be "accepted" or "declined"' });
                 }
 
-                console.log(`🎯 Responding to invitation ${invitationId} - User: ${userId} (${typeof userId}), Response: ${response}`);
                 const updatedInvitation = await gameDb.respondToGameInvitation(invitationId, response, userId);
                 
                 const userProfile = await getUserProfile(userId, token);
@@ -872,23 +865,10 @@ export default async function gameRoutes(fastify, options) {
                         room_id: roomId
                     };
 
-                    console.log(`🚀 DEBUG: Emitting game_ready to both players:`);
-                    console.log(`  - Sender: user_${updatedInvitation.sender_id}`);
-                    console.log(`  - Receiver: user_${userId}`);
-                    console.log(`  - Game data:`, gameData);
-                    
-                    // Check if users are in their rooms
-                    const senderRoom = `user_${updatedInvitation.sender_id}`;
-                    const receiverRoom = `user_${userId}`;
-                    
-                    console.log(`🔍 DEBUG: Checking room memberships:`);
-                    console.log(`  - Sender room (${senderRoom}) clients:`, fastify.io.sockets.adapter.rooms.get(senderRoom)?.size || 0);
-                    console.log(`  - Receiver room (${receiverRoom}) clients:`, fastify.io.sockets.adapter.rooms.get(receiverRoom)?.size || 0);
                     
                     fastify.io.to(`user_${updatedInvitation.sender_id}`).emit('game_ready', gameData);
                     fastify.io.to(`user_${userId}`).emit('game_ready', gameData);
                     
-                    console.log(`✅ DEBUG: game_ready events emitted to both players`);
                 }
 
                 reply.send({ success: true, invitation: updatedInvitation });

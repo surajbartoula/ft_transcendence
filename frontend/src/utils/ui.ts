@@ -27,7 +27,6 @@ export function showClickableNotification(
 ): void {
     const notificationsContainer = document.getElementById('notifications');
     if (!notificationsContainer) {
-        console.warn('Notifications container not found');
         return;
     }
     /** Remove existing clickable notifications of the same type to avoid conflict */
@@ -151,7 +150,6 @@ export function showNotification(
 ): void {
     const notificationsContainer = document.getElementById('notifications');
     if (!notificationsContainer) {
-        console.warn('Notifications container not found');
         return;
     }
     
@@ -161,7 +159,7 @@ export function showNotification(
     if (recentNotifications.has(notificationKey)) {
         const lastShown = recentNotifications.get(notificationKey)!;
         if (now - lastShown < 2000) { // 2 second cooldown
-            console.log(`🔕 Duplicate notification blocked: "${message}"`);
+            return;
             return;
         }
     }

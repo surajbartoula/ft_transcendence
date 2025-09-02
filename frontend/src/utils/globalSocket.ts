@@ -45,20 +45,20 @@ class GlobalSocket {
         const token = getStoredToken();
         
         if (!token || !this.currentUser) {
-            console.warn('❌ GlobalSocket: No token or user data available for connection');
+            return;
             return;
         }
         
         // Check if already connected or connecting
         if (this.socket?.connected || this.isConnecting) {
-            console.log('✅ GlobalSocket: Already connected or connecting, skipping');
+            return;
             return;
         }
         
         // Respect connection cooldown period
         const timeSinceLastDisconnect = Date.now() - this.lastDisconnectTime;
         if (timeSinceLastDisconnect < this.connectionCooldown) {
-            console.log(`⏳ GlobalSocket: Connection cooldown active (${this.connectionCooldown - timeSinceLastDisconnect}ms remaining)`);
+            return;
             setTimeout(() => this.connect(), this.connectionCooldown - timeSinceLastDisconnect);
             return;
         }
@@ -68,7 +68,7 @@ class GlobalSocket {
         
         // Clean up any existing socket before creating new one
         if (this.socket) {
-            console.log('🧹 GlobalSocket: Cleaning up existing socket');
+            // Clean up existing socket
             this.socket.removeAllListeners();
             this.socket.disconnect();
             this.socket.close();
@@ -91,7 +91,6 @@ class GlobalSocket {
     private setupEventListeners(): void {
         if (!this.socket) return;
         this.socket.on('connect', () => {
-            console.log('Global socket connected');
             this.isConnecting = false;
             
             // Authenticate with chat service
@@ -100,7 +99,7 @@ class GlobalSocket {
                     user_id: this.currentUser.id,
                     username: this.currentUser.name // Use consistent field name
                 };
-                console.log('🔑 GlobalSocket: Sending authentication data:', authData);
+                // Authenticate user
                 this.socket?.emit('authenticate', authData);
             }
             
@@ -110,7 +109,6 @@ class GlobalSocket {
             }, 30000);
         });
         this.socket.on('disconnect', () => {
-            console.log('Global socket disconnected');
         });
         /** Handle incoming messages */
         this.socket.on('new_message', (data: Message & { sender_profile: User }) => {
@@ -131,11 +129,11 @@ class GlobalSocket {
         
         // Authentication response handlers
         this.socket.on('authenticated', (data) => {
-            console.log('✅ GlobalSocket: Authentication successful!', data);
+            // Authentication successful
         });
 
         this.socket.on('auth_error', (data) => {
-            console.error('❌ GlobalSocket: Authentication failed!', data);
+            // Authentication failed
         });
     }
 

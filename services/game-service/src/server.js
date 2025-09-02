@@ -17,17 +17,15 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Add global error handlers to prevent service crashes
 process.on('uncaughtException', (error) => {
-    console.error('🚨 Uncaught Exception:', error);
-    console.error('🚨 Stack:', error.stack);
+    console.error('Uncaught Exception:', error);
+    console.error('Stack:', error.stack);
     // Don't exit - keep the service running
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit - keep the service running
 });
-
-console.log('🛡️ Global error handlers installed to prevent service crashes');
 
 if (!process.env.SSL_CERT || !process.env.SSL_KEY) {
 	console.error('SSL_CERT and SSL_KEY environment variables are required');
@@ -216,27 +214,10 @@ async function start() {
             host: '0.0.0.0' 
         });
 
-        console.log(`🚀 Pong Game Service running at: ${address}`);
-        console.log(`🔌 Socket.IO enabled for real-time gameplay and tournaments`);
-        console.log(`🏆 Tournament features: Seeding, Brackets, Announcements, Live Spectating`);
-        console.log(`📊 Advanced analytics and player statistics enabled`);
-        console.log(`🎯 Environment: ${process.env.NODE_ENV || 'development'}`);
-
-        // Log feature summary
-        console.log('\n📋 Feature Summary:');
-        console.log('   ✅ Tournament Creation & Management');
-        console.log('   ✅ Advanced Player Seeding (Random, Ranking, Manual)');
-        console.log('   ✅ Automatic Bracket Generation & Management');
-        console.log('   ✅ Real-time Tournament Announcements');
-        console.log('   ✅ Live Match Spectating for Tournaments');
-        console.log('   ✅ Tournament & Match Chat Systems');
-        console.log('   ✅ Advanced Player Statistics & Leaderboards');
-        console.log('   ✅ Automated Tournament Progression');
-        console.log('   ✅ Match History & Analytics');
-        console.log('   ✅ Game Event Recording & Replay Data');
+        console.log(`Pong Game Service running at: ${address}`);
 
     } catch (error) {
-        console.error('💥 Failed to start server:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
     }
 }
@@ -245,22 +226,18 @@ async function start() {
 const signals = ['SIGINT', 'SIGTERM'];
 signals.forEach((signal) => {
     process.on(signal, async () => {
-        console.log(`\n📡 Received ${signal}, shutting down gracefully...`);
+        console.log(`Received ${signal}, shutting down gracefully...`);
         try {
-            // Cleanup any active games and tournaments
-            console.log('🧹 Cleaning up active games and tournaments...');
-            
             // Close Socket.IO connections
             if (fastify.io) {
                 fastify.io.close();
-                console.log('🔌 Socket.IO connections closed');
             }
             
             // Close server
             await fastify.close();
             process.exit(0);
         } catch (error) {
-            console.error('❌ Error during shutdown:', error);
+            console.error('Error during shutdown:', error);
             process.exit(1);
         }
     });
@@ -268,13 +245,13 @@ signals.forEach((signal) => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-    console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     process.exit(1);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-    console.error('💥 Uncaught Exception:', error);
+    console.error('Uncaught Exception:', error);
     process.exit(1);
 });
 

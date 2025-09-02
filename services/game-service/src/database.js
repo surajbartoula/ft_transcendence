@@ -30,7 +30,6 @@ db.run('PRAGMA foreign_keys = ON');
 // Create tables
 export function initializeDatabase() {
     return new Promise((resolve, reject) => {
-        console.log('🎮 Initializing Pong Game Database...');
         
         // Game Sessions table - stores individual game matches
         db.run(`
@@ -1111,7 +1110,6 @@ export class GameDatabaseService {
     async respondToGameInvitation(invitationId, response, userId) {
         try {
             const invitation = await this.getGameInvitation(invitationId);
-            console.log(`🔍 Authorization check - Invitation receiver: "${invitation?.receiver_id}" (${typeof invitation?.receiver_id}), User: "${userId}" (${typeof userId}), String(User): "${String(userId)}"`);
             if (!invitation) throw new Error('Invitation not found');
             if (invitation.receiver_id !== String(userId)) throw new Error('Not authorized');
             if (invitation.status !== 'pending') throw new Error('Invitation already responded to');
