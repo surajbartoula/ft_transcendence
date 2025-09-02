@@ -95,8 +95,6 @@ export class SharedGamePage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('🎮 Initializing Shared Game Page...');
-        
         this.parseGameMode();
         this.bindElements();
         this.attachEventListeners();
@@ -107,16 +105,14 @@ export class SharedGamePage implements Page {
     }
 
     public cleanup(): void {
-        console.log('🎮 Cleaning up Shared Game Page...');
         
         // Tournament cleanup handled by GameStateManager
         
         if (this.gameManager) {
             try {
                 this.gameManager.dispose();
-                console.log('✅ Game manager disposed successfully');
             } catch (error) {
-                console.warn('⚠️ Error disposing game manager:', error);
+                console.warn('Error disposing game manager:', error);
             }
             this.gameManager = null;
         }
@@ -126,8 +122,11 @@ export class SharedGamePage implements Page {
         // Clean up any lingering countdown UI elements using multiple selectors
         const countdownElements = document.querySelectorAll('#countdownOverlay, [data-game-element="countdown"], .game-countdown-overlay');
         countdownElements.forEach(el => {
-            console.log('🧹 SharedGamePage: Removing countdown element:', el);
-            el.remove();
+            try {
+                el.remove();
+            } catch (error) {
+                console.warn('Error removing countdown element:', error);
+            }
         });
 
         const notificationsContainer = document.getElementById('notifications');
@@ -135,10 +134,10 @@ export class SharedGamePage implements Page {
             notificationsContainer.innerHTML = '';
         }
         
-        
         this.isGameInitialized = false;
         this.gameCanvas = null;
         this.hasShownLoading = false;
+        
     }
 
     private parseGameMode(): void {
@@ -153,14 +152,12 @@ export class SharedGamePage implements Page {
         
         if (this.tournamentId) {
             this.tournamentManager = TournamentManager.getInstance();
-            console.log(`🏆 Tournament match detected - ID: ${this.tournamentId}, Match: ${this.matchId}`);
         }
 
         this.gameMode = mode || 'local';
         this.player1Name = player1;
         this.player2Name = player2;
 
-        console.log(`🎮 Game mode: ${this.gameMode}, ${player1} vs ${player2}`);
     }
 
     private bindElements(): void {
@@ -205,29 +202,24 @@ export class SharedGamePage implements Page {
 
     private async initializeGame(): Promise<void> {
         if (!this.gameCanvas) {
-            console.error('❌ Game canvas not found');
+            console.error('Game canvas not found');
             this.showError('Game canvas not available');
             return;
         }
 
         try {
-            console.log('🎮 Starting game initialization...');
-            
             if (!this.checkWebGLSupport()) {
                 throw new Error('WebGL is not supported in this browser');
             }
 
             this.updateLoadingMessage('Creating game manager...');
-            console.log('🏓 Creating PongGameManager...');
             this.gameManager = new PongGameManager(this.gameCanvas);
             
             if (this.gameManager) {
-                console.log('✅ Game manager created successfully!');
                 this.isGameInitialized = true;
 
                 // Set up state change listener BEFORE starting game
-                this.gameManager.onStateChange((stateName: string) => {
-                    console.log(`📺 State changed to: ${stateName}, updating canvas visibility`);
+                this.gameManager.onStateChange((_stateName: string) => {
                     this.showGameStateIfReady();
                 });
 
@@ -240,23 +232,20 @@ export class SharedGamePage implements Page {
                 await this.startGameBasedOnMode();
                 
                 this.setupGameStateMonitoring();
-                this.updateGameInfo();
 
                 // Only show canvas after a delay to ensure state is properly established
                 setTimeout(() => {
-                    console.log('⏰ Checking if canvas should be shown after delay');
                     this.showGameStateIfReady();
                 }, 300); // Increased delay to ensure state is set
 
                 if ((this.gameManager as any)?.renderEngine?.engine) {
                     (this.gameManager as any).renderEngine.engine.resize();
-                    console.log('🔄 Forced resize after initialization');
                 }
             } else {
                 throw new Error('Game manager failed to initialize');
             }
         } catch (error) {
-            console.error('❌ Failed to initialize game:', error);
+            console.error('Failed to initialize game:', error);
             this.showError(error instanceof Error ? error.message : 'Unknown error occurred');
         }
     }
@@ -307,11 +296,9 @@ export class SharedGamePage implements Page {
                     // Only pass player names if they were explicitly provided in URL and not defaults
                     const hasCustomNames = this.player1Name !== 'Player 1' || this.player2Name !== 'Player 2';
                     if (hasCustomNames) {
-                        console.log('🎮 Starting local game with provided names');
                         await this.gameManager.startLocalGame(this.player1Name, this.player2Name);
                     } else {
                         // Go through setup to get player names
-                        console.log('🎮 Starting local game with setup state');
                         await this.gameManager.startLocalGame();
                     }
                     break;
@@ -319,11 +306,9 @@ export class SharedGamePage implements Page {
                     // Only pass player name if it was explicitly provided in URL and not default
                     const hasCustomPlayerName = this.player1Name !== 'Player 1';
                     if (hasCustomPlayerName) {
-                        console.log('🎮 Starting AI game with provided name');
                         await this.gameManager.startAIGame(this.player1Name);
                     } else {
                         // Go through setup to get player name
-                        console.log('🎮 Starting AI game with setup state');
                         await this.gameManager.startAIGame();
                     }
                     break;
@@ -336,9 +321,8 @@ export class SharedGamePage implements Page {
 
         try {
             await this.gameManager.initializeGameSession(this.gameMode);
-            console.log('✅ Backend session initialized');
         } catch (error) {
-            console.warn('⚠️ Backend session initialization failed:', error);
+            console.warn('Backend session initialization failed:', error);
         }
     }
 
@@ -413,12 +397,10 @@ export class SharedGamePage implements Page {
                 this.isGameCompleted = true;
                 const winner = score.left >= winningScore ? this.player1Name : this.player2Name;
                 const finalScore = { player1: score.left, player2: score.right };
-                
-                console.log(`🏆 Game completed: ${winner} wins ${finalScore.player1} - ${finalScore.player2}`);
                 this.showGameOver(winner, finalScore);
             }
         } catch (error) {
-            console.warn('⚠️ Error checking game completion:', error);
+            console.warn('Error checking game completion:', error);
         }
     }
 
@@ -427,9 +409,6 @@ export class SharedGamePage implements Page {
         // Status display removed - game has its own in-game menu
     }
 
-    private updateGameInfo(): void {
-        // Game info now handled by in-game menu system
-    }
 
     private checkWebGLSupport(): boolean {
         try {
@@ -446,7 +425,6 @@ export class SharedGamePage implements Page {
         // Check if the game is in a state where the canvas should be visible
         if (this.gameManager) {
             const currentState = this.gameManager.getCurrentStateName();
-            console.log(`🎮 Current game state: ${currentState}, mode: ${this.gameMode}, hasShownLoading: ${this.hasShownLoading}`);
             
             const loading = document.getElementById('gameLoading');
             const canvas = document.getElementById('gameCanvas');
@@ -457,19 +435,16 @@ export class SharedGamePage implements Page {
                 if (!this.hasShownLoading && this.gameMode === 'local' && currentState === 'gameSetup') {
                     // First time local multiplayer setup - keep loading visible
                     this.hasShownLoading = true;
-                    console.log(`⏳ First time local multiplayer setup - showing loading`);
                     return;
                 }
                 
                 // For all other cases: hide loading and show canvas
                 if (loading) {
                     loading.style.display = 'none';
-                    console.log(`🎯 Loading hidden permanently for ${this.gameMode} ${currentState}`);
                 }
                 
                 if (canvas) {
                     canvas.style.display = 'block';
-                    console.log(`📐 Canvas shown for ${this.gameMode} ${currentState}`);
                     
                     // Ensure canvas dimensions are correct
                     if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {
@@ -484,8 +459,6 @@ export class SharedGamePage implements Page {
                     (this.gameManager as any).renderEngine.engine.resize();
                 }
             }
-        } else {
-            console.log('⚠️ Game manager not available yet');
         }
     }
 
@@ -526,9 +499,6 @@ export class SharedGamePage implements Page {
         }
     }
 
-
-
-
     private handlePlayAgain(): void {
         if (this.gameManager) {
             this.startGameBasedOnMode();
@@ -568,7 +538,7 @@ export class SharedGamePage implements Page {
     
     private returnToTournamentBracket(): void {
         if (!this.tournamentId) {
-            console.warn('⚠️ No tournament ID available for navigation');
+            console.warn('No tournament ID available for navigation');
             this.navigateToTournamentSetup();
             return;
         }
@@ -582,7 +552,7 @@ export class SharedGamePage implements Page {
             });
             window.dispatchEvent(event);
         } else {
-            console.error('❌ Tournament not found, returning to setup');
+            console.error('Tournament not found, returning to setup');
             this.navigateToTournamentSetup();
         }
     }

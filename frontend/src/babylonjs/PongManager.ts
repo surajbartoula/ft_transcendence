@@ -25,6 +25,8 @@ export class PongGameManager {
     private lastTime: number = 0;
     private animationFrameId: number | null = null;
     private gameLoopFn: ((timestamp: number) => void) | null = null;
+    private isDisposed: boolean = false;
+    private isInitializing: boolean = false;
     
     // Game session tracking
     private currentGameMode: 'local' | 'ai' | 'remote' | 'tournament' = 'local';
@@ -58,9 +60,21 @@ export class PongGameManager {
     }
 
     private async initialize(): Promise<void> {
+        if (this.isDisposed) {
+            throw new Error('Cannot initialize disposed PongManager');
+        }
+        
+        this.isInitializing = true;
+        
         try {
             // Initialize all systems in proper order
             await this.renderEngine.initialize();
+            
+            // Check if disposed during async initialization
+            if (this.isDisposed) {
+                return;
+            }
+            
             this.inputManager.initialize();
             this.physicsSystem.initialize();
             this.audioManager.initialize();
@@ -68,6 +82,7 @@ export class PongGameManager {
             this.scoreManager.initialize();
 
             this.scoreManager.setScoreChangeCallback(({ leftScore, rightScore, scorer }) => {
+                if (this.isDisposed) return; // Guard against disposal during callback
                 this.uiManager.showScoreFlash({ 
                     scorer, 
                     leftScore, 
@@ -76,10 +91,14 @@ export class PongGameManager {
                 });
             });
 
-            this.startGameLoop();
+            // Only start game loop if not disposed
+            if (!this.isDisposed) {
+                this.startGameLoop();
+            }
         } catch (error) {
             throw error;
-            throw error;
+        } finally {
+            this.isInitializing = false;
         }
     }
 
@@ -89,12 +108,8 @@ export class PongGameManager {
         
         // Store the game loop function reference for cleanup
         this.gameLoopFn = (timestamp: number) => {
+            // Early exit if disposed or not running
             if (!this.isRunning || !this.gameLoopFn) {
-                // Clear the animation frame ID when stopping
-                if (this.animationFrameId) {
-                    cancelAnimationFrame(this.animationFrameId);
-                    this.animationFrameId = null;
-                }
                 return;
             }
 
@@ -127,8 +142,8 @@ export class PongGameManager {
                 return;
             }
 
-            // Schedule next frame only if still running
-            if (this.isRunning && this.gameLoopFn) {
+            // Schedule next frame only if still running and not disposed
+            if (this.isRunning && this.gameLoopFn && this.animationFrameId !== null) {
                 this.animationFrameId = requestAnimationFrame(this.gameLoopFn);
             }
         };
@@ -434,28 +449,46 @@ export class PongGameManager {
     // DISPOSE METHOD
     // =====================================
     public dispose(): void {
-        // Starting disposal
+        if (this.isDisposed) {
+            return; // Already disposed
+        }
+        
+        this.isDisposed = true;
+        
         
         // Stop render loop first to prevent any further frame requests
         this.stopGameLoop();
 
         try {
             // Stop AI
-            this.aiPlayer.stop();
+            if (this.aiPlayer) {
+                this.aiPlayer.stop();
+            }
             
-            // Dispose all systems
-            this.renderEngine.dispose();
-            this.inputManager.dispose();
-            this.physicsSystem.dispose();
-            this.audioManager.dispose();
-            this.uiManager.dispose();
+            // Dispose all systems with null checks
+            if (this.renderEngine) {
+                this.renderEngine.dispose();
+            }
+            if (this.inputManager) {
+                this.inputManager.dispose();
+            }
+            if (this.physicsSystem) {
+                this.physicsSystem.dispose();
+            }
+            if (this.audioManager) {
+                this.audioManager.dispose();
+            }
+            if (this.uiManager) {
+                this.uiManager.dispose();
+            }
             
             // Dispose GameStateManager to stop timers and cleanup
-            (this.gameState as any)?.dispose?.();
+            if (this.gameState && typeof (this.gameState as any).dispose === 'function') {
+                (this.gameState as any).dispose();
+            }
             
-            // Disposal complete
         } catch (error) {
-            // Error during disposal
+            console.warn('Error during PongManager disposal:', error);
         }
     }
 

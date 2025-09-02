@@ -213,7 +213,10 @@ export class LeaderboardPage implements Page {
     }
 
     public cleanup(): void {
-        console.log('Leaderboard page cleaned up');
+        // Remove global reference
+        if ((window as any).leaderboardPage === this) {
+            delete (window as any).leaderboardPage;
+        }
     }
 
     private renderSidebar(): string {

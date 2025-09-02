@@ -484,7 +484,7 @@ export class SettingsPage implements Page {
 
     private handleDocumentClick = (e: Event) => {
         const target = e.target as HTMLElement;
-        if (target.id === 'logoutBtn') {
+        if (target.id === 'logoutBtn' || target.closest('#logoutBtn')) {
             e.preventDefault();
             e.stopPropagation();
             // Dispatch logout event to be handled by main.ts

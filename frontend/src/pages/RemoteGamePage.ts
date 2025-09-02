@@ -24,7 +24,6 @@ export class RemoteGamePage implements Page {
     private opponentUsername: string | null = null;
     private keysPressed: Set<string> = new Set();
     private currentPaddleDirection: 'up' | 'down' | null = null;
-    private updateCount: number = 0;
     
     // Store bound event handler references for proper cleanup
     private boundHandlers = {
@@ -196,17 +195,10 @@ export class RemoteGamePage implements Page {
 
     public async initialize(): Promise<void> {
         if (this.isDisposed) {
-            console.log('⚠️ RemoteGamePage: Page was disposed, skipping initialization');
             return;
         }
         
-        console.log('🎮 RemoteGamePage: Starting initialization...');
-        console.log('🎮 Current URL:', window.location.href);
-        console.log('🎮 Pathname:', window.location.pathname);
-        console.log('🎮 Search params:', window.location.search);
-        
         this.currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
-        console.log('👤 Current user:', this.currentUser);
         
         this.parseGameParameters();
         this.bindElements();
@@ -215,16 +207,13 @@ export class RemoteGamePage implements Page {
 
         // Check if we're still valid after async operations
         if (this.isDisposed) {
-            console.log('⚠️ RemoteGamePage: Page disposed during setup, aborting');
             return;
         }
 
         // Connect and authenticate socket
         const socketConnected = gameSocket.isConnected();
-        console.log(`🔌 Socket connection status: ${socketConnected}`);
         
         if (!socketConnected) {
-            console.log('🔌 Connecting to game socket...');
             gameSocket.connect();
             // Give it a moment to connect
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -232,12 +221,8 @@ export class RemoteGamePage implements Page {
         
         // Check again after async wait
         if (this.isDisposed) {
-            console.log('⚠️ RemoteGamePage: Page disposed during socket connection, aborting');
             return;
         }
-        
-        // Always force authentication to ensure server knows who we are
-        console.log('🔄 Ensuring authentication...');
         try {
             await this.forceReauthentication();
         } catch (error) {
@@ -250,28 +235,21 @@ export class RemoteGamePage implements Page {
         }
 
         if (!this.isDisposed) {
-            console.log('⏱️ Socket authenticated, initializing remote game...');
             this.initializeRemoteGame();
         }
     }
 
     public cleanup(): void {
-        console.log('🎮 Cleaning up Remote Game Page...');
-        console.log('🔍 Cleanup called - current gameManager:', !!this.gameManager);
-        console.log('🔍 Cleanup called - isInitializing:', this.isInitializing);
-        console.log('🔍 Cleanup called - isGameInitialized:', this.isGameInitialized);
-        
         // Mark as disposed to prevent further operations
         this.isDisposed = true;
         
         // Don't cleanup if initialization is in progress unless we're being forced to
         if (this.isInitializing && this.initializationPromise) {
-            console.warn('⚠️ Cleanup called while initialization in progress - this may cause issues');
+            console.warn('Cleanup called while initialization in progress - this may cause issues');
         }
         
         // Stop any ongoing paddle movement
         if (this.currentPaddleDirection !== null) {
-            console.log('🛑 CLEANUP: Stopping paddle movement before page cleanup');
             gameSocket.stopMovingPaddle();
             this.currentPaddleDirection = null;
         }
@@ -285,9 +263,8 @@ export class RemoteGamePage implements Page {
         if (this.gameManager) {
             try {
                 this.gameManager.dispose();
-                console.log('✅ Game manager disposed successfully');
             } catch (error) {
-                console.warn('⚠️ Error disposing game manager:', error);
+                console.warn('Error disposing game manager:', error);
             }
             this.gameManager = null;
         }
@@ -297,14 +274,12 @@ export class RemoteGamePage implements Page {
 
         // Leave game room
         if (this.roomId) {
-            console.log(`🚪 RemoteGamePage: Leaving game room ${this.roomId}`);
             gameSocket.leaveGameRoom();
         }
 
         // Clean up any lingering countdown UI elements using multiple selectors
         const countdownElements = document.querySelectorAll('#countdownOverlay, [data-game-element="countdown"], .game-countdown-overlay');
         countdownElements.forEach(el => {
-            console.log('🧹 RemoteGamePage: Removing countdown element:', el);
             el.remove();
         });
 
@@ -316,12 +291,10 @@ export class RemoteGamePage implements Page {
 
     private forceReauthentication(): Promise<void> {
         return new Promise((resolve, reject) => {
-            console.log('🔄 Forcing socket re-authentication...');
             let isAuthenticated = false;
             
             // Listen for authentication success
             const authHandler = () => {
-                console.log('✅ Re-authentication successful!');
                 isAuthenticated = true;
                 window.removeEventListener('authenticated', authHandler);
                 window.removeEventListener('auth_error', authErrorHandler);
@@ -330,7 +303,7 @@ export class RemoteGamePage implements Page {
             
             // Listen for authentication failure
             const authErrorHandler = (event: any) => {
-                console.error('❌ Re-authentication failed:', event.detail);
+                console.error('Re-authentication failed:', event.detail);
                 window.removeEventListener('authenticated', authHandler);
                 window.removeEventListener('auth_error', authErrorHandler);
                 reject(new Error('Re-authentication failed'));
@@ -348,7 +321,7 @@ export class RemoteGamePage implements Page {
                 if (!isAuthenticated) {
                     window.removeEventListener('authenticated', authHandler);
                     window.removeEventListener('auth_error', authErrorHandler);
-                    console.error('❌ Re-authentication timeout');
+                    console.error('Re-authentication timeout');
                     reject(new Error('Re-authentication timeout'));
                 }
             }, 3000); // 3 second timeout for re-auth
@@ -357,29 +330,22 @@ export class RemoteGamePage implements Page {
 
 
     private parseGameParameters(): void {
-        console.log('🔍 RemoteGamePage: Parsing game parameters...');
-        
         const pathParts = window.location.pathname.split('/');
-        console.log('🔍 Path parts:', pathParts);
         
         const sessionIndex = pathParts.indexOf('match') + 1;
-        console.log(`🔍 Match index: ${pathParts.indexOf('match')}, Session index: ${sessionIndex}`);
         
         this.gameSessionId = sessionIndex > 0 ? pathParts[sessionIndex] : '';
         
         const urlParams = new URLSearchParams(window.location.search);
-        console.log('🔍 URL search params:', window.location.search);
         
         this.roomId = urlParams.get('room') || '';
-
-        console.log(`🎮 RemoteGamePage: Parsed parameters - Session: "${this.gameSessionId}", Room: "${this.roomId}"`);
         
         if (!this.gameSessionId) {
-            console.error('❌ Missing game session ID!');
+            console.error('Missing game session ID!');
         }
         
         if (!this.roomId) {
-            console.error('❌ Missing room ID!');
+            console.error('Missing room ID!');
         }
     }
 
@@ -451,7 +417,6 @@ export class RemoteGamePage implements Page {
     }
 
     private setupSocketEventListeners(): void {
-        console.log('🔧 RemoteGamePage: Setting up socket event listeners');
         window.addEventListener('gameState', this.boundHandlers.gameState as EventListener);
         window.addEventListener('gameStarted', this.boundHandlers.gameStarted as EventListener);
         window.addEventListener('gameEnded', this.boundHandlers.gameEnded as EventListener);
@@ -468,7 +433,6 @@ export class RemoteGamePage implements Page {
     }
 
     private removeSocketEventListeners(): void {
-        console.log('🔧 RemoteGamePage: Removing socket event listeners');
         window.removeEventListener('gameState', this.boundHandlers.gameState as EventListener);
         window.removeEventListener('gameStarted', this.boundHandlers.gameStarted as EventListener);
         window.removeEventListener('gameEnded', this.boundHandlers.gameEnded as EventListener);
@@ -487,22 +451,18 @@ export class RemoteGamePage implements Page {
     private async initializeRemoteGame(): Promise<void> {
         // Check if we already have an initialization in progress
         if (this.initializationPromise) {
-            console.log('⚠️ RemoteGamePage: Initialization already in progress, waiting for completion');
             return this.initializationPromise;
         }
         
         if (this.isInitializing) {
-            console.log('⚠️ RemoteGamePage: Already initializing, skipping duplicate call');
             return;
         }
         
         if (this.isGameInitialized) {
-            console.log('⚠️ RemoteGamePage: Already initialized, skipping duplicate call');
             return;
         }
         
         if (this.gameManager) {
-            console.log('⚠️ RemoteGamePage: Game manager already exists, skipping duplicate call');
             return;
         }
         
@@ -518,102 +478,78 @@ export class RemoteGamePage implements Page {
     
     private async _doInitialization(): Promise<void> {
         if (this.isDisposed) {
-            console.log('⚠️ RemoteGamePage: Page disposed, aborting initialization');
             return;
         }
         
         this.isInitializing = true;
-        console.log('🎮 RemoteGamePage: Starting remote game initialization...');
         
         if (!this.gameCanvas) {
-            console.error('❌ RemoteGamePage: Game canvas not found');
+            console.error('Game canvas not found');
             this.showError('Game canvas not available');
             this.isInitializing = false;
             return;
         }
-        console.log('✅ Game canvas found:', this.gameCanvas);
 
         if (!this.gameSessionId || !this.roomId) {
-            console.error(`❌ RemoteGamePage: Missing parameters - Session: "${this.gameSessionId}", Room: "${this.roomId}"`);
+            console.error(`Missing parameters - Session: "${this.gameSessionId}", Room: "${this.roomId}"`);
             this.showError('Invalid game parameters');
             this.isInitializing = false;
             return;
         }
-        console.log('✅ Game parameters validated');
 
         try {
-            console.log('🚀 RemoteGamePage: Starting remote game initialization sequence...');
-            
             this.updateLoadingMessage('Connecting to game server...');
-            console.log('⏱️ Step 1: Connecting to game server...');
             
             if (this.isDisposed) {
-                console.log('⚠️ Page disposed during step 1, aborting');
                 return;
             }
             
             // Join the game room via socket
-            console.log(`🏠 Step 2: Joining game room - Room: ${this.roomId}, Session: ${this.gameSessionId}`);
             const sessionIdInt = parseInt(this.gameSessionId);
-            console.log(`🔢 Parsed session ID: ${sessionIdInt}`);
             
             gameSocket.joinGameRoom(this.roomId, sessionIdInt);
-            console.log('✅ Game room join request sent via socket');
             
             if (this.isDisposed) {
-                console.log('⚠️ Page disposed during step 2, aborting');
                 return;
             }
             
             this.updateLoadingMessage('Creating 3D engine...');
-            console.log('⏱️ Step 3: Creating 3D engine...');
-            
-            console.log('🏓 Step 4: Creating PongGameManager...');
             
             // Ensure we don't create multiple game managers
             if (this.gameManager) {
-                console.warn('⚠️ Game manager already exists, disposing it first');
+                console.warn('Game manager already exists, disposing it first');
                 try {
                     this.gameManager.dispose();
                 } catch (error) {
-                    console.warn('⚠️ Error disposing existing game manager:', error);
+                    console.warn('Error disposing existing game manager:', error);
                 }
                 this.gameManager = null;
             }
             
             if (this.isDisposed) {
-                console.log('⚠️ Page disposed during step 4, aborting');
                 return;
             }
             
             this.gameManager = new PongGameManager(this.gameCanvas);
-            console.log('✅ PongGameManager created:', !!this.gameManager);
             
             // Verify the game manager is still valid before proceeding
             if (!this.gameManager || this.isDisposed) {
-                console.error('❌ Game manager became null or page disposed');
+                console.error('Game manager became null or page disposed');
                 this.showError('Failed to create game engine');
                 this.isInitializing = false;
                 return;
             }
             
             this.updateLoadingMessage('Initializing remote game session...');
-            console.log('⏱️ Step 5: Initializing game session...');
             
             // Store reference to prevent race conditions and check it frequently
             const gameManagerRef = this.gameManager;
             
             if (gameManagerRef && this.gameManager === gameManagerRef && !this.isDisposed) {
-                console.log('🎮 Step 6: Initializing game session with mode "remote"...');
-                console.log(`🆔 Using existing session ID: ${this.gameSessionId}`);
-                
                 await gameManagerRef.initializeGameSession('remote', undefined, this.gameSessionId);
                 
                 // Final verification that nothing was cleaned up during async operation
                 if (this.gameManager === gameManagerRef && this.isInitializing && !this.isDisposed) {
-                    console.log('✅ Remote game session initialized successfully');
-                    
-                    console.log('💻 Hiding loading screen and showing waiting overlay...');
                     this.hideGameLoading();
                     this.showWaitingForOpponent();
                     this.updateConnectionStatus('connected');
@@ -621,9 +557,8 @@ export class RemoteGamePage implements Page {
                     // Set these flags atomically
                     this.isGameInitialized = true;
                     this.isInitializing = false;
-                    console.log('✅ RemoteGamePage: Initialization complete! isGameInitialized:', this.isGameInitialized);
                 } else {
-                    console.error('❌ Game manager was disposed during initialization or page was disposed');
+                    console.error('Game manager was disposed during initialization or page was disposed');
                     console.error('  - gameManager === gameManagerRef:', this.gameManager === gameManagerRef);
                     console.error('  - isInitializing:', this.isInitializing);
                     console.error('  - isDisposed:', this.isDisposed);
@@ -633,15 +568,15 @@ export class RemoteGamePage implements Page {
                     this.isInitializing = false;
                 }
             } else {
-                console.error('❌ Game manager became invalid during initialization or page disposed');
+                console.error('Game manager became invalid during initialization or page disposed');
                 if (!this.isDisposed) {
                     this.showError('Failed to create game manager');
                 }
                 this.isInitializing = false;
             }
         } catch (error) {
-            console.error('❌ RemoteGamePage: Failed to initialize remote game:', error);
-            console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+            console.error('Failed to initialize remote game:', error);
+            console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
             if (!this.isDisposed) {
                 this.showError('Failed to initialize game. Please try again.');
             }
@@ -724,8 +659,6 @@ export class RemoteGamePage implements Page {
     }
 
     private handleBackClick(): void {
-        console.log('🔙 Back button clicked - starting cleanup...');
-        
         // Quit the game first
         gameSocket.quitGame();
         
@@ -738,21 +671,16 @@ export class RemoteGamePage implements Page {
 
 
     private handlePlayerReadyClick(): void {
-        console.log('🎯 DEBUG: Ready button clicked!');
-        
-        console.log('📤 DEBUG: Sending playerReady signal via gameSocket...');
         gameSocket.playerReady();
         
         const readyButton = document.getElementById('readyButton');
         if (readyButton) {
-            console.log('🔘 DEBUG: Updating ready button state...');
             readyButton.textContent = 'Ready!';
             readyButton.classList.remove('bg-green-600', 'hover:bg-green-700');
             readyButton.classList.add('bg-gray-600');
             (readyButton as HTMLButtonElement).disabled = true;
-            console.log('✅ DEBUG: Ready button updated to disabled state');
         } else {
-            console.warn('⚠️ DEBUG: Ready button element not found');
+            console.warn('Ready button element not found');
         }
     }
 
@@ -763,13 +691,8 @@ export class RemoteGamePage implements Page {
     }
 
     private async handlePlayAgain(): Promise<void> {
-        console.log('🎮 HandlePlayAgain called - Debug info:');
-        console.log(`  - opponentUserId: ${this.opponentUserId}`);
-        console.log(`  - opponentUsername: ${this.opponentUsername}`);
-        console.log(`  - currentUser: ${JSON.stringify(this.currentUser)}`);
-        
         if (!this.opponentUserId || !this.opponentUsername) {
-            console.warn('⚠️ Opponent information not found, showing error notification');
+            console.warn('Opponent information not found, showing error notification');
             showNotification('Unable to find opponent information', 'error');
             return;
         }
@@ -780,8 +703,6 @@ export class RemoteGamePage implements Page {
                 game_mode: 'remote',
                 message: `Challenge you to another Pong match!`
             };
-            
-            console.log('📤 Sending rematch invitation:', invitationData);
             
             const response = await fetch('/api/game/invite', {
                 method: 'POST',
@@ -796,18 +717,17 @@ export class RemoteGamePage implements Page {
             
             if (response.ok) {
                 showNotification(`Rematch invitation sent to ${this.opponentUsername}!`, 'success');
-                console.log('✅ Rematch invitation sent successfully');
                 
                 // Navigate back to lobby to see the invitation status
                 setTimeout(() => {
                     this.navigateToLobby();
                 }, 1500);
             } else {
-                console.error('❌ Failed to send rematch invitation:', data);
+                console.error('Failed to send rematch invitation:', data);
                 showNotification(data.error || 'Failed to send rematch invitation', 'error');
             }
         } catch (error) {
-            console.error('❌ Error sending rematch invitation:', error);
+            console.error('Error sending rematch invitation:', error);
             showNotification('Failed to send rematch invitation', 'error');
         }
     }
@@ -833,7 +753,6 @@ export class RemoteGamePage implements Page {
         }
         
         if (!this.isGameInitialized) {
-            console.log('⚠️ RemoteGamePage: Key pressed but game not initialized yet', this.isGameInitialized ? '(true)' : '(false)');
             return;
         }
         
@@ -852,7 +771,6 @@ export class RemoteGamePage implements Page {
             return;
         }
         
-        console.log(`⌨️ PADDLE_DEBUG: Key pressed: ${event.key} - I am Player${this.isPlayer1 ? '1' : '2'} (${this.currentUser?.name || 'Unknown'})`);
         this.keysPressed.add(event.key);
         
         switch (event.key) {
@@ -861,7 +779,6 @@ export class RemoteGamePage implements Page {
             case 'W':
                 event.preventDefault();
                 if (this.currentPaddleDirection !== 'up') {
-                    console.log(`⬆️ PADDLE_DEBUG: Starting UP movement for Player${this.isPlayer1 ? '1' : '2'}`);
                     this.currentPaddleDirection = 'up';
                     gameSocket.startMovingPaddle('up');
                 }
@@ -871,20 +788,18 @@ export class RemoteGamePage implements Page {
             case 'S':
                 event.preventDefault();
                 if (this.currentPaddleDirection !== 'down') {
-                    console.log(`⬇️ PADDLE_DEBUG: Starting DOWN movement for Player${this.isPlayer1 ? '1' : '2'}`);
                     this.currentPaddleDirection = 'down';
                     gameSocket.startMovingPaddle('down');
                 }
                 break;
             case 'Enter':
                 event.preventDefault();
-                console.log('💬 Toggling chat and focusing input');
                 this.toggleChat();
                 const chatInput = document.getElementById('chatInput') as HTMLInputElement;
                 if (chatInput) chatInput.focus();
                 break;
             default:
-                console.log(`⌨️ Unhandled key: ${event.key}`);
+                break;
         }
     }
 
@@ -895,7 +810,6 @@ export class RemoteGamePage implements Page {
         }
         
         if (!this.isGameInitialized) {
-            console.log('⚠️ RemoteGamePage: Key released but game not initialized yet');
             return;
         }
 
@@ -910,7 +824,6 @@ export class RemoteGamePage implements Page {
         }
 
         this.keysPressed.delete(event.key);
-        console.log(`⌨️ PADDLE_DEBUG: Key released: ${event.key}`);
         
         switch (event.key) {
             case 'ArrowUp':
@@ -923,11 +836,9 @@ export class RemoteGamePage implements Page {
                     const isDownPressed = downKeys.some(key => this.keysPressed.has(key));
                     
                     if (isDownPressed) {
-                        console.log(`⬇️ PADDLE_DEBUG: Switching to DOWN movement (down key still pressed)`);
                         this.currentPaddleDirection = 'down';
                         gameSocket.startMovingPaddle('down');
                     } else {
-                        console.log(`🛑 PADDLE_DEBUG: Stopping paddle movement (UP key released)`);
                         this.currentPaddleDirection = null;
                         gameSocket.stopMovingPaddle();
                     }
@@ -943,11 +854,9 @@ export class RemoteGamePage implements Page {
                     const isUpPressed = upKeys.some(key => this.keysPressed.has(key));
                     
                     if (isUpPressed) {
-                        console.log(`⬆️ PADDLE_DEBUG: Switching to UP movement (up key still pressed)`);
                         this.currentPaddleDirection = 'up';
                         gameSocket.startMovingPaddle('up');
                     } else {
-                        console.log(`🛑 PADDLE_DEBUG: Stopping paddle movement (DOWN key released)`);
                         this.currentPaddleDirection = null;
                         gameSocket.stopMovingPaddle();
                     }
@@ -960,52 +869,32 @@ export class RemoteGamePage implements Page {
     private handleGameState(event: Event): void {
         // Prevent handling events if page is being cleaned up
         if (!this.isGameInitialized && !this.isInitializing) {
-            console.log('⚠️ RemoteGamePage: Ignoring game state event - page not active');
             return;
         }
         
         const eventDetail = (event as CustomEvent).detail;
-        console.log('🔥🔥🔥 GAME STATE EVENT RECEIVED! 🔥🔥🔥');
-        console.log('🔥 RemoteGamePage: Full game state received:', eventDetail);
         
-        const { room_id, game_session, game_state, players, your_role } = eventDetail;
-        console.log('🏠 Room ID:', room_id);
-        console.log('🎮 Game session:', game_session);
-        console.log('🎯 Game state:', game_state);
-        console.log('🎭 Your role:', your_role);
-        console.log('👥 Players object:', players);
+        const { players, your_role } = eventDetail;
         
         // Detailed player analysis and capture opponent information
         if (players) {
-            const playerIds = Object.keys(players);
-            console.log(`👥 Player IDs: [${playerIds.join(', ')}]`);
-            console.log('👥 Player details:');
-            
             // Find opponent information
             const currentUserId = this.currentUser?.id;
             Object.entries(players).forEach(([playerId, playerData]: [string, any]) => {
-                console.log(`  - Player ${playerId}: ${playerData.username} (Player 1: ${playerData.is_player1}, Ready: ${playerData.ready})`);
-                
                 // Store opponent information for rematch functionality
                 if (currentUserId && String(playerId) !== String(currentUserId)) {
                     this.opponentUserId = playerId;
                     this.opponentUsername = playerData.username;
-                    console.log(`🎯 Captured opponent: ${this.opponentUsername} (ID: ${this.opponentUserId})`);
                 }
             });
         } else {
-            console.warn('⚠️ No players object in game state');
+            console.warn('No players object in game state');
         }
         
         this.isPlayer1 = your_role === 'player1';
-        console.log(`👤 FRONTEND ROLE DEBUG:`);
-        console.log(`  - Received your_role: "${your_role}" (type: ${typeof your_role})`);
-        console.log(`  - Current user ID: ${this.currentUser?.id || 'undefined'}`);
-        console.log(`  - Determined isPlayer1: ${this.isPlayer1}`);
         
         // Set camera perspective based on player role
         if (this.gameManager) {
-            console.log(`📷 Setting camera perspective for Player${this.isPlayer1 ? '1' : '2'}`);
             this.gameManager.setPlayerCameraPerspective();
         }
         
@@ -1017,55 +906,32 @@ export class RemoteGamePage implements Page {
             const player1Name = this.isPlayer1 ? 'You (BLUE RIGHT)' : 'Opponent (BLUE RIGHT)';
             const player2Name = this.isPlayer1 ? 'Opponent (YELLOW LEFT)' : 'You (YELLOW LEFT)';
             
-            console.log(`🏷️ Setting player names - Player 1: ${player1Name}, Player 2: ${player2Name}`);
-            
             player1Element.textContent = player1Name;
             player2Element.textContent = player2Name;
         } else {
-            console.warn('⚠️ Player name elements not found');
+            console.warn('Player name elements not found');
         }
         
         // Check if both players are connected
         const playerCount = Object.keys(players || {}).length;
-        console.log(`👥 Player count: ${playerCount}`);
-        
-        // Check current UI state
-        const waitingOverlay = document.getElementById('waitingOverlay');
-        const readyOverlay = document.getElementById('readyOverlay');
-        console.log(`📺 Current UI state - Waiting overlay hidden: ${waitingOverlay?.classList.contains('hidden')}, Ready overlay hidden: ${readyOverlay?.classList.contains('hidden')}`);
         
         if (playerCount >= 2) {
-            console.log('✅ Both players connected! Showing ready overlay...');
             this.opponentConnected = true;
-            console.log('🔄 Calling showReadyOverlay()...');
             this.showReadyOverlay();
-            
-            // Verify UI state after change
-            setTimeout(() => {
-                console.log(`📺 After showReadyOverlay - Waiting overlay hidden: ${waitingOverlay?.classList.contains('hidden')}, Ready overlay hidden: ${readyOverlay?.classList.contains('hidden')}`);
-            }, 100);
-        } else {
-            console.log('⏳ Waiting for more players...');
         }
     }
 
     private handleGameStarted(event: Event): void {
-        const eventDetail = (event as CustomEvent).detail;
-        console.log('🎮 RemoteGamePage: Game started!', eventDetail);
-        
-        console.log('💻 Force hiding all overlays including loading screen...');
         this.hideAllOverlays();
         
         // Force hide loading screen specifically to handle race conditions
         const gameLoading = document.getElementById('gameLoading');
         if (gameLoading && !gameLoading.classList.contains('hidden')) {
-            console.log('🔧 Loading screen was still visible - force hiding it');
             gameLoading.classList.add('hidden');
         }
         
         // Ensure camera perspective is set correctly when game starts
         if (this.gameManager && this.isPlayer1 !== undefined) {
-            console.log(`📷 RE-SETTING camera perspective on game start for Player${this.isPlayer1 ? '1' : '2'}`);
             this.gameManager.setPlayerCameraPerspective();
         }
         
@@ -1076,9 +942,6 @@ export class RemoteGamePage implements Page {
 
     private handleGameEnded(event: Event): void {
         const { winner, final_score, reason } = (event as CustomEvent).detail;
-        
-        console.log('🏁 Game ended event received');
-        console.log(`🎯 Opponent info status - ID: ${this.opponentUserId}, Name: ${this.opponentUsername}`);
         
         const gameOverOverlay = document.getElementById('gameOverOverlay');
         const resultTitle = document.getElementById('resultTitle');
@@ -1109,19 +972,14 @@ export class RemoteGamePage implements Page {
         }
         
         // Ensure opponent information is preserved for rematch functionality
-        console.log('📝 Game ended - preserving opponent information for rematch');
     }
 
     private handlePlayerJoined(event: Event): void {
         const eventDetail = (event as CustomEvent).detail;
-        console.log('🔥🔥🔥 PLAYER JOINED EVENT RECEIVED! 🔥🔥🔥');
-        console.log('🔥 RemoteGamePage: Player joined:', eventDetail);
         
         const { user } = eventDetail;
-        console.log('👤 Joined user:', user);
         
         if (user && user.username) {
-            console.log(`✅ ${user.username} joined the game`);
             // showNotification(`${user.username} joined the game`, 'info');
             
             // Store opponent information when they join
@@ -1129,53 +987,38 @@ export class RemoteGamePage implements Page {
             if (currentUserId && String(user.user_id) !== String(currentUserId)) {
                 this.opponentUserId = String(user.user_id);
                 this.opponentUsername = user.username;
-                console.log(`🎯 Captured opponent from join event: ${this.opponentUsername} (ID: ${this.opponentUserId})`);
             }
         } else {
-            console.warn('⚠️ Missing user information in player joined event');
+            console.warn('Missing user information in player joined event');
             showNotification('A player joined the game', 'info');
         }
         
         this.opponentConnected = true;
-        console.log('👥 Opponent is now connected, showing ready overlay...');
         this.showReadyOverlay();
     }
 
     private handlePlayerLeft(event: Event): void {
         const { user } = (event as CustomEvent).detail;
-        console.log('👋 Player left event:', { user });
-        console.log(`🎯 Current opponent info - ID: ${this.opponentUserId}, Name: ${this.opponentUsername}`);
         
         showNotification(`${user.username} left the game`, 'error');
         this.opponentConnected = false;
         
         // DO NOT clear opponent information here - we need it for rematch functionality
         // The opponent info should persist even after they leave
-        console.log('📝 Preserving opponent information for potential rematch');
     }
 
     private handlePlayerReady(event: Event): void {
         const { user, ready_count, total_players } = (event as CustomEvent).detail;
-        console.log('✅ DEBUG: Player ready event received:', { user, ready_count, total_players });
         
         const readyStatus = document.getElementById('readyStatus');
         if (readyStatus) {
             const statusText = `${ready_count}/${total_players} players ready`;
-            console.log(`📊 DEBUG: Updating ready status: ${statusText}`);
             readyStatus.textContent = statusText;
         } else {
-            console.warn('⚠️ DEBUG: Ready status element not found');
+            console.warn('Ready status element not found');
         }
         
-        console.log(`🔔 DEBUG: Showing notification for ${user.username} ready`);
         showNotification(`${user.username} is ready!`, 'info');
-        
-        // Check if we should start the game
-        if (ready_count === total_players && total_players === 2) {
-            console.log('🎮 DEBUG: All players ready! Game should start soon...');
-        } else {
-            console.log(`⏳ DEBUG: Still waiting - ${ready_count}/${total_players} ready`);
-        }
     }
 
     private handleGameUpdate(event: Event): void {
@@ -1185,22 +1028,7 @@ export class RemoteGamePage implements Page {
         // Force hide loading screen in case it's still visible due to race conditions
         const gameLoading = document.getElementById('gameLoading');
         if (gameLoading && !gameLoading.classList.contains('hidden')) {
-            console.log('🔧 Game update received but loading screen still visible - force hiding');
             gameLoading.classList.add('hidden');
-        }
-        
-        // Debug log every 60th update (once per second at 60fps) to avoid spam
-        if (!this.updateCount) this.updateCount = 0;
-        this.updateCount++;
-        
-        if (this.updateCount % 60 === 1) {
-            console.log(`🎮 DEBUG: Frontend received game_update #${this.updateCount}:`, {
-                ball_pos: `(${ball.x.toFixed(1)}, ${ball.y.toFixed(1)})`,
-                ball_vel: `(${ball.vx.toFixed(1)}, ${ball.vy.toFixed(1)})`,
-                p1_score: paddle1.score,
-                p2_score: paddle2.score,
-                timestamp: _timestamp
-            });
         }
         
         // Update score display
@@ -1221,7 +1049,7 @@ export class RemoteGamePage implements Page {
             // Use the PongGameManager's sync method to update the 3D engine
             this.gameManager?.syncRemoteGameState(ball, paddle1, paddle2);
         } catch (error) {
-            console.warn('⚠️ RemoteGamePage: Error syncing backend state:', error);
+            console.warn('Error syncing backend state:', error);
         }
     }
 

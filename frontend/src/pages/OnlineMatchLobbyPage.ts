@@ -229,7 +229,6 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        this.bindElements();
         this.attachEventListeners();
         this.setupSocketEventListeners();
         
@@ -249,17 +248,12 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     public cleanup(): void {
-        this.removeEventListeners();
         this.removeSocketEventListeners();
         
         if (this.searchTimeout) {
             clearTimeout(this.searchTimeout);
             this.searchTimeout = null;
         }
-    }
-
-    private bindElements(): void {
-        // Elements accessed by ID when needed
     }
 
     private attachEventListeners(): void {
@@ -298,19 +292,6 @@ export class OnlineMatchLobbyPage implements Page {
             randomMatchButton.addEventListener('click', this.handleRandomMatch.bind(this));
         }
 
-        const acceptInvitationButton = document.getElementById('acceptInvitationButton');
-        if (acceptInvitationButton) {
-            acceptInvitationButton.addEventListener('click', this.handleAcceptInvitation.bind(this));
-        }
-
-        const declineInvitationButton = document.getElementById('declineInvitationButton');
-        if (declineInvitationButton) {
-            declineInvitationButton.addEventListener('click', this.handleDeclineInvitation.bind(this));
-        }
-    }
-
-    private removeEventListeners(): void {
-        // Event listeners are automatically cleaned up when page is destroyed
     }
 
     private setupSocketEventListeners(): void {
@@ -362,41 +343,23 @@ export class OnlineMatchLobbyPage implements Page {
             });
             if (response.ok) {
                 const data = await response.json();
-                console.log('🔍 Search results:', data);
                 this.searchResults = data.users || [];
-                console.log(`✅ Found ${this.searchResults.length} users matching query`);
-                
-                // Debug: Log each user's structure
-                this.searchResults.forEach((user, index) => {
-                    console.log(`👤 User ${index}:`, {
-                        id: user.id,
-                        user_id: (user as any).user_id,
-                        _id: (user as any)._id,
-                        username: user.username,
-                        display_name: user.display_name,
-                        all_keys: Object.keys(user),
-                        full_object: user
-                    });
-                });
                 
                 this.updatePlayersList();
             } else {
                 const errorText = await response.text();
-                console.error(`❌ Search request failed: ${response.status} - ${errorText}`);
+                console.error(`Search request failed: ${response.status} - ${errorText}`);
                 showError('Failed to search users');
             }
         } catch (error) {
-            console.error('❌ Search users error:', error);
+            console.error('Search users error:', error);
             showError('Failed to search users');
         }
     }
 
     private async loadOnlineUsers(): Promise<void> {
-        console.log('👥 OnlineMatchLobby: Loading online users...');
-        
         try {
             const url = '/api/game/users/online';
-            console.log(`🌐 Making request to: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -404,37 +367,26 @@ export class OnlineMatchLobbyPage implements Page {
                 }
             });
             
-            console.log(`📡 Online users response status: ${response.status}`);
-            
             if (response.ok) {
                 const data = await response.json();
-                console.log('👥 Online users data:', data);
                 this.onlineUsers = data.users || [];
-                console.log(`✅ Loaded ${this.onlineUsers.length} online users:`);
-                this.onlineUsers.forEach(user => {
-                    const userId = user.id || (user as any).user_id || (user as any)._id || 'NO_ID';
-                    console.log(`   - ${user.username} (${userId})`);
-                });
                 this.updatePlayersList();
             } else {
                 const errorText = await response.text();
-                console.error(`❌ Failed to load online users: ${response.status} - ${errorText}`);
+                console.error(`Failed to load online users: ${response.status} - ${errorText}`);
                 this.onlineUsers = [];
                 this.updatePlayersList();
             }
         } catch (error) {
-            console.error('❌ Load online users error:', error);
+            console.error('Load online users error:', error);
             this.onlineUsers = [];
             this.updatePlayersList();
         }
     }
 
     private async loadInvitations(): Promise<void> {
-        console.log('📨 OnlineMatchLobby: Loading invitations...');
-        
         try {
             const url = '/api/game/invitations';
-            console.log(`🌐 Making request to: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -442,27 +394,11 @@ export class OnlineMatchLobbyPage implements Page {
                 }
             });
             
-            console.log(`📡 Invitations response status: ${response.status}`);
-            
             if (response.ok) {
                 const data = await response.json();
-                console.log('📨 Invitations data:', data);
                 const invitations = data.invitations || [];
                 
                 const currentUserId = JSON.parse(localStorage.getItem('userData') || '{}').id;
-                console.log(`👤 Current user ID: ${currentUserId} (type: ${typeof currentUserId})`);
-                
-                // Debug invitations structure
-                invitations.forEach((inv: any, index: number) => {
-                    console.log(`📧 Invitation ${index}:`, {
-                        id: inv.id,
-                        sender_id: inv.sender_id,
-                        receiver_id: inv.receiver_id,
-                        status: inv.status,
-                        sender_type: typeof inv.sender_id,
-                        receiver_type: typeof inv.receiver_id
-                    });
-                });
                 
                 // Convert currentUserId to string for comparison
                 const currentUserIdStr = String(currentUserId);
@@ -472,11 +408,7 @@ export class OnlineMatchLobbyPage implements Page {
                 const isNotExpired = (inv: GameInvitation) => {
                     if (!inv.expires_at) return true; // No expiry date means it doesn't expire
                     const expiryDate = new Date(inv.expires_at);
-                    const isValid = expiryDate > now;
-                    if (!isValid) {
-                        console.log(`⏰ Filtering out expired invitation ${inv.id}: expires_at=${inv.expires_at}, now=${now.toISOString()}`);
-                    }
-                    return isValid;
+                    return expiryDate > now;
                 };
                 
                 this.pendingInvitations = invitations.filter((inv: GameInvitation) => 
@@ -490,25 +422,13 @@ export class OnlineMatchLobbyPage implements Page {
                     isNotExpired(inv)
                 );
                 
-                console.log(`📨 Filtered pending invitations (${this.pendingInvitations.length}):`, this.pendingInvitations);
-                console.log(`📤 Filtered sent invitations (${this.sentInvitations.length}):`, this.sentInvitations);
-                
-                // Debug invitation sender data structure
-                if (this.pendingInvitations.length > 0) {
-                    console.log('🔍 DEBUG: First pending invitation structure:', this.pendingInvitations[0]);
-                    console.log('🔍 DEBUG: Sender object:', this.pendingInvitations[0].sender);
-                    console.log('🔍 DEBUG: sender_username field:', this.pendingInvitations[0].sender_username);
-                    console.log('🔍 DEBUG: receiver_username field:', this.pendingInvitations[0].receiver_username);
-                    console.log('🔍 DEBUG: Available sender keys:', this.pendingInvitations[0].sender ? Object.keys(this.pendingInvitations[0].sender) : 'sender is null/undefined');
-                }
-                
                 this.updateInvitationsDisplay();
             } else {
                 const errorText = await response.text();
-                console.error(`❌ Failed to load invitations: ${response.status} - ${errorText}`);
+                console.error(`Failed to load invitations: ${response.status} - ${errorText}`);
             }
         } catch (error) {
-            console.error('❌ Load invitations error:', error);
+            console.error('Load invitations error:', error);
         }
     }
 
@@ -566,13 +486,6 @@ export class OnlineMatchLobbyPage implements Page {
         playersListElement.innerHTML = players.map((player: UserSearchResult) => {
             // Handle multiple possible ID field names from the API response
             const playerId = player.id || (player as any).user_id || (player as any)._id || '';
-            
-            console.log('🔍 Rendering player:', {
-                username: player.username,
-                originalId: player.id,
-                playerId: playerId,
-                fullPlayer: player
-            });
             
             return `
                 <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
@@ -692,18 +605,10 @@ export class OnlineMatchLobbyPage implements Page {
         const button = event.target as HTMLElement;
         const userId = button.getAttribute('data-user-id');
         const username = button.getAttribute('data-username');
-        
-        console.log(`🎯 OnlineMatchLobby: Challenging user - ID: ${userId}, Username: ${username}`);
-        console.log('🔍 Button element:', button);
-        console.log('🔍 All button attributes:', {
-            'data-user-id': button.getAttribute('data-user-id'),
-            'data-username': button.getAttribute('data-username'),
-            'class': button.getAttribute('class')
-        });
 
         if (!userId || !username || userId === 'undefined') {
-            console.error('❌ Missing or invalid user ID/username for challenge');
-            console.error('❌ Current players data:', this.getCurrentTabPlayers());
+            console.error('Missing or invalid user ID/username for challenge');
+            console.error('Current players data:', this.getCurrentTabPlayers());
             return;
         }
 
@@ -714,8 +619,6 @@ export class OnlineMatchLobbyPage implements Page {
                 message: `Challenge you to a Pong match!`
             };
             
-            console.log('📤 Sending invitation with data:', invitationData);
-            
             const response = await fetch('/api/game/invite', {
                 method: 'POST',
                 headers: {
@@ -724,31 +627,25 @@ export class OnlineMatchLobbyPage implements Page {
                 },
                 body: JSON.stringify(invitationData)
             });
-            
-            console.log(`📡 Challenge response status: ${response.status}`);
 
             if (response.ok) {
-                const responseData = await response.json();
-                console.log('✅ Challenge sent successfully:', responseData);
+                await response.json();
                 showNotification(`Game invitation sent to ${username}!`, 'success');
                 await this.loadInvitations();
             } else {
                 const error = await response.json();
-                console.error('❌ Challenge failed:', error);
+                console.error('Challenge failed:', error);
                 showError(error.error || 'Failed to send invitation');
             }
         } catch (error) {
-            console.error('❌ Challenge error:', error);
+            console.error('Challenge error:', error);
             showError('Failed to send invitation');
         }
     }
 
     private async respondToInvitation(invitationId: number, response: 'accepted' | 'declined'): Promise<void> {
-        console.log(`🎯 OnlineMatchLobby: Responding to invitation ${invitationId} with: ${response}`);
-        
         try {
             const responseData = { response };
-            console.log('📤 Sending invitation response:', responseData);
             
             const apiResponse = await fetch(`/api/game/invite/${invitationId}/respond`, {
                 method: 'POST',
@@ -758,21 +655,18 @@ export class OnlineMatchLobbyPage implements Page {
                 },
                 body: JSON.stringify(responseData)
             });
-            
-            console.log(`📡 Invitation response status: ${apiResponse.status}`);
 
             if (apiResponse.ok) {
-                const responseResult = await apiResponse.json();
-                console.log('✅ Invitation response successful:', responseResult);
+                await apiResponse.json();
                 showNotification(`Invitation ${response}!`, response === 'accepted' ? 'success' : 'info');
                 await this.loadInvitations();
             } else {
                 const error = await apiResponse.json();
-                console.error('❌ Invitation response failed:', error);
+                console.error('Invitation response failed:', error);
                 showError(error.error || 'Failed to respond to invitation');
             }
         } catch (error) {
-            console.error('❌ Respond to invitation error:', error);
+            console.error('Respond to invitation error:', error);
             showError('Failed to respond to invitation');
         }
     }
@@ -812,76 +706,52 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private handleSocketGameInvitation(event: Event): void {
-        console.log('🔥🔥🔥 SOCKET INVITATION HANDLER CALLED! 🔥🔥🔥');
-        
         const eventDetail = (event as CustomEvent).detail;
-        console.log('🔥 OnlineMatchLobby: Socket game invitation received:', eventDetail);
         
-        const { invitation, sender } = eventDetail;
-        console.log('📨 Invitation details:', invitation);
-        console.log('👤 Sender details:', sender);
-        
-        // Force show notification regardless
-        console.log('📢 About to show notification...');
+        const { sender } = eventDetail;
         
         if (sender && sender.username) {
-            console.log(`📢 Showing notification for ${sender.username}`);
+            // Notification logic here if needed
         } else {
-            console.warn('⚠️ Missing sender information in invitation');
+            console.warn('Missing sender information in invitation');
             showNotification('You received a game invitation!', 'info', 0);
         }
-        
-        console.log('🔄 Reloading invitations after socket event...');
         this.loadInvitations();
     }
 
     private handleSocketInvitationResponse(event: Event): void {
         const eventDetail = (event as CustomEvent).detail;
-        console.log('🔥 OnlineMatchLobby: Socket invitation response received:', eventDetail);
         
         const { response, responder } = eventDetail;
-        console.log('📝 Response:', response);
-        console.log('👤 Responder:', responder);
         
         if (responder && responder.username) {
             if (response === 'accepted') {
-                console.log('✅ Invitation accepted');
                 showNotification(`${responder.username} accepted your challenge!`, 'success');
             } else {
-                console.log('❌ Invitation declined');
                 showNotification(`${responder.username} declined your challenge`, 'info');
             }
         } else {
-            console.warn('⚠️ Missing responder information');
+            console.warn('Missing responder information');
             showNotification(`Your invitation was ${response}`, response === 'accepted' ? 'success' : 'info');
         }
-        
-        console.log('🔄 Reloading invitations after socket response...');
         this.loadInvitations();
     }
 
     private handleSocketGameReady(event: Event): void {
         const eventDetail = (event as CustomEvent).detail;
-        console.log('🎮 OnlineMatchLobby: Socket game ready received:', eventDetail);
         
         const { game_session, room_id } = eventDetail;
-        console.log('🎮 Game session:', game_session);
-        console.log('🏠 Room ID:', room_id);
         
         if (!game_session || !room_id) {
-            console.error('❌ Missing game session or room ID in game ready event');
+            console.error('Missing game session or room ID in game ready event');
             showNotification('Game setup incomplete. Please try again.', 'error');
             return;
         }
         
         const navigationPath = `/game/remote/match/${game_session.id}?room=${room_id}`;
-        console.log(`🚀 Game ready! Navigating to: ${navigationPath}`);
-        
-        // showNotification('Game is ready! Joining match...', 'success');
         
         // Navigate to the game
         setTimeout(() => {
-            console.log('🎯 Executing navigation...');
             const navigationEvent = new CustomEvent('navigate', {
                 detail: { path: navigationPath }
             });
@@ -889,23 +759,15 @@ export class OnlineMatchLobbyPage implements Page {
         }, 1500);
     }
 
-    private handleAcceptInvitation(): void {
-        // This method will be implemented when needed
-    }
-
-    private handleDeclineInvitation(): void {
-        // This method will be implemented when needed
-    }
 
     private updateConnectionStatus(): void {
         const statusElement = document.getElementById('gameServerStatus');
         if (!statusElement) {
-            console.warn('⚠️ Game server status element not found');
+            console.warn('Game server status element not found');
             return;
         }
 
         const isConnected = gameSocket.isConnected();
-        console.log(`🔌 OnlineMatchLobby: Connection status - ${isConnected ? 'Connected' : 'Disconnected'}`);
 
         if (isConnected) {
             statusElement.innerHTML = `
@@ -917,38 +779,6 @@ export class OnlineMatchLobbyPage implements Page {
                 <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                 <span class="text-sm text-red-400">Disconnected</span>
             `;
-        }
-    }
-    
-    private addDebugMessage(message: string): void {
-        const debugMessages = document.getElementById('debugMessages');
-        if (!debugMessages) return;
-        
-        const timestamp = new Date().toLocaleTimeString();
-        const messageElement = document.createElement('div');
-        messageElement.className = 'text-green-400';
-        messageElement.textContent = `[${timestamp}] ${message}`;
-        
-        debugMessages.appendChild(messageElement);
-        debugMessages.scrollTop = debugMessages.scrollHeight;
-        
-        // Keep only last 50 messages
-        while (debugMessages.children.length > 50) {
-            debugMessages.removeChild(debugMessages.firstChild!);
-        }
-    }
-    
-    private toggleDebugConsole(): void {
-        const debugConsole = document.getElementById('debugConsole');
-        if (debugConsole) {
-            debugConsole.classList.toggle('hidden');
-        }
-    }
-    
-    private clearDebugConsole(): void {
-        const debugMessages = document.getElementById('debugMessages');
-        if (debugMessages) {
-            debugMessages.innerHTML = '';
         }
     }
 }

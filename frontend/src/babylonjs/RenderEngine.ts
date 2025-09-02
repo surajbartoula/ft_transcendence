@@ -16,6 +16,8 @@ export class RenderEngine {
 	private ballSpeed: number = 0.4; // Base ball speed
 	private isPaused: boolean = false; // Game pause state
 	private guiManager: GUIManager; // GUI manager instance
+	private isDisposed: boolean = false; // Disposal state flag
+	private isInitializing: boolean = false; // Initialization state flag
 	
 	// Audio System Properties
 	private audioContext: AudioContext | null = null;
@@ -52,21 +54,39 @@ export class RenderEngine {
 	}
 
 	async initialize(): Promise<void> {
-		// Initializing Render Engine
+		if (this.isDisposed) {
+			throw new Error('Cannot initialize disposed RenderEngine');
+		}
 		
-		this.setupCamera();
-		this.setupLighting();
-		this.setupCustomMaterials();
-		this.setupResizeListener();
-		this.setupAudio();
-		await this.loadAssets();
+		this.isInitializing = true;
+		
+		try {
+			// Initializing Render Engine
+			
+			this.setupCamera();
+			this.setupLighting();
+			this.setupCustomMaterials();
+			this.setupResizeListener();
+			this.setupAudio();
+			await this.loadAssets();
 
-		this.engine.resize();
-		
-		// Start render loop
-		this.engine.runRenderLoop(() => {
-			this.scene.render();
-		});
+			// Check if disposed during async operations
+			if (this.isDisposed) {
+				return;
+			}
+
+			this.engine.resize();
+			
+			// Start render loop with disposal guard
+			this.engine.runRenderLoop(() => {
+				if (this.isDisposed || !this.scene) {
+					return;
+				}
+				this.scene.render();
+			});
+		} finally {
+			this.isInitializing = false;
+		}
 	}
 
 	private setupCamera(): void {
@@ -459,8 +479,7 @@ export class RenderEngine {
 		const leftPaddle = this.scene.getMeshByName('paddleLeft');
 		const rightPaddle = this.scene.getMeshByName('paddleRight');
 		
-		console.log("  Left paddle found:", !!leftPaddle);
-		console.log("  Right paddle found:", !!rightPaddle);
+		// Paddle existence checked
 		
 		if (!leftPaddle || !rightPaddle) {
 			console.error("❌ Paddles not found in scene! Available meshes:");
@@ -557,8 +576,8 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 	const moveDirection = new BABYLON.Vector3(0, 0, inputDirection * moveSpeed);
 	const intendedNewPosition = paddle.position.add(moveDirection);
 	
-	console.log(`🎯 ${paddle.name} attempting move: ${oldZ.toFixed(2)} → ${intendedNewPosition.z.toFixed(2)} (input: ${inputDirection})`);
-	console.log(`📏 Paddle dimensions - Width: ${paddleWidth.toFixed(2)}, Height: ${paddleHeight.toFixed(2)}, Depth: ${paddleDepth.toFixed(2)}`);
+	// Attempting paddle move
+	// Paddle dimensions calculated
 	
 	// Cast rays from CURRENT paddle position, not intended position
 	// This prevents premature collision detection
@@ -566,7 +585,7 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 		paddle.position.z + (paddleDepth / 2) :  // Current front edge
 		paddle.position.z - (paddleDepth / 2);   // Current back edge
 		
-	console.log(`🎯 Casting rays from current leading edge at Z: ${currentLeadingEdgeZ.toFixed(2)}`);
+	// Casting rays from leading edge
 	
 	// Create ray starting positions at the CURRENT leading edge of the paddle
 	const rayStartPositions = [
@@ -611,7 +630,7 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 				closestDistance = hit.distance;
 				hitWallName = hit.pickedMesh.name;
 			}
-			console.log(`🔍 Ray ${index} from leading edge hit ${hit.pickedMesh.name} at distance ${hit.distance.toFixed(3)}`);
+			// Ray hit detected
 		}
 	});
 	
@@ -634,20 +653,20 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 			const maxFloorZ = floorBounds.maximumWorld.z - minimalBuffer;
 			const minFloorZ = floorBounds.minimumWorld.z + minimalBuffer;
 			
-			console.log(`🏢 Floor Z bounds: ${minFloorZ.toFixed(3)} to ${maxFloorZ.toFixed(3)} (buffer: ${minimalBuffer})`);
-			console.log(`🎯 Leading edge would be at: ${newLeadingEdgeZ.toFixed(3)} after move`);
+			// Floor Z bounds calculated
+			// Leading edge position calculated
 			
 			// Check if leading edge would go beyond floor boundaries AFTER the move
 			if (inputDirection > 0 && newLeadingEdgeZ > maxFloorZ) {
 				// Moving forward: check if leading edge exceeds floor
 				collisionDetected = true;
 				hitWallName = "forwardWall";
-				console.log(`🚧 ${paddle.name} leading edge would exceed floor: ${newLeadingEdgeZ.toFixed(3)} > ${maxFloorZ.toFixed(3)}`);
+				// Leading edge would exceed floor (forward)
 			} else if (inputDirection < 0 && newLeadingEdgeZ < minFloorZ) {
 				// Moving backward: check if leading edge exceeds floor  
 				collisionDetected = true;
 				hitWallName = "backwardWall";
-				console.log(`🚧 ${paddle.name} leading edge would exceed floor: ${newLeadingEdgeZ.toFixed(3)} < ${minFloorZ.toFixed(3)}`);
+				// Leading edge would exceed floor (backward)
 			}
 		}
 	}
@@ -677,21 +696,21 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 				
 				collisionDetected = true;
 				hitWallName = inputDirection > 0 ? "forwardWall" : "backwardWall";
-				console.log(`🚧 ${paddle.name} would partially leave floor - front: ${paddleFrontEdge.toFixed(2)}, back: ${paddleBackEdge.toFixed(2)}`);
-				console.log(`🚧 Floor bounds: ${floorBounds.minimumWorld.z.toFixed(2)} to ${floorBounds.maximumWorld.z.toFixed(2)}`);
+				// Paddle would partially leave floor
+				// Floor bounds checked
 			}
 		}
 	}
 	
 	// Apply movement based on collision detection
 	if (collisionDetected) {
-		console.log(`🚧 ${paddle.name} blocked by ${hitWallName} - staying at Z: ${paddle.position.z.toFixed(2)}`);
+		// Paddle blocked by collision
 		this.playBoundaryHitSound();
 		// Don't move - collision detected
 	} else {
 		// Safe to move
 		paddle.position.z = intendedNewPosition.z;
-		console.log(`✅ ${paddle.name} moved safely to Z: ${intendedNewPosition.z.toFixed(2)}`);
+		// Paddle moved safely
 	}
 }
 
@@ -729,9 +748,9 @@ private debugVisualizeFloorBounds(): void {
 	floorPlane.getBoundingInfo().update(floorPlane.getWorldMatrix());
 	const floorBounds = floorPlane.getBoundingInfo().boundingBox;
 	
-	console.log(`🏢 Floor bounds - X: ${floorBounds.minimumWorld.x.toFixed(2)} to ${floorBounds.maximumWorld.x.toFixed(2)}`);
-	console.log(`🏢 Floor bounds - Y: ${floorBounds.minimumWorld.y.toFixed(2)} to ${floorBounds.maximumWorld.y.toFixed(2)}`);
-	console.log(`🏢 Floor bounds - Z: ${floorBounds.minimumWorld.z.toFixed(2)} to ${floorBounds.maximumWorld.z.toFixed(2)}`);
+	// Floor bounds X calculated
+	// Floor bounds Y calculated
+	// Floor bounds Z calculated
 	
 	// Create visual markers at floor corners for debugging
 	const floorY = floorBounds.maximumWorld.y + 0.1; // Slightly above floor
@@ -777,7 +796,7 @@ private debugVisualizeFloorBounds(): void {
 
 	private setupStrongLightSystem(): void {
 		// We'll create strong emissive lighting after the GLB is loaded
-		console.log("💡 Preparing strong light emission system with shadows");
+		// Preparing light emission system
 	}
 
 	private makePaddleEmitLight(parentMesh: BABYLON.AbstractMesh, lightColor: BABYLON.Color3, side: string): void {
@@ -958,12 +977,39 @@ private debugVisualizeFloorBounds(): void {
 	}
 
 	public dispose(): void {
-		// Dispose audio resources
-		if (this.audioContext) this.audioContext.close();
+		if (this.isDisposed) {
+			return; // Already disposed
+		}
 		
-		this.guiManager.dispose();
-		this.scene.dispose();
-		this.engine.dispose();
+		this.isDisposed = true;
+		
+		
+		try {
+			// Stop render loop first
+			if (this.engine) {
+				this.engine.stopRenderLoop();
+			}
+			
+			// Dispose audio resources
+			if (this.audioContext) {
+				this.audioContext.close();
+			}
+			
+			// Dispose systems
+			if (this.guiManager) {
+				this.guiManager.dispose();
+			}
+			
+			if (this.scene) {
+				this.scene.dispose();
+			}
+			
+			if (this.engine) {
+				this.engine.dispose();
+			}
+		} catch (error) {
+			console.warn('Error during RenderEngine disposal:', error);
+		}
 	}
 
 	private setupResizeListener(): void {
