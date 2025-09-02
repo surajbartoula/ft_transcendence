@@ -482,7 +482,6 @@ export class SharedGamePage implements Page {
                 
                 if ((this.gameManager as any)?.renderEngine?.engine) {
                     (this.gameManager as any).renderEngine.engine.resize();
-                    console.log('🔄 Engine resized');
                 }
             }
         } else {
@@ -506,17 +505,13 @@ export class SharedGamePage implements Page {
 
 
     private handleBackClick(): void {
-        console.log('🔙 Back button clicked - starting cleanup...');
-        
         // Explicitly call cleanup to ensure game resources are disposed
         this.cleanup();
         
         if (this.tournamentId) {
             // Navigate back to tournament bracket
-            console.log('🏆 Returning to tournament bracket from tournament match');
             this.returnToTournamentBracket();
         } else {
-            console.log('🎮 Returning to game menu from regular match');
             const event = new CustomEvent('navigate', {
                 detail: { path: '/game' }
             });
@@ -526,13 +521,8 @@ export class SharedGamePage implements Page {
 
 
     private handleWindowResize(): void {
-        console.log('🔄 Window resize detected');
-        if (this.gameCanvas) {
-            console.log(`📐 Canvas dimensions: ${this.gameCanvas.clientWidth}x${this.gameCanvas.clientHeight}`);
-        }
         if (this.gameManager && (this.gameManager as any)?.renderEngine?.engine) {
             (this.gameManager as any).renderEngine.engine.resize();
-            console.log('🔄 Babylon.js engine resized');
         }
     }
 
@@ -550,7 +540,6 @@ export class SharedGamePage implements Page {
     }
 
     private handleRetry(): void {
-        console.log('🔄 Retrying game initialization...');
         if (this.gameManager) {
             this.gameManager.dispose();
             this.gameManager = null;
@@ -583,16 +572,11 @@ export class SharedGamePage implements Page {
             this.navigateToTournamentSetup();
             return;
         }
-        
-        console.log('🏆 Returning to tournament bracket with updated state');
-        
         // Navigate back to tournament bracket with updated tournament state
         const tournament = this.tournamentManager?.getTournament(this.tournamentId);
         if (tournament) {
             const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map(p => p.name)));
             const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent('Tournament')}`;
-            
-            console.log('🏆 Navigating to:', navigationPath);
             const event = new CustomEvent('navigate', {
                 detail: { path: navigationPath }
             });

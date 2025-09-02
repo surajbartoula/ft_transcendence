@@ -25,7 +25,6 @@ export function setupSocketHandlers(fastify) {
   /** Socket.IO connection handling */
   fastify.io.on('connection', async (socket) => {
     const user_id = socket.user_id;
-    console.log(`User ${user_id} connected with socket ${socket.id}`);
     await dbService.updateUserSession(user_id, socket.id);
     /** Join user to their personal room */
     socket.join(`user_${user_id}`);
@@ -156,7 +155,6 @@ export function setupSocketHandlers(fastify) {
     });
 
     socket.on('disconnect', async () => {
-      console.log(`User ${user_id} disconnected`);
       await dbService.removeUserSession(user_id);
 	  try {
 		const friends = await dbService.getUserFriends(user_id);

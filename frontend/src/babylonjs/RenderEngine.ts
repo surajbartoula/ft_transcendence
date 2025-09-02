@@ -310,9 +310,6 @@ export class RenderEngine {
 			console.warn("⚠️ No audio context available for beep");
 			return;
 		}
-		
-		console.log(`🔊 Playing beep: ${frequency}Hz, ${duration}s, ${volume} volume, context state: ${this.audioContext.state}`);
-		
 		try {
 			const oscillator = this.audioContext.createOscillator();
 			const gainNode = this.audioContext.createGain();

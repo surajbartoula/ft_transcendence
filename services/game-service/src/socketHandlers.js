@@ -1283,7 +1283,6 @@ export function setupSocketHandlers(io) {
             activeGames.delete(roomId);
             try {
                 await gameDb.removeActiveGameRoom(roomId);
-                console.log(`🧹 Game room cleaned up: ${roomId}`);
             } catch (error) {
                 console.error('Error cleaning up game room:', error);
             }
@@ -1298,9 +1297,6 @@ export function setupSocketHandlers(io) {
     setInterval(async () => {
         try {
             const cleaned = await gameDb.cleanupExpiredInvitations();
-            if (cleaned > 0) {
-                console.log(`🧹 Cleaned up ${cleaned} expired invitations`);
-            }
         } catch (error) {
             console.error('Error cleaning up expired invitations:', error);
         }
@@ -1310,9 +1306,6 @@ export function setupSocketHandlers(io) {
     setInterval(async () => {
         try {
             const cleaned = await gameDb.cleanupExpiredAnnouncements();
-            if (cleaned > 0) {
-                console.log(`🧹 Cleaned up ${cleaned} expired announcements`);
-            }
         } catch (error) {
             console.error('Error cleaning up expired announcements:', error);
         }
@@ -1322,9 +1315,6 @@ export function setupSocketHandlers(io) {
     setInterval(async () => {
         try {
             const cleaned = await gameDb.cleanupOldGameRooms(24);
-            if (cleaned > 0) {
-                console.log(`🧹 Cleaned up ${cleaned} old game rooms`);
-            }
         } catch (error) {
             console.error('Error cleaning up old game rooms:', error);
         }
@@ -1350,9 +1340,6 @@ export function setupSocketHandlers(io) {
 
             for (const match of expiredMatches) {
                 try {
-                    // Auto-advance or forfeit logic could go here
-                    console.log(`⏰ Match ${match.id} in tournament ${match.tournament_id} has expired`);
-                    
                     // For now, we'll just notify the tournament room
                     io.to(`tournament_${match.tournament_id}`).emit('tournament_match_expired', {
                         match_id: match.id,

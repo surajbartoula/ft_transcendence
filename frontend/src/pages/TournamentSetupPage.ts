@@ -221,18 +221,12 @@ export class TournamentSetupPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('🏆 TournamentSetupPage: Initializing...');
-        
         // Initialize tournament manager and clear any existing data
         this.tournamentManager = TournamentManager.getInstance();
         this.tournamentManager.clearAllTournaments();
-        console.log('🧹 TournamentSetupPage: Cleared existing tournament data');
-        
         this.bindElements();
         this.attachEventListeners();
         this.updateUI();
-        // Default to local mode - no remote tournament option available
-        console.log('✅ TournamentSetupPage: Initialization complete');
     }
 
     public cleanup(): void {
@@ -249,13 +243,6 @@ export class TournamentSetupPage implements Page {
         if (backButton) {
             backButton.addEventListener('click', this.handleBackClick.bind(this));
         }
-
-        // Tournament mode selector
-        const tournamentModeCards = document.querySelectorAll('.tournament-mode-card');
-        tournamentModeCards.forEach(card => {
-            card.addEventListener('click', this.handleTournamentModeClick.bind(this));
-        });
-
         const playerNameInput = document.getElementById('playerNameInput') as HTMLInputElement;
         if (playerNameInput) {
             playerNameInput.addEventListener('keydown', this.handlePlayerInputKeyDown.bind(this));
@@ -347,10 +334,6 @@ export class TournamentSetupPage implements Page {
     }
 
     private handleStartTournament(): void {
-        console.log('🚀 TournamentSetupPage: Starting tournament...');
-        console.log(`   Current players: ${this.players.length}/${this.maxPlayers} (min: ${this.minPlayers})`);
-        console.log(`   Player list: [${this.players.join(', ')}]`);
-        
         if (this.players.length < this.minPlayers) {
             console.warn(`   ❌ Cannot start: need at least ${this.minPlayers} players`);
             showError(`Need at least ${this.minPlayers} players to start tournament`);
@@ -360,49 +343,31 @@ export class TournamentSetupPage implements Page {
         const tournamentName = (document.getElementById('tournamentName') as HTMLInputElement)?.value || 'Tournament';
         const autoFill = (document.getElementById('autoFillToggle') as HTMLInputElement)?.checked || false;
         const shuffle = (document.getElementById('shuffleToggle') as HTMLInputElement)?.checked || false;
-
-        console.log(`   Tournament settings:`);
-        console.log(`     Name: "${tournamentName}"`);
-        console.log(`     Auto-fill: ${autoFill}`);
-        console.log(`     Shuffle: ${shuffle}`);
-
         let finalPlayers = [...this.players];
 
         // Auto-fill if enabled
         if (autoFill && finalPlayers.length < this.maxPlayers) {
             const playersToAdd = this.maxPlayers - finalPlayers.length;
-            console.log(`   🤖 Auto-filling ${playersToAdd} players...`);
             for (let i = 0; i < playersToAdd; i++) {
                 finalPlayers.push(`Player ${finalPlayers.length + 1}`);
             }
-            console.log(`   Final player list after auto-fill: [${finalPlayers.join(', ')}]`);
         }
 
         // Shuffle if enabled
         if (shuffle) {
-            console.log('   🎲 Shuffling players...');
-            const originalOrder = [...finalPlayers];
             for (let i = finalPlayers.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [finalPlayers[i], finalPlayers[j]] = [finalPlayers[j], finalPlayers[i]];
             }
-            console.log(`   Original order: [${originalOrder.join(', ')}]`);
-            console.log(`   Shuffled order: [${finalPlayers.join(', ')}]`);
         }
 
         // Navigate to tournament bracket page
         const playersParam = encodeURIComponent(JSON.stringify(finalPlayers));
         const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent(tournamentName)}`;
-        
-        console.log(`   🎯 Navigating to tournament bracket:`);
-        console.log(`     Path: ${navigationPath}`);
-        console.log(`     Final players (${finalPlayers.length}): [${finalPlayers.join(', ')}]`);
-        
         const event = new CustomEvent('navigate', {
             detail: { path: navigationPath }
         });
         window.dispatchEvent(event);
-        console.log('   ✅ Navigation event dispatched');
     }
 
     private handlePreviewBracket(): void {
@@ -411,9 +376,6 @@ export class TournamentSetupPage implements Page {
     }
 
     private addPlayer(playerName: string): boolean {
-        console.log(`➕ TournamentSetupPage: Attempting to add player: "${playerName}"`);
-        console.log(`   Current players (${this.players.length}/${this.maxPlayers}): [${this.players.join(', ')}]`);
-        
         if (!playerName) {
             console.warn('   ❌ Cannot add player: empty name');
             showError('Please enter a player name');
@@ -433,27 +395,15 @@ export class TournamentSetupPage implements Page {
         }
 
         this.players.push(playerName);
-        console.log(`   ✅ Player "${playerName}" added successfully`);
-        console.log(`   New player list (${this.players.length}/${this.maxPlayers}): [${this.players.join(', ')}]`);
-        
-        console.log('🔄 Calling updateUI() after adding player...');
         this.updateUI();
-        console.log('✅ updateUI() completed');
-        
         // showNotification(`${playerName} added to tournament`, 'success');
         return true;
     }
 
     private removePlayer(playerName: string): void {
-        console.log(`➖ TournamentSetupPage: Attempting to remove player: "${playerName}"`);
-        console.log(`   Current players (${this.players.length}/${this.maxPlayers}): [${this.players.join(', ')}]`);
-        
         const index = this.players.indexOf(playerName);
         if (index > -1) {
             this.players.splice(index, 1);
-            console.log(`   ✅ Player "${playerName}" removed successfully`);
-            console.log(`   New player list (${this.players.length}/${this.maxPlayers}): [${this.players.join(', ')}]`);
-            
             this.updateUI();
             showNotification(`${playerName} removed from tournament`, 'info');
         } else {
@@ -462,16 +412,10 @@ export class TournamentSetupPage implements Page {
     }
 
     private updateUI(): void {
-        console.log('🔄 updateUI() called - updating all UI elements...');
-        console.log('   1. Updating players list...');
         this.updatePlayersList();
-        console.log('   2. Updating player count...');
         this.updatePlayerCount();
-        console.log('   3. Updating action buttons...');
         this.updateActionButtons();
-        console.log('   4. Updating tournament preview...');
         this.updateTournamentPreview();
-        console.log('✅ updateUI() completed all updates');
     }
 
     private updatePlayersList(): void {
@@ -481,9 +425,6 @@ export class TournamentSetupPage implements Page {
             console.error('❌ playersContainer not found');
             return;
         }
-
-        console.log(`🔄 Updating players list - ${this.players.length} players:`, this.players);
-
         if (this.players.length === 0) {
             // Show empty message
             container.innerHTML = `
@@ -495,7 +436,6 @@ export class TournamentSetupPage implements Page {
                     <div class="text-sm mt-1">Add at least ${this.minPlayers} players to start</div>
                 </div>
             `;
-            console.log('📝 Empty message displayed');
             return;
         }
 
@@ -521,16 +461,12 @@ export class TournamentSetupPage implements Page {
         `).join('');
 
         container.innerHTML = playersHTML;
-        console.log('📝 Players list updated with HTML');
-
         // Add remove button listeners
         const removeButtons = container.querySelectorAll('.remove-player-btn');
-        console.log(`🔘 Adding listeners to ${removeButtons.length} remove buttons`);
         removeButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const playerName = (e.currentTarget as HTMLElement).getAttribute('data-player');
                 if (playerName) {
-                    console.log(`🗑️ Remove button clicked for player: ${playerName}`);
                     this.removePlayer(playerName);
                 }
             });
@@ -604,19 +540,6 @@ export class TournamentSetupPage implements Page {
                 </div>
             </div>
         `;
-    }
-
-    // ================================
-    // TOURNAMENT MODE HANDLING
-    // ================================
-
-    private handleTournamentModeClick(event: Event): void {
-        const card = event.currentTarget as HTMLElement;
-        const mode = card.getAttribute('data-mode');
-        if (mode === 'local') {
-            // Only local tournaments are supported
-            console.log('🎯 TournamentSetupPage: Local tournament mode selected');
-        }
     }
 
 }

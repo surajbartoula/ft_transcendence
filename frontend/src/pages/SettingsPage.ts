@@ -700,7 +700,6 @@ export class SettingsPage implements Page {
                 let errorMessage = 'Failed to setup 2FA';
                 try {
                     const errorData = await response.json();
-                    console.log('2FA setup error data:', errorData);
                     errorMessage = errorData.error || errorMessage;
                 } catch (parseError) {
                     console.error('Failed to parse error response:', parseError);
@@ -709,7 +708,6 @@ export class SettingsPage implements Page {
                 throw new Error(errorMessage);
             }
             const data = await response.json();
-            console.log('2FA setup success data:', data);
             this.qrCodeData = data.qrCode;
             this.manualEntryKey = data.manualEntryKey;
             /** Display QR code */
