@@ -229,32 +229,23 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('🎮 OnlineMatchLobbyPage: Starting initialization...');
-        console.log('🎮 Current URL:', window.location.href);
-        console.log('🎮 User data:', JSON.parse(localStorage.getItem('userData') || '{}'));
-        
         this.bindElements();
         this.attachEventListeners();
         this.setupSocketEventListeners();
         
         // Initialize connection and load data
-        console.log('🔌 Connecting to game socket...');
         gameSocket.connect();
         
         // Ensure user is in their user room for receiving invitations (after connection)
         setTimeout(() => {
-            console.log('🔄 OnlineMatchLobby: Ensuring user room membership...');
             gameSocket.rejoinUserRoom();
         }, 1000);
         
-        console.log('👥 Loading online users...');
         await this.loadOnlineUsers();
         
-        console.log('📨 Loading invitations...');
         await this.loadInvitations();
         
         this.updateConnectionStatus();
-        console.log('✅ OnlineMatchLobbyPage initialization complete');
     }
 
     public cleanup(): void {
@@ -323,14 +314,12 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private setupSocketEventListeners(): void {
-        console.log('🔧 OnlineMatchLobby: Setting up socket event listeners');
         window.addEventListener('game_invitation', this.boundHandlers.gameInvitation as EventListener);
         window.addEventListener('game_invitation_response', this.boundHandlers.gameInvitationResponse as EventListener);
         window.addEventListener('game_ready', this.boundHandlers.gameReady as EventListener);
     }
 
     private removeSocketEventListeners(): void {
-        console.log('🔧 OnlineMatchLobby: Removing socket event listeners');
         window.removeEventListener('game_invitation', this.boundHandlers.gameInvitation as EventListener);
         window.removeEventListener('game_invitation_response', this.boundHandlers.gameInvitationResponse as EventListener);
         window.removeEventListener('game_ready', this.boundHandlers.gameReady as EventListener);
@@ -364,20 +353,13 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private async searchUsers(query: string): Promise<void> {
-        console.log(`🔍 OnlineMatchLobby: Searching users with query: "${query}"`);
-        
         try {
             const url = `/api/game/users/search?q=${encodeURIComponent(query)}`;
-            console.log(`🌐 Making search request to: ${url}`);
-            
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            
-            console.log(`📡 Search response status: ${response.status}`);
-            
             if (response.ok) {
                 const data = await response.json();
                 console.log('🔍 Search results:', data);

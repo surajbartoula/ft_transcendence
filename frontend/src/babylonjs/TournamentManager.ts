@@ -321,7 +321,7 @@ export class TournamentManager {
     // Clear all tournaments (for starting fresh)
     clearAllTournaments(): void {
         this.tournaments.clear();
-        console.log('🧹 TournamentManager: All tournament data cleared');
+        // All tournament data cleared
     }
 
     // Get all tournaments (for management)

@@ -39,20 +39,20 @@ export class RenderEngine {
 		this.scene = new BABYLON.Scene(this.engine);
 		this.guiManager = new GUIManager();
 
-		console.log("🔧 Registering GLB loader...");
+		// Registering GLB loader
 		if (!BABYLON.SceneLoader.IsPluginForExtensionAvailable(".glb")) {
 			BABYLON.SceneLoader.RegisterPlugin(new GLTFFileLoader());
-			console.log("✅ GLB loader registered successfully");
+			// GLB loader registered successfully
 		} else {
-			console.log("✅ GLB loader already available");
+			// GLB loader already available
 		}
 		
 		// Verify loader is now available
-		console.log("🔍 GLB loader check:", BABYLON.SceneLoader.IsPluginForExtensionAvailable(".glb"));
+		// GLB loader check complete
 	}
 
 	async initialize(): Promise<void> {
-		console.log("🎨 Initializing Render Engine...");
+		// Initializing Render Engine
 		
 		this.setupCamera();
 		this.setupLighting();
@@ -68,7 +68,7 @@ export class RenderEngine {
 			this.scene.render();
 		});
 		
-		console.log("✅ Render Engine initialized!");
+		// Render Engine initialized
 		console.log(`📱 Device pixel ratio: ${window.devicePixelRatio}`);
 		console.log(`📐 Canvas size: ${this.canvas.width}x${this.canvas.height}`);
 		console.log(`📐 Canvas display size: ${this.canvas.clientWidth}x${this.canvas.clientHeight}`);

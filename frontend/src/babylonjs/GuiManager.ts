@@ -858,7 +858,7 @@ export class GUIManager {
             // Try to append to game container first, fall back to body
             const gameContainer = document.getElementById('gameContainer') || document.getElementById('main-content') || document.body;
             gameContainer.appendChild(this.countdownEl);
-            console.log('📍 Countdown attached to:', gameContainer.id || gameContainer.tagName);
+            // Countdown attached to game container
         }
         const content = typeof value === 'number' ? value.toString() : value;
         this.countdownEl.innerHTML = `

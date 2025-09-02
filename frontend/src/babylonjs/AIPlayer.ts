@@ -52,7 +52,7 @@ export class AIPlayer {
     stop(): void {
         this.isActive = false;
         this.currentInput = 0;
-        console.log("🤖 AI Player stopped");
+        // AI Player stopped
     }
 
     setDifficulty(difficulty: 'easy' | 'medium' | 'hard'): void {
@@ -76,7 +76,7 @@ export class AIPlayer {
                 break;
         }
         
-        console.log(`🤖 AI difficulty set to: ${difficulty}`);
+        // AI difficulty set
     }
 
     update(deltaTime: number): void {
@@ -132,7 +132,7 @@ export class AIPlayer {
         const isImmediateThreat = ballVelX > 2 && distance < 5 && distance > 0;
         
         if (isImmediateThreat) {
-            console.log(`🤖 IMMEDIATE THREAT! Fast ball incoming - emergency response!`);
+            // Immediate threat detected
             // Override normal decision making for immediate response
             this.predictBallPosition();
             this.calculateInput();
@@ -154,9 +154,9 @@ export class AIPlayer {
             const isDirectThreat = ballVelX > 0.5 && distance < 8;
             
             if (isDirectThreat) {
-                console.log(`🤖 DIRECT THREAT detected! Ball: (${ballX.toFixed(2)}, ${this.ballPosition.z.toFixed(2)}), Vel: (${ballVelX.toFixed(2)}, ${this.ballVelocity.z.toFixed(2)}) - IMMEDIATE RESPONSE!`);
+                // Direct threat detected
             } else {
-                console.log(`🤖 AI decision - Ball: (${ballX.toFixed(2)}, ${this.ballPosition.z.toFixed(2)}), Vel: (${ballVelX.toFixed(2)}, ${this.ballVelocity.z.toFixed(2)})`);
+                // AI decision made
             }
             
             // Predict and calculate new input
@@ -183,7 +183,7 @@ export class AIPlayer {
                 directPrediction = Math.max(wallBottom, Math.min(wallTop, directPrediction));
                 this.predictedBallY = directPrediction;
                 
-                console.log(`🤖 DIRECT SHOT detected! Z: ${this.predictedBallY.toFixed(2)} (dist: ${distance.toFixed(1)}, time: ${timeToReach.toFixed(2)}s)`);
+                // Direct shot detected
                 return;
             }
             
@@ -220,7 +220,7 @@ export class AIPlayer {
             const error = (Math.random() - 0.5) * (1 - this.accuracy) * 1.0;
             this.predictedBallY = predictedZ + error;
             
-            console.log(`🤖 Long shot prediction Z: ${this.predictedBallY.toFixed(2)} (dist: ${distance.toFixed(1)}, time: ${timeToReach.toFixed(2)}s)`);
+            // Long shot prediction
         } else if (ballVelX < -0.5) {
             // Ball moving away - return to center gradually
             this.predictedBallY = ballZ * 0.3;
@@ -265,11 +265,11 @@ export class AIPlayer {
         if (isDirectThreat) {
             // For direct threats, move at full speed immediately
             intensity = 1.0;
-            console.log(`🤖 URGENT move: ${desiredInput.toFixed(2)} (diff: ${difference.toFixed(2)}) - DIRECT THREAT!`);
+            // Urgent move required
         } else {
             // Normal proportional movement
             intensity = Math.min(1.0, distance_abs / 3.0);
-            console.log(`🤖 Normal move: ${desiredInput.toFixed(2)} (diff: ${difference.toFixed(2)})`);
+            // Normal move
         }
         
         desiredInput *= intensity;

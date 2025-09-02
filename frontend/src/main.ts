@@ -184,14 +184,11 @@ class App {
 		});
 
 		window.addEventListener('userLoggedIn', () => {
-			console.log('User logged in event received, connecting sockets...');
-			
 			// Validate that we actually have valid user data and token before connecting
 			const token = localStorage.getItem('token');
 			const userData = getStoredUser();
 			
 			if (token && userData) {
-				console.log('✅ Valid token and user data found, connecting sockets...');
 				globalSocket.connect();
 				gameSocket.connect();
 			} else {

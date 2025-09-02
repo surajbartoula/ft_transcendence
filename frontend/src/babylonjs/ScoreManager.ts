@@ -7,7 +7,7 @@
     private onScoreChange?: (info: { leftScore: number; rightScore: number; scorer: 'left' | 'right' }) => void;
 
     initialize(): void {
-        console.log("📊 Score manager initialized");
+        // Score manager initialized
     }
 
     setScoreChangeCallback(callback: (info: { leftScore: number; rightScore: number; scorer: 'left' | 'right' }) => void): void {
@@ -21,7 +21,7 @@
             this.rightScore++;
         }
         
-        console.log(`🎯 ${side} player scores! Score: ${this.leftScore} - ${this.rightScore}`);
+        // Score updated
         
         if (this.onScoreChange) {
             this.onScoreChange({ leftScore: this.leftScore, rightScore: this.rightScore, scorer: side });

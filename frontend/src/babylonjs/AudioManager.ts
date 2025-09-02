@@ -3,11 +3,11 @@
 // =====================================
 export class AudioManager {
     initialize(): void {
-        console.log("🔊 Audio manager initialized");
+        // Audio manager initialized
     }
 
     play(soundName: string): void {
-        console.log(`🔊 Playing sound: ${soundName}`);
+        // Playing sound
     }
 
     dispose(): void {}

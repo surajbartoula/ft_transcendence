@@ -14,7 +14,7 @@ import { ScoreManager } from "./ScoreManager";
 	private hasScored: boolean = false;
 
 	initialize(): void {
-		console.log("⚡ Physics system initialized");
+		// Physics system initialized
 	}
 
 	setScoreManager(scoreManager: ScoreManager): void {
@@ -37,12 +37,12 @@ import { ScoreManager } from "./ScoreManager";
 		
 		if (leftPaddle) {
 			leftPaddle.position = new BABYLON.Vector3(-20.28, 1.00, 0.00);
-			console.log("🏓 Left paddle reset to starting position");
+			// Left paddle reset to starting position
 		}
 		
 		if (rightPaddle) {
 			rightPaddle.position = new BABYLON.Vector3(20.28, 1.00, 0.00);
-			console.log("🏓 Right paddle reset to starting position");
+			// Right paddle reset to starting position
 		}
 	}
 
@@ -56,7 +56,7 @@ import { ScoreManager } from "./ScoreManager";
 		this.resetBallPosition();
 		this.startBallMovement();
 		this.ballActive = true;
-		console.log("🏐 Ball movement started");
+		// Ball movement started
 	}
 
 	resumeBall(): void {
@@ -64,12 +64,12 @@ import { ScoreManager } from "./ScoreManager";
 		
 		// Resume ball without resetting position
 		this.ballActive = true;
-		console.log("🏐 Ball movement resumed");
+		// Ball movement resumed
 	}
 
 	stopBall(): void {
 		this.ballActive = false;
-		console.log("🏐 Ball movement stopped");
+		// Ball movement stopped
 	}
 
 	private resetBallPosition(): void {
@@ -88,7 +88,7 @@ import { ScoreManager } from "./ScoreManager";
 		const dir = new BABYLON.Vector3(randomX, 0, randomZ).normalize();
 		this.ballSpeed = 18;
 		this.ballVelocity = dir.scale(this.ballSpeed);
-		console.log(`🏐 Ball velocity set to: (${this.ballVelocity.x.toFixed(2)}, ${this.ballVelocity.y.toFixed(2)}, ${this.ballVelocity.z.toFixed(2)}) (u/s)`);
+		// Ball velocity set
 	}
 
 	updatePaddlePosition(paddleName: string, inputDirection: number, deltaTime: number): void {
@@ -199,22 +199,22 @@ import { ScoreManager } from "./ScoreManager";
 		if (ball.position.z + ballRadius >= floorBounds.maximumWorld.z) {
 			this.ballVelocity.z = -Math.abs(this.ballVelocity.z);
 			ball.position.z = floorBounds.maximumWorld.z - ballRadius;
-			console.log("🏐 DEBUG: Wall collision detected (top), attempting to play sound");
+			// Wall collision detected (top)
 			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
 				this.renderEngine.playBallWallBounceSound();
 			} else {
-				console.warn("⚠️ Cannot play wall bounce sound - renderEngine missing or method unavailable");
+				// Cannot play wall bounce sound
 			}
 		}
 		
 		if (ball.position.z - ballRadius <= floorBounds.minimumWorld.z) {
 			this.ballVelocity.z = Math.abs(this.ballVelocity.z);
 			ball.position.z = floorBounds.minimumWorld.z + ballRadius;
-			console.log("🏐 DEBUG: Wall collision detected (bottom), attempting to play sound");
+			// Wall collision detected (bottom)
 			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
 				this.renderEngine.playBallWallBounceSound();
 			} else {
-				console.warn("⚠️ Cannot play wall bounce sound - renderEngine missing or method unavailable");
+				// Cannot play wall bounce sound
 			}
 		}
 	}
@@ -230,26 +230,26 @@ import { ScoreManager } from "./ScoreManager";
 		if (leftPaddle && this.ballCollidesWithPaddle(ball, leftPaddle, ballRadius)) {
 			this.ballVelocity.x = Math.abs(this.ballVelocity.x); // Ensure ball moves right
 			this.addPaddleInfluence(ball, leftPaddle);
-			console.log("🏐 DEBUG: Left paddle collision detected, attempting to play sound");
+			// Left paddle collision detected
 			if (this.renderEngine && this.renderEngine.playBallHitSound) {
 				this.renderEngine.playBallHitSound();
 			} else {
-				console.warn("⚠️ Cannot play paddle hit sound - renderEngine missing or method unavailable");
+				// Cannot play paddle hit sound
 			}
-			console.log("🏐 Ball hit left paddle");
+			// Ball hit left paddle
 		}
 
 		// Check collision with right paddle  
 		if (rightPaddle && this.ballCollidesWithPaddle(ball, rightPaddle, ballRadius)) {
 			this.ballVelocity.x = -Math.abs(this.ballVelocity.x); // Ensure ball moves left
 			this.addPaddleInfluence(ball, rightPaddle);
-			console.log("🏐 DEBUG: Right paddle collision detected, attempting to play sound");
+			// Right paddle collision detected
 			if (this.renderEngine && this.renderEngine.playBallHitSound) {
 				this.renderEngine.playBallHitSound();
 			} else {
-				console.warn("⚠️ Cannot play paddle hit sound - renderEngine missing or method unavailable");
+				// Cannot play paddle hit sound
 			}
-			console.log("🏐 Ball hit right paddle");
+			// Ball hit right paddle
 		}
 
 		// Check if ball went past paddles (scoring)
@@ -308,7 +308,7 @@ import { ScoreManager } from "./ScoreManager";
 		this.ballVelocity.normalize();
 		this.ballVelocity.scaleInPlace(this.ballSpeed);
 		
-		console.log(`🏐 Ball speed increased to: ${this.ballSpeed.toFixed(2)}`);
+		// Ball speed increased
 	}
 
 	private resetBall(): void {
@@ -342,7 +342,7 @@ import { ScoreManager } from "./ScoreManager";
 		this.ballSpeed = 18;
 		this.ballVelocity = dir.scale(this.ballSpeed);
 		this.ballActive = true;
-		console.log("🏐 Ball reset to center with velocity:", this.ballVelocity);
+		// Ball reset to center
 	}
 
 	// Getter methods for AI to access ball data
@@ -382,7 +382,7 @@ import { ScoreManager } from "./ScoreManager";
 			// This method primarily ensures the physics system doesn't interfere with remote sync
 			
 		} catch (error) {
-			console.warn('⚠️ PhysicsSystem: Error syncing remote state:', error);
+			// Error syncing remote state
 		}
 	}
 

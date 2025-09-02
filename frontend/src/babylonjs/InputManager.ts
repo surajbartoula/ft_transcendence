@@ -9,7 +9,7 @@ export class InputManager {
 
     initialize(): void {
         this.setupEventListeners();
-        console.log("🎮 Input manager initialized");
+        // Input manager initialized
     }
 
     private setupEventListeners(): void {
@@ -34,15 +34,15 @@ export class InputManager {
             
             const key = event.key.toLowerCase();
             if (key === ' ') {
-                console.log('🎯 InputManager: Space key detected in keydown, looking for handler');
+                // Space key detected in keydown
                 const handler = this.inputHandlers.get(key);
-                console.log(`🎯 InputManager: Space handler found: ${!!handler}`);
+                // Space handler found
             }
             if (!this.keyStates.get(key)) {
                 this.keyStates.set(key, true);
                 const handler = this.inputHandlers.get(key);
                 if (handler) {
-                    if (key === ' ') console.log('🎯 InputManager: Calling space handler with true');
+                    // Calling space handler
                     handler(true);
                 }
             }
@@ -86,10 +86,10 @@ export class InputManager {
         if (!key) return; // Handle undefined key
         const lowerKey = key.toLowerCase();
         if (lowerKey === ' ') {
-            console.log('🎯 InputManager: Registering space key handler');
+            // Registering space key handler
         }
         this.inputHandlers.set(lowerKey, handler);
-        console.log(`🎯 InputManager: Registered handler for key "${lowerKey}"`);
+        // Registered handler for key
     }
 
     unregisterHandler(key: string): void {
@@ -107,6 +107,6 @@ export class InputManager {
         
         this.inputHandlers.clear();
         this.keyStates.clear();
-        console.log("🎮 Input manager disposed and event listeners removed");
+        // Input manager disposed
     }
 }

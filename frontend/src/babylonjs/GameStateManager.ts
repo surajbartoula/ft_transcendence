@@ -71,14 +71,14 @@ export class GameStateManager {
         if (newState) {
             this.currentState = newState;
             await this.currentState.enter(data);
-            console.log(`🎮 State changed to: ${stateName}`);
+            // State changed
             
             // Trigger state change callbacks
             this.stateChangeCallbacks.forEach(callback => {
                 try {
                     callback(stateName);
                 } catch (error) {
-                    console.error('State change callback error:', error);
+                    // State change callback error
                 }
             });
         }
@@ -86,7 +86,7 @@ export class GameStateManager {
 
     setGameMode(mode: GameMode): void {
         this.currentGameMode = mode;
-        console.log('🎮 Game mode set:', mode);
+        // Game mode set
     }
 
     getGameMode(): GameMode {
@@ -150,7 +150,7 @@ export class GameStateManager {
             const payload = JSON.parse(atob(token.split('.')[1]));
             return payload.sub || payload.user_id || payload.id || null;
         } catch (error) {
-            console.warn('Failed to get user ID from token:', error);
+            // Failed to get user ID from token
             return null;
         }
     }
@@ -160,13 +160,13 @@ export class GameStateManager {
     }
 
     public dispose(): void {
-        console.log("🧹 GameStateManager: Disposing and cleaning up...");
+        // GameStateManager disposing
         
         // Clear countdown timer if it exists in any state
         const states = Array.from(this.states.values());
         states.forEach(state => {
             if ((state as any).countdownTimer) {
-                console.log("🧹 Clearing countdown timer from state");
+                // Clearing countdown timer
                 clearTimeout((state as any).countdownTimer);
                 (state as any).countdownTimer = null;
             }
@@ -183,11 +183,11 @@ export class GameStateManager {
         // Also directly remove countdown from DOM
         const countdownEl = document.querySelector('[data-game-element="countdown"]');
         if (countdownEl) {
-            console.log("🧹 Directly removing countdown element from DOM");
+            // Removing countdown element
             countdownEl.remove();
         }
         
-        console.log("✅ GameStateManager: Disposal complete");
+        // GameStateManager disposal complete
     }
 }
 
@@ -210,19 +210,19 @@ abstract class GameState {
 // =====================================
 class MenuState extends GameState {
     enter(): void {
-        console.log("📋 Entered Menu State");
+        // Entered Menu State
         this.systems.uiManager.showMainMenu({
             onLocalGame: () => this.stateManager.setState('gameSetup', { type: 'local' }),
             onAIGame: () => this.stateManager.setState('gameSetup', { type: 'ai' }),
             onTournament: () => {
-                console.log("🏆 Navigating to new tournament setup page");
+                // Navigating to tournament setup
                 const event = new CustomEvent('navigate', {
                     detail: { path: '/game/tournament/setup' }
                 });
                 window.dispatchEvent(event);
             },
             onExitToDashboard: () => {
-                console.log("🚪 Exit to Dashboard clicked");
+                // Exit to Dashboard clicked
                 const event = new CustomEvent('navigate', {
                     detail: { path: '/dashboard' }
                 });
@@ -243,7 +243,7 @@ class MenuState extends GameState {
 // =====================================
 class GameSetupState extends GameState {
     enter(data: { type: 'local' | 'ai' }): void {
-        console.log("⚙️ Entered Game Setup State");
+        // Entered Game Setup State
         
         if (data.type === 'local') {
             this.systems.uiManager.showPlayerSetup({
@@ -303,7 +303,7 @@ class PlayingState extends GameState {
     }
 
     async enter(data?: any): Promise<void> {
-        console.log("🎮 Entered Playing State");
+        // Entered Playing State
         this.matchData = data;
         
         // Set up physics system
@@ -364,7 +364,7 @@ class PlayingState extends GameState {
             
             const tick = () => {
                 if (!this.countdownActive) {
-                    console.log('🛑 Countdown cancelled - countdownActive is false');
+                    // Countdown cancelled
                     resolve();
                     return;
                 }
@@ -446,7 +446,7 @@ class PlayingState extends GameState {
                 winnerId = null;
             }
             
-            console.log(`🎮 Game ended: ${gameMode.type}, winner: ${winner}, userId: ${userId}, winnerId: ${winnerId}`);
+            // Game ended
             
             // Update the game session with results through the state manager
             this.stateManager.updateGameSessionFromState(score, winnerId);
@@ -493,7 +493,7 @@ class PlayingState extends GameState {
 // =====================================
 class PausedState extends GameState {
     enter(): void {
-        console.log("⏸️ Entered Paused State");
+        // Entered Paused State
         (this.stateManager as any).paused = true;
         this.systems.uiManager.showPause({
             onResume: () => {
@@ -556,7 +556,7 @@ class PausedState extends GameState {
     }
 
     exit(): void {
-        console.log("▶️ Exiting Paused State");
+        // Exiting Paused State
         (this.stateManager as any).paused = false;
         this.systems.uiManager.hidePause();
         this.systems.inputManager.unregisterHandler(' ');
@@ -582,7 +582,7 @@ class PausedState extends GameState {
 // =====================================
 class GameOverState extends GameState {
     enter(data: { winner: string, score: any, gameMode: GameMode }): void {
-        console.log("🏁 Entered Game Over State");
+        // Entered Game Over State
         
         this.systems.uiManager.showGameOver({
             winner: data.winner,

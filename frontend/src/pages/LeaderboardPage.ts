@@ -172,7 +172,6 @@ export class LeaderboardPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        console.log('Leaderboard page initialized');
         (window as any).leaderboardPage = this;
         
         // Set up event listeners

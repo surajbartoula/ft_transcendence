@@ -78,7 +78,7 @@ export class PongGameManager {
 
             this.startGameLoop();
         } catch (error) {
-            console.error("❌ Failed to initialize game systems:", error);
+            throw error;
             throw error;
         }
     }
@@ -110,10 +110,7 @@ export class PongGameManager {
                 if (!isPaused) {
                     this.physicsSystem.update(deltaTime);
                 } else {
-                    // Only log once every 60 frames to avoid spam
-                    if (Math.floor(timestamp / 1000) % 1 < 0.02) {
-                        console.log('🎯 Physics paused - skipping physics update');
-                    }
+                    // Physics paused - skipping physics update
                 }
                 
                 this.renderEngine.update(deltaTime);
@@ -124,7 +121,7 @@ export class PongGameManager {
                 this.uiManager.render();
 
             } catch (error) {
-                console.error("❌ Error in game loop:", error);
+                // Error in game loop
                 // Stop the loop on error to prevent infinite error spam
                 this.stopGameLoop();
                 return;
@@ -332,7 +329,7 @@ export class PongGameManager {
             
             if (existingSessionId) {
                 // Fetch existing session (for remote games from invitations)
-                console.log(`🔄 Fetching existing game session: ${existingSessionId}`);
+                // Fetching existing game session
                 response = await fetch(`/api/game/session/${existingSessionId}`, {
                     method: 'GET',
                     headers: {
@@ -341,7 +338,7 @@ export class PongGameManager {
                 });
             } else {
                 // Create new session (for local/AI games)
-                console.log(`🆕 Creating new game session - Mode: ${gameMode}, Player2: ${player2Id}`);
+                // Creating new game session
                 response = await fetch('/api/game/session', {
                     method: 'POST',
                     headers: {
@@ -357,24 +354,23 @@ export class PongGameManager {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`❌ Game session API error (${response.status}):`, errorText);
-                console.warn('⚠️ Game service not available, playing offline mode');
+                // Game service not available, playing offline mode
                 return;
             }
 
             const text = await response.text();
             if (!text.trim()) {
-                console.warn('⚠️ Empty response from game service, playing offline mode');
+                // Empty response from game service, playing offline mode
                 return;
             }
 
             const data = JSON.parse(text);
-            console.log('✅ Game session response:', data);
+            // Game session response received
             // Store session ID for later use
             this.currentGameSessionId = data.game_session?.id || null;
             
         } catch (error) {
-            console.warn('⚠️ Game service connection failed, playing offline mode:', error);
+            // Game service connection failed, playing offline mode
         }
     }
 
@@ -404,10 +400,10 @@ export class PongGameManager {
                 throw new Error('Failed to update game session');
             }
 
-            console.log('🎮 Game session updated');
+            // Game session updated
             
         } catch (error) {
-            console.error('❌ Failed to update game session:', error);
+            // Failed to update game session
         }
     }
 
@@ -430,7 +426,7 @@ export class PongGameManager {
                 })
             });
         } catch (error) {
-            console.warn('⚠️ Failed to record game event:', error);
+            // Failed to record game event
         }
     }
 
@@ -438,7 +434,7 @@ export class PongGameManager {
     // DISPOSE METHOD
     // =====================================
     public dispose(): void {
-        console.log('🧹 PongGameManager: Starting disposal...');
+        // Starting disposal
         
         // Stop render loop first to prevent any further frame requests
         this.stopGameLoop();
@@ -457,9 +453,9 @@ export class PongGameManager {
             // Dispose GameStateManager to stop timers and cleanup
             (this.gameState as any)?.dispose?.();
             
-            console.log('✅ PongGameManager: Disposal complete');
+            // Disposal complete
         } catch (error) {
-            console.warn("⚠️ Error during disposal:", error);
+            // Error during disposal
         }
     }
 
@@ -500,8 +496,7 @@ export class PongGameManager {
      */
     public syncRemoteGameState(ball: any, paddle1: any, paddle2: any): void {
         try {
-            // Debug paddle positions received from backend
-            console.log(`🔄 SYNC: Received paddle positions - P1 Y: ${paddle1?.y}, P2 Y: ${paddle2?.y}`);
+            // Sync paddle positions received from backend
             
             // Update ball position and velocity in render engine
             if (this.renderEngine && ball) {
@@ -510,7 +505,7 @@ export class PongGameManager {
             
             // Update paddle positions in render engine  
             if (this.renderEngine && paddle1 && paddle2) {
-                console.log(`🔄 SYNC: Updating 3D paddle positions - Left paddle (P1): ${paddle1.y}, Right paddle (P2): ${paddle2.y}`);
+                // Updating 3D paddle positions
                 this.renderEngine.updatePaddlePositions(paddle1.y, paddle2.y);
             }
             
@@ -520,7 +515,7 @@ export class PongGameManager {
             }
             
         } catch (error) {
-            console.warn('⚠️ Error syncing remote game state:', error);
+            // Error syncing remote game state
         }
     }
     
@@ -532,7 +527,7 @@ export class PongGameManager {
      * Enable debug mode with additional logging and overlays
      */
     public enableDebugMode(): void {
-        console.log("🐛 Debug mode enabled");
+        // Debug mode enabled
         // Add debug overlays, performance monitors, etc.
     }
 
@@ -563,7 +558,7 @@ export class PongGameManager {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                console.warn('No auth token, skipping game session creation');
+                // No auth token, skipping game session creation
                 return;
             }
 
@@ -582,12 +577,12 @@ export class PongGameManager {
             if (response.ok) {
                 const data = await response.json();
                 this.currentGameSessionId = data.game_session?.id || null;
-                console.log(`🎮 Game session created: ${this.currentGameSessionId} (mode: ${gameMode})`);
+                // Game session created
             } else {
-                console.warn('Failed to create game session:', response.statusText);
+                // Failed to create game session
             }
         } catch (error) {
-            console.warn('Game service connection failed:', error);
+            // Game service connection failed
         }
     }
 }

@@ -486,61 +486,56 @@ export class ChatPage implements Page {
 
     private handleGameInvitationResponse = (event: Event) => {
         const customEvent = event as CustomEvent;
-        console.log('🎮 DEBUG: Game invitation response received:', customEvent.detail);
+        // Game invitation response received
         const { invitation, responder, response } = customEvent.detail;
         
-        console.log('🎮 DEBUG: invitation.sender_id =', invitation?.sender_id);
-        console.log('🎮 DEBUG: currentUser.id =', this.currentUser?.id);
-        console.log('🎮 DEBUG: Response =', response);
+        // Processing invitation response
         
         /** Only handle if current user is the sender */
         if (String(invitation.sender_id) === String(this.currentUser?.id)) {
-            console.log('🎮 DEBUG: Current user is the sender, showing notification');
+            // Current user is the sender
             if (response === 'accepted') {
                 showNotification(`${responder.username} accepted your game invitation!`, 'success');
             } else if (response === 'declined') {
                 showNotification(`${responder.username} declined your game invitation`, 'info');
             }
         } else {
-            console.log('🎮 DEBUG: Current user is not the sender, ignoring response');
+            // Current user is not the sender
         }
     };
 
     private handleGameReady = (event: Event) => {
         const customEvent = event as CustomEvent;
-        console.log('🎮 DEBUG: Game ready event received:', customEvent.detail);
+        // Game ready event received
         const { game_session, room_id } = customEvent.detail;
         
-        console.log('🎮 DEBUG: game_session =', game_session);
-        console.log('🎮 DEBUG: room_id =', room_id);
-        console.log('🎮 DEBUG: currentUser.id =', this.currentUser?.id);
+        // Processing game ready event
         
         /** Check if current user is involved in this game */
         if (game_session && this.currentUser) {
             const currentUserId = String(this.currentUser.id);
-            console.log('🎮 DEBUG: player1_id =', game_session.player1_id);
-            console.log('🎮 DEBUG: player2_id =', game_session.player2_id);
+            // Checking player IDs
             
             if (String(game_session.player1_id) === currentUserId || 
                 String(game_session.player2_id) === currentUserId) {
                 
-                console.log('🎮 DEBUG: Current user is involved in game, navigating...');
+                // Current user is involved in game
                 // showNotification('Game is ready! Redirecting to match...', 'success');
                 
                 /** Navigate to the game */
                 setTimeout(() => {
                     const navigationPath = `/game/remote/match/${game_session.id}?room=${room_id}`;
-                    console.log(`🚀 Game ready! Navigating to: ${navigationPath}`);
+                    // Navigating to game
                     const event = new CustomEvent('navigate', {
                         detail: { path: navigationPath }
                     });
                     window.dispatchEvent(event);
                 }, 1000);
             } else {
-                console.log('🎮 DEBUG: Current user is not involved in this game');
+                // Current user is not involved in this game
             }
         } else {
-            console.log('🎮 DEBUG: Missing game_session or currentUser');
+            // Missing game_session or currentUser
         }
     };
 
@@ -653,7 +648,7 @@ export class ChatPage implements Page {
                 this.loadBlockedUsers()
             ]);
         } catch (error) {
-            console.error('Failed to load initial data:', error);
+            // Failed to load initial data
             showError('Failed to load chat data');
         }
     }
@@ -669,7 +664,7 @@ export class ChatPage implements Page {
             this.renderChats();
             this.updateUnreadBadge();
         } catch (error) {
-            console.error('Failed to load chats:', error);
+            // Failed to load chats
         }
     }
 
@@ -683,7 +678,7 @@ export class ChatPage implements Page {
             this.friends = await response.json();
             this.renderFriends();
         } catch (error) {
-            console.error('Failed to load friends:', error);
+            // Failed to load friends
         }
     }
 
@@ -698,7 +693,7 @@ export class ChatPage implements Page {
             this.renderFriendRequests();
             this.updateRequestsBadge();
         } catch (error) {
-            console.error('Failed to load friend requests:', error);
+            // Failed to load friend requests
         }
     }
 
@@ -899,11 +894,11 @@ export class ChatPage implements Page {
     }
 
     private async openChat(friend: User): Promise<void> {
-        console.log('🎮 DEBUG: openChat called with friend:', friend);
+        // Opening chat with friend
         this.stopTyping();
         this.isTyping = {};
         this.currentChatFriend = friend;
-        console.log('🎮 DEBUG: currentChatFriend set to:', this.currentChatFriend);
+        // Current chat friend set
         this.messages = [];
         /** Set global indicator so notifications know which chat is open */
         (window as any).currentOpenChatUserId = friend.user_id;
@@ -921,16 +916,13 @@ export class ChatPage implements Page {
             chatStatus.className = `text-sm ${isOnline ? 'text-green-400': 'text-gray-400'}`;
         }
         /** Update block/unblock button visibility immediately */
-        console.log('🎮 DEBUG: About to call updateBlockButtons');
         await this.updateBlockButtons();
-        console.log('🎮 DEBUG: updateBlockButtons completed');
         await this.loadMessages(friend.user_id);
         this.scrollToBottom();
     }
 
     private closeChat(): void {
-        console.log('🎮 DEBUG: closeChat() called - setting currentChatFriend to null');
-        console.trace('🎮 DEBUG: closeChat() call stack');
+        // Closing chat
         this.stopTyping();
         this.isTyping = {};
         this.currentChatFriend = null;
@@ -964,7 +956,7 @@ export class ChatPage implements Page {
             /** Mark unread messages as read */
             await this.markUnreadMessagesAsRead();
         } catch (error) {
-            console.error('Failed to load messages:', error);
+            // Failed to load messages
             showError('Failed to load messages');
         }
     }
@@ -1139,7 +1131,7 @@ export class ChatPage implements Page {
             }
             resultsContainer.classList.remove('hidden');
         } catch (error) {
-            console.error('Search failed:', error);
+            // Search failed
             resultsContainer.innerHTML = '<p class="text-red-400 text-sm p-2">Search failed</p>';
             resultsContainer.classList.remove('hidden');
         }
@@ -1165,7 +1157,7 @@ export class ChatPage implements Page {
             if (searchInput) searchInput.value = '';
             document.getElementById('searchResults')?.classList.add('hidden');
         } catch (error) {
-            console.error('Failed to send friend request:', error);
+            // Failed to send friend request
             showError(error instanceof Error ? error.message : 'Failed to send friend request');
         }
     }
@@ -1186,7 +1178,7 @@ export class ChatPage implements Page {
             await this.loadFriendRequests();
             await this.loadFriends();
         } catch (error) {
-            console.error('Failed to accept friend request:', error);
+            // Failed to accept friend request
             showError('Failed to accept friend request');
         }
     }
@@ -1206,7 +1198,7 @@ export class ChatPage implements Page {
             showNotification('Friend request declined', 'info');
             await this.loadFriendRequests();
         } catch (error) {
-            console.error('Failed to decline friend request:', error);
+            // Failed to decline friend request
             showError('Failed to decline friend request');
         }
     }
@@ -1284,7 +1276,7 @@ export class ChatPage implements Page {
                 });
             }
         } catch (error) {
-            console.error('Search failed:', error);
+            // Search failed
             resultsContainer.innerHTML = '<p class="text-red-400 text-sm p-2">Search failed</p>';
         }
     }
@@ -1342,7 +1334,7 @@ export class ChatPage implements Page {
                             };
                         }
                     } catch (error) {
-                        console.error('Failed to load blocked user profile:', error);
+                        // Failed to load blocked user profile
                     }
                     return null;
                 })
@@ -1352,7 +1344,7 @@ export class ChatPage implements Page {
             this.renderBlockedUsers();
             this.updateBlockedBadge();
         } catch (error) {
-            console.error('Failed to load blocked users:', error);
+            // Failed to load blocked users
         }
     }
 
@@ -1446,7 +1438,7 @@ export class ChatPage implements Page {
             this.renderChats(); // Re-render to filter out blocked user
             this.renderFriends(); // Re-render friends list
         } catch (error) {
-            console.error('Failed to block user:', error);
+            // Failed to block user
             showError(error instanceof Error ? error.message : 'Failed to block user');
         }
     }
@@ -1482,7 +1474,7 @@ export class ChatPage implements Page {
                 await this.updateBlockButtons();
             }
         } catch (error) {
-            console.error('Failed to unblock user:', error);
+            // Failed to unblock user
             showError(error instanceof Error ? error.message : 'Failed to unblock user');
         }
     }
@@ -1517,7 +1509,7 @@ export class ChatPage implements Page {
                 return result.is_blocked;
             }
         } catch (error) {
-            console.error('Failed to check if blocked by user:', error);
+            // Failed to check if blocked by user
         }
         return false;
     }
@@ -1689,23 +1681,17 @@ export class ChatPage implements Page {
     }
 
     private showGameInviteModal(): void {
-        console.log('🎮 DEBUG: showGameInviteModal called');
-        console.log('🎮 DEBUG: currentChatFriend =', this.currentChatFriend);
-        
         // Fallback: try to get current chat friend from global state
         let currentFriend: User | null = this.currentChatFriend;
         if (!currentFriend) {
             const currentUserId = (window as any).currentOpenChatUserId;
-            console.log('🎮 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
             if (currentUserId) {
                 const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
                 currentFriend = foundFriend || null;
-                console.log('🎮 DEBUG: Fallback found friend =', currentFriend);
             }
         }
         
         if (!currentFriend) {
-            console.error('🎮 ERROR: No friend selected for game invite (no fallback available)');
             showError('No friend selected for game invite');
             return;
         }
@@ -1741,18 +1727,12 @@ export class ChatPage implements Page {
     }
 
     private async sendGameInvitation(): Promise<void> {
-        console.log('🎮 DEBUG: sendGameInvitation called');
-        console.log('🎮 DEBUG: currentChatFriend =', this.currentChatFriend);
-        
-        // Fallback: try to get current chat friend from global state
         let currentFriend: User | null = this.currentChatFriend;
         if (!currentFriend) {
             const currentUserId = (window as any).currentOpenChatUserId;
-            console.log('🎮 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
             if (currentUserId) {
                 const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
                 currentFriend = foundFriend || null;
-                console.log('🎮 DEBUG: Fallback found friend =', currentFriend);
             }
         }
         
@@ -1820,18 +1800,12 @@ export class ChatPage implements Page {
     }
 
     private async showProfileModal(): Promise<void> {
-        console.log('👤 DEBUG: showProfileModal called');
-        console.log('👤 DEBUG: currentChatFriend =', this.currentChatFriend);
-        
-        // Fallback: try to get current chat friend from global state
         let currentFriend: User | null = this.currentChatFriend;
         if (!currentFriend) {
             const currentUserId = (window as any).currentOpenChatUserId;
-            console.log('👤 DEBUG: Fallback - currentOpenChatUserId =', currentUserId);
             if (currentUserId) {
                 const foundFriend = this.friends.find(f => String(f.user_id) === String(currentUserId));
                 currentFriend = foundFriend || null;
-                console.log('👤 DEBUG: Fallback found friend =', currentFriend);
             }
         }
         
@@ -1853,7 +1827,6 @@ export class ChatPage implements Page {
             }
 
             const profileData = await response.json();
-            console.log('👤 DEBUG: Profile data fetched:', profileData);
 
             // Populate modal with profile information
             this.populateProfileModal(currentFriend, profileData);

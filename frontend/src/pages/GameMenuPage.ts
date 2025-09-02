@@ -229,109 +229,88 @@ export class GameMenuPage implements Page {
 
     private async loadUserStats(): Promise<void> {
         try {
-            console.log('📊 Loading user statistics...');
-            
             const response = await fetch('/api/game/stats', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
-            console.log('📊 Stats API response status:', response.status);
+            // Stats API response received
 
             if (response.ok) {
                 const text = await response.text();
-                console.log('📊 Stats API response text:', text);
-                
                 if (text.trim()) {
                     const data = JSON.parse(text);
-                    console.log('📊 Parsed stats data:', data);
-                    
                     if (data && data.stats) {
-                        console.log('📊 Updating stats display with:', data.stats);
                         this.updateStatsDisplay(data.stats);
                     } else {
-                        console.warn('📊 No stats data found in response');
+                        // No stats data found in response
                     }
                 } else {
-                    console.warn('📊 Empty response from stats API');
+                    // Empty response from stats API
                 }
             } else {
-                console.error('📊 Stats API request failed:', response.status, response.statusText);
+                // Stats API request failed
             }
         } catch (error) {
-            console.error('📊 Failed to load user stats:', error);
+            // Failed to load user stats
             // Continue without stats - they'll show as "-"
         }
     }
 
     private updateStatsDisplay(stats: any): void {
-        console.log('📊 Updating statistics display...');
-        
         const statElements = document.querySelectorAll('[data-stat]');
-        console.log(`📊 Found ${statElements.length} stat elements`);
-        
         statElements.forEach((element, index) => {
             const statType = element.getAttribute('data-stat');
-            console.log(`📊 Element ${index}: data-stat="${statType}", stats[${statType}]=${statType ? stats[statType] : 'N/A'}`);
+            // Processing stat element
             
             if (statType && stats[statType] !== undefined) {
                 const value = stats[statType].toString();
                 element.textContent = value;
-                console.log(`📊 Updated ${statType} to ${value}`);
+                // Stat updated
             } else {
-                console.warn(`📊 No value found for stat: ${statType}`);
+                // No value found for stat
             }
         });
     }
 
     private async loadRecentGames(): Promise<void> {
         try {
-            console.log('🎮 Loading recent games...');
-            
             const response = await fetch('/api/game/history?limit=10', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-
-            console.log('🎮 Recent games API response status:', response.status);
-
             if (response.ok) {
                 const text = await response.text();
-                console.log('🎮 Recent games API response text:', text);
-                
                 if (text.trim()) {
                     const data = JSON.parse(text);
-                    console.log('🎮 Parsed recent games data:', data);
-                    
                     if (data && data.games) {
-                        console.log('🎮 Updating recent games display with:', data.games);
                         this.updateRecentGamesDisplay(data.games);
                     } else {
-                        console.warn('🎮 No games data found in response');
+                        // No games data found in response
                         this.showNoRecentGames();
                     }
                 } else {
-                    console.warn('🎮 Empty response from recent games API');
+                    // Empty response from recent games API
                     this.showNoRecentGames();
                 }
             } else {
-                console.error('🎮 Recent games API request failed:', response.status, response.statusText);
+                // Recent games API request failed
                 this.showNoRecentGames();
             }
         } catch (error) {
-            console.error('🎮 Failed to load recent games:', error);
+            // Failed to load recent games
             this.showNoRecentGames();
         }
     }
 
     private updateRecentGamesDisplay(games: any[]): void {
-        console.log('🎮 Updating recent games display...');
+        // Updating recent games display
         
         const container = document.getElementById('recentGamesContainer');
         if (!container) {
-            console.error('🎮 Recent games container not found');
+            // Recent games container not found
             return;
         }
 
@@ -370,7 +349,7 @@ export class GameMenuPage implements Page {
             `;
         }).join('');
         
-        console.log('🎮 Recent games display updated');
+        // Recent games display updated
     }
 
     private showNoRecentGames(): void {

@@ -13,7 +13,7 @@ export class UIManager {
     private currentMenus: Set<string> = new Set();
 
     initialize(): void {
-        console.log("🖥️ UI manager initialized");
+        // UI manager initialized
     }
 
     // =====================================
