@@ -1373,7 +1373,6 @@ export function setupSocketHandlers(io) {
         for (const [tournamentId, spectators] of tournamentRooms.entries()) {
             if (spectators.size === 0) {
                 tournamentRooms.delete(tournamentId);
-                console.log(`🧹 Cleaned up empty tournament room: ${tournamentId}`);
             }
         }
     }, 30 * 60 * 1000);

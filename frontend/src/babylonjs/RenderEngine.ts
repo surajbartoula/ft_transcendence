@@ -67,11 +67,6 @@ export class RenderEngine {
 		this.engine.runRenderLoop(() => {
 			this.scene.render();
 		});
-		
-		// Render Engine initialized
-		console.log(`📱 Device pixel ratio: ${window.devicePixelRatio}`);
-		console.log(`📐 Canvas size: ${this.canvas.width}x${this.canvas.height}`);
-		console.log(`📐 Canvas display size: ${this.canvas.clientWidth}x${this.canvas.clientHeight}`);
 	}
 
 	private setupCamera(): void {
@@ -83,13 +78,12 @@ export class RenderEngine {
 		this.camera.inputs.clear();
 		
 		this.scene.activeCamera = this.camera;
-		console.log("📷 Camera locked at desired position");
 	}
 	
 	/**
 	 * Set camera perspective for multiplayer - Player 1 sees from left side, Player 2 from right side
 	 */
-	public setCameraForPlayer(isPlayer1: boolean): void {
+	public setCameraForPlayer(): void {
 		if (!this.camera) return;
 		
 		// Keep the same camera position for all players to maintain game layout
@@ -98,12 +92,6 @@ export class RenderEngine {
 		this.camera.beta = 0.593;
 		this.camera.radius = 43.461;
 		this.camera.setTarget(BABYLON.Vector3.Zero());
-		
-		if (isPlayer1) {
-			console.log("📷 Camera maintained at original position - You are Player 1 (GREEN paddle on LEFT)");
-		} else {
-			console.log("📷 Camera maintained at original position - You are Player 2 (RED paddle on RIGHT)");
-		}
 	}
 
 	private setupLighting(): void {
@@ -118,18 +106,13 @@ export class RenderEngine {
 		try {
 			// Initialize Web Audio Context
 			this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-			console.log("🔊 Audio context initialized");
 
 			// Handle browser autoplay policies - audio context may start suspended
 			if (this.audioContext.state === 'suspended') {
-				console.log("🔊 Audio context is suspended, will resume on first user interaction");
-				
 				// Set up one-time user interaction listener to unlock audio
 				const unlockAudio = () => {
 					if (this.audioContext && this.audioContext.state === 'suspended') {
-						this.audioContext.resume().then(() => {
-							console.log("🔊 Audio context resumed successfully");
-						});
+						this.audioContext.resume();
 					}
 					// Remove the listener after first use
 					document.removeEventListener('click', unlockAudio);
@@ -155,8 +138,6 @@ export class RenderEngine {
 
 		// Instead of complex Babylon.js Sound objects, we'll use direct Web Audio API
 		// This eliminates the blob conversion issues
-		console.log("🔊 Setting up direct Web Audio API sound system");
-		console.log("🔊 All sound effects ready (using direct Web Audio API)");
 	}
 
 	private createBeepSound(frequency: number, duration: number, volume: number): BABYLON.Sound {
@@ -270,7 +251,6 @@ export class RenderEngine {
 		
 		this.playDirectBeep(800, 0.1, 0.3); // Sharp beep: 800Hz, 0.1s, 30% volume
 		this.lastBoundaryHitTime = currentTime;
-		console.log("🔊 Boundary hit sound played");
 	}
 
 	public playBallHitSound(): void {
@@ -283,35 +263,27 @@ export class RenderEngine {
 		
 		this.playDirectBeep(400, 0.15, 0.4); // Pong sound: 400Hz, 0.15s, 40% volume
 		this.lastBallHitTime = currentTime;
-		console.log("🔊 Ball hit paddle sound played");
 	}
 
 	public playBallWallBounceSound(): void {
 		this.playDirectBeep(600, 0.1, 0.25); // Wall bounce: 600Hz, 0.1s, 25% volume
-		console.log("🔊 Ball wall bounce sound played");
 	}
 
 	public playScoreSound(): void {
 		this.playDirectChord([523, 659, 784], 0.8, 0.5); // Score chord: C-E-G, 0.8s, 50% volume
-		console.log("🔊 Score sound played");
 	}
 
 	private playPauseSound(): void {
 		this.playDirectBeep(200, 0.2, 0.2); // Pause tone: 200Hz, 0.2s, 20% volume
-		console.log("🔊 Pause sound played");
 	}
 
 	private testSimpleBeep(): void {
 		// Test a simple direct Web Audio API beep
 		if (!this.audioContext) {
-			console.log("⚠️ No audio context available");
 			return;
 		}
 		
 		try {
-			console.log("🔊 Testing simple Web Audio API beep...");
-			console.log("🔊 Audio context state:", this.audioContext.state);
-			
 			// Create a simple oscillator
 			const oscillator = this.audioContext.createOscillator();
 			const gainNode = this.audioContext.createGain();
@@ -328,7 +300,6 @@ export class RenderEngine {
 			oscillator.start(this.audioContext.currentTime);
 			oscillator.stop(this.audioContext.currentTime + 0.5);
 			
-			console.log("🔊 Simple beep test - should hear a 440Hz tone");
 		} catch (error) {
 			console.error("⚠️ Simple beep test failed:", error);
 		}
@@ -359,7 +330,6 @@ export class RenderEngine {
 			
 			oscillator.start(this.audioContext.currentTime);
 			oscillator.stop(this.audioContext.currentTime + duration);
-			console.log(`✅ Beep oscillator started successfully`);
 		} catch (error) {
 			console.warn("⚠️ Failed to play beep:", error);
 		}
@@ -395,13 +365,9 @@ export class RenderEngine {
 	}
 
 	private async loadAssets(): Promise<void> {
-		console.log("📦 Loading game assets...");
-		
 		try {
 			const container = await BABYLON.SceneLoader.LoadAssetContainerAsync("/models/", "game.glb", this.scene);
 			container.addAllToScene();
-			console.log("📦 Assets loaded successfully");
-			
 			this.initializeGameObjects();
 			this.positionObjects();
 			this.createStrongLightingForGameObjects();
@@ -410,12 +376,9 @@ export class RenderEngine {
 			this.initializeBallSystem();
 			
 		} catch (error) {
-			console.log("🔍 Trying alternative path...");
 			try {
 				const container = await BABYLON.SceneLoader.LoadAssetContainerAsync("/models/", "", this.scene);
 				container.addAllToScene();
-				console.log("📦 Assets loaded with alternative path");
-				
 				this.initializeGameObjects();
 				this.positionObjects();
 				this.createStrongLightingForGameObjects();
@@ -443,8 +406,6 @@ export class RenderEngine {
 		if (ballMesh) {
 			this.gameObjects.set('ball', new GameObject3D(ballMesh, 'ball'));
 		}
-		
-		console.log(`🎯 Initialized ${this.gameObjects.size} game objects`);
 	}
 
 	private positionObjects(): void {
@@ -461,7 +422,6 @@ export class RenderEngine {
 			if (mesh) {
 				const pos = objectPositions[meshName];
 				mesh.position.copyFrom(pos);
-				console.log(`📍 Positioned ${meshName} at (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
 			}
 		});
 	}
@@ -477,8 +437,6 @@ export class RenderEngine {
 		if (paddleRight) {
 			this.makePaddleEmitLight(paddleRight, new BABYLON.Color3(1.0, 0.4, 0.1), 'right');
 		}
-		
-		console.log("💡 Strong light emission system created for paddles");
 	}
 
 
@@ -491,11 +449,9 @@ export class RenderEngine {
 		if (this.isPaused) {
 			this.guiManager.createPauseMenu();
 			this.playPauseSound();
-			console.log("⏸️ Game paused");
 		} else {
 			this.guiManager.removePauseMenu();
 			this.playPauseSound();
-			console.log("▶️ Game resumed");
 		}
 	}
 
@@ -506,15 +462,11 @@ export class RenderEngine {
 		const leftPaddle = this.scene.getMeshByName('paddleLeft');
 		const rightPaddle = this.scene.getMeshByName('paddleRight');
 		
-		console.log("🎮 Setting up paddle controls:");
 		console.log("  Left paddle found:", !!leftPaddle);
 		console.log("  Right paddle found:", !!rightPaddle);
 		
 		if (!leftPaddle || !rightPaddle) {
 			console.error("❌ Paddles not found in scene! Available meshes:");
-			this.scene.meshes.forEach(mesh => {
-				console.log(`  - ${mesh.name}`);
-			});
 			return;
 		}
 	}
@@ -526,9 +478,6 @@ export class RenderEngine {
 			console.warn("⚠️ Floor plane not found, using default boundaries");
 			return;
 		}
-
-		console.log("🚧 Creating invisible walls at floor edges...");
-		
 		// Force bounding box recalculation to get current world coordinates
 		floorPlane.computeWorldMatrix(true);
 		floorPlane.getBoundingInfo().update(floorPlane.getWorldMatrix());
@@ -542,9 +491,6 @@ export class RenderEngine {
 		const floorMinX = boundingBox.minimumWorld.x;
 		const floorMaxX = boundingBox.maximumWorld.x;
 		const floorY = boundingBox.maximumWorld.y; // Top surface of floor
-		
-		console.log(`🚧 Floor bounds - Z: ${floorMinZ.toFixed(2)} to ${floorMaxZ.toFixed(2)}, X: ${floorMinX.toFixed(2)} to ${floorMaxX.toFixed(2)}`);
-		
 		// Wall dimensions
 		const wallHeight = 5.0; // High enough for paddles
 		const wallThickness = 0.1; // Thin walls
@@ -591,12 +537,6 @@ export class RenderEngine {
 		backwardWall.isPickable = true;
 		forwardWall.checkCollisions = false;
 		backwardWall.checkCollisions = false;
-		
-		
-		console.log(`🚧 Created invisible walls:`);
-		console.log(`  Forward wall at Z: ${forwardWall.position.z.toFixed(2)} (boundary: ${floorMaxZ.toFixed(2)})`);
-		console.log(`  Backward wall at Z: ${backwardWall.position.z.toFixed(2)} (boundary: ${floorMinZ.toFixed(2)})`);
-		console.log(`✅ Invisible walls created and snapped to floor edges`);
 	}
 
 

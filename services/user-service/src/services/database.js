@@ -36,7 +36,6 @@ export class DatabaseService {
 					console.log("Error creating userdatabase:", err.message);
 					reject(err);
 				}
-				console.log("User database created successfully");
 				resolve(db);
 			});
 		});

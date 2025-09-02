@@ -466,9 +466,9 @@ export class PongGameManager {
     /**
      * Set camera perspective for multiplayer game
      */
-    public setPlayerCameraPerspective(isPlayer1: boolean): void {
+    public setPlayerCameraPerspective(): void {
         if (this.renderEngine) {
-            this.renderEngine.setCameraForPlayer(isPlayer1);
+            this.renderEngine.setCameraForPlayer();
         }
     }
 

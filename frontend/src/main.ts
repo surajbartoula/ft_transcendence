@@ -112,26 +112,10 @@ class App {
 	}
 
 	private initializeApp(): void {
-		/** Request notification permission when app loads */
-		// this.requestNotificationPermission();
 		/** Initialize sockets if user is already logged in */
 		this.initializeSockets();
 		/** Setup visibility change handler for socket reconnection */
 		this.setupVisibilityChangeHandler();
-	}
-
-	private requestNotificationPermission(): void {
-		if ('Notification' in window && Notification.permission === 'default') {
-			Notification.requestPermission().then(permission => {
-				if (permission === 'granted') {
-					console.log('Notification permission granted');
-				} else if (permission === 'denied') {
-					console.log('Notification permission denied');
-				}
-			}).catch(error => {
-				console.error('Error requesting notification permission:', error);
-			});
-		}
 	}
 
 	private initializeSockets(): void {
@@ -155,11 +139,9 @@ class App {
 					
 					if (token && userData) {
 						if (!globalSocket.isConnected()) {
-							console.log('Page became visible, reconnecting global socket...');
 							globalSocket.connect();
 						}
 						if (!gameSocket.isConnected()) {
-							console.log('Page became visible, reconnecting game socket...');
 							gameSocket.connect();
 						}
 					} else {
@@ -199,13 +181,12 @@ class App {
 		});
 
 		window.addEventListener('userLoggedOut', () => {
-			console.log('User logged out event received, disconnecting sockets...');
 			globalSocket.disconnect();
 			gameSocket.disconnect();
 			
 			// Ensure cleanup is complete by clearing any cached data
 			setTimeout(() => {
-				console.log('🧹 Socket cleanup completed');
+				//Clean up delay
 			}, 200); // Increased delay to ensure complete cleanup
 		});
 	}

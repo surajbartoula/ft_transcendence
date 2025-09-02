@@ -46,7 +46,6 @@ try {
 		cert: fs.readFileSync(process.env.SSL_CERT)
 	};
 	
-	console.log('HTTPS configuration loaded for game service');
 } catch (error) {
 	console.error('Error reading SSL certificates:', error.message);
 	process.exit(1);

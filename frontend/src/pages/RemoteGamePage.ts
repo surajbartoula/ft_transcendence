@@ -1006,7 +1006,7 @@ export class RemoteGamePage implements Page {
         // Set camera perspective based on player role
         if (this.gameManager) {
             console.log(`📷 Setting camera perspective for Player${this.isPlayer1 ? '1' : '2'}`);
-            this.gameManager.setPlayerCameraPerspective(this.isPlayer1);
+            this.gameManager.setPlayerCameraPerspective();
         }
         
         // Update player names
@@ -1066,7 +1066,7 @@ export class RemoteGamePage implements Page {
         // Ensure camera perspective is set correctly when game starts
         if (this.gameManager && this.isPlayer1 !== undefined) {
             console.log(`📷 RE-SETTING camera perspective on game start for Player${this.isPlayer1 ? '1' : '2'}`);
-            this.gameManager.setPlayerCameraPerspective(this.isPlayer1);
+            this.gameManager.setPlayerCameraPerspective();
         }
         
         
