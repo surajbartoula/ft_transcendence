@@ -169,17 +169,12 @@ export class TournamentBracketPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        this.bindElements();
         this.attachEventListeners();
         await this.loadTournament();
     }
 
     public cleanup(): void {
         this.removeEventListeners();
-    }
-
-    private bindElements(): void {
-        // Elements accessed by ID when needed
     }
 
     private attachEventListeners(): void {
@@ -215,7 +210,35 @@ export class TournamentBracketPage implements Page {
     }
 
     private removeEventListeners(): void {
-        // Event listeners are automatically cleaned up
+        const backButton = document.getElementById('backButton');
+        if (backButton) {
+            backButton.removeEventListener('click', this.handleBackClick.bind(this));
+        }
+
+        const startNextMatchButton = document.getElementById('startNextMatchButton');
+        if (startNextMatchButton) {
+            startNextMatchButton.removeEventListener('click', this.handleStartNextMatch.bind(this));
+        }
+
+        const refreshBracketButton = document.getElementById('refreshBracketButton');
+        if (refreshBracketButton) {
+            refreshBracketButton.removeEventListener('click', this.refreshBracket.bind(this));
+        }
+
+        const newTournamentButton = document.getElementById('newTournamentButton');
+        if (newTournamentButton) {
+            newTournamentButton.removeEventListener('click', this.handleNewTournament.bind(this));
+        }
+
+        const continueButton = document.getElementById('continueButton');
+        if (continueButton) {
+            continueButton.removeEventListener('click', this.handleContinueTournament.bind(this));
+        }
+
+        const closeModalButton = document.getElementById('closeModalButton');
+        if (closeModalButton) {
+            closeModalButton.removeEventListener('click', this.hideMatchResultModal.bind(this));
+        }
     }
 
     private async loadTournament(): Promise<void> {

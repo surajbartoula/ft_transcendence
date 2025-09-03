@@ -281,7 +281,56 @@ export class TournamentSetupPage implements Page {
     }
 
     private removeEventListeners(): void {
-        // Event listeners are automatically removed when the page is cleaned up
+        const backButton = document.getElementById('backButton');
+        if (backButton) {
+            backButton.removeEventListener('click', this.handleBackClick.bind(this));
+        }
+
+        const playerNameInput = document.getElementById('playerNameInput') as HTMLInputElement;
+        if (playerNameInput) {
+            playerNameInput.removeEventListener('keydown', this.handlePlayerInputKeyDown.bind(this));
+        }
+
+        const addPlayerButton = document.getElementById('addPlayerButton');
+        if (addPlayerButton) {
+            addPlayerButton.removeEventListener('click', this.handleAddPlayer.bind(this));
+        }
+
+        const quickAddButtons = document.querySelectorAll('.quick-add-btn');
+        quickAddButtons.forEach(button => {
+            button.removeEventListener('click', this.handleQuickAddPlayer.bind(this));
+        });
+
+        const maxPlayersSelect = document.getElementById('maxPlayersSelect') as HTMLSelectElement;
+        if (maxPlayersSelect) {
+            maxPlayersSelect.removeEventListener('change', this.handleMaxPlayersChange.bind(this));
+        }
+
+        const minPlayersSelect = document.getElementById('minPlayersSelect') as HTMLSelectElement;
+        if (minPlayersSelect) {
+            minPlayersSelect.removeEventListener('change', this.handleMinPlayersChange.bind(this));
+        }
+
+        const startTournamentButton = document.getElementById('startTournamentButton');
+        if (startTournamentButton) {
+            startTournamentButton.removeEventListener('click', this.handleStartTournament.bind(this));
+        }
+
+        const previewBracketButton = document.getElementById('previewBracketButton');
+        if (previewBracketButton) {
+            previewBracketButton.removeEventListener('click', this.handlePreviewBracket.bind(this));
+        }
+
+        // Remove dynamically added remove-player button listeners
+        const removeButtons = document.querySelectorAll('.remove-player-btn');
+        removeButtons.forEach(button => {
+            button.removeEventListener('click', (e) => {
+                const playerName = (e.currentTarget as HTMLElement).getAttribute('data-player');
+                if (playerName) {
+                    this.removePlayer(playerName);
+                }
+            });
+        });
     }
 
     private handleBackClick(): void {
@@ -335,7 +384,7 @@ export class TournamentSetupPage implements Page {
 
     private handleStartTournament(): void {
         if (this.players.length < this.minPlayers) {
-            console.warn(`   ❌ Cannot start: need at least ${this.minPlayers} players`);
+            console.warn(`Cannot start: need at least ${this.minPlayers} players`);
             showError(`Need at least ${this.minPlayers} players to start tournament`);
             return;
         }
@@ -377,19 +426,19 @@ export class TournamentSetupPage implements Page {
 
     private addPlayer(playerName: string): boolean {
         if (!playerName) {
-            console.warn('   ❌ Cannot add player: empty name');
+            console.warn('Cannot add player: empty name');
             showError('Please enter a player name');
             return false;
         }
 
         if (this.players.length >= this.maxPlayers) {
-            console.warn(`   ❌ Cannot add player: max players reached (${this.maxPlayers})`);
+            console.warn(`Cannot add player: max players reached (${this.maxPlayers})`);
             showError(`Maximum ${this.maxPlayers} players allowed`);
             return false;
         }
 
         if (this.players.includes(playerName)) {
-            console.warn(`   ❌ Cannot add player: "${playerName}" already exists`);
+            console.warn(`Cannot add player: "${playerName}" already exists`);
             showError('Player name already exists');
             return false;
         }
@@ -407,7 +456,7 @@ export class TournamentSetupPage implements Page {
             this.updateUI();
             showNotification(`${playerName} removed from tournament`, 'info');
         } else {
-            console.warn(`   ⚠️ Player "${playerName}" not found in list`);
+            console.warn(`Player "${playerName}" not found in list`);
         }
     }
 
@@ -422,7 +471,7 @@ export class TournamentSetupPage implements Page {
         const container = document.getElementById('playersContainer');
         
         if (!container) {
-            console.error('❌ playersContainer not found');
+            console.error('PlayersContainer not found');
             return;
         }
         if (this.players.length === 0) {

@@ -226,7 +226,7 @@ export class RemoteGamePage implements Page {
         try {
             await this.forceReauthentication();
         } catch (error) {
-            console.error('❌ Failed to authenticate:', error);
+            console.error('Failed to authenticate:', error);
             // Try to initialize anyway to show error overlay
             if (!this.isDisposed) {
                 this.initializeRemoteGame();
@@ -936,7 +936,7 @@ export class RemoteGamePage implements Page {
         }
         
         
-        // console.log('✅ Game is now active!');
+        // console.log('Game is now active!');
         // showNotification('Game started! Good luck!', 'success');
     }
 

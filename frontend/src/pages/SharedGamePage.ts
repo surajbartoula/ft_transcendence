@@ -286,7 +286,7 @@ export class SharedGamePage implements Page {
                     matchId: this.matchId
                 });
             } else {
-                console.warn('⚠️ GameStateManager not available, falling back to local game');
+                console.warn('GameStateManager not available, falling back to local game');
                 await this.gameManager.startLocalGame(this.player1Name, this.player2Name);
             }
         } else {

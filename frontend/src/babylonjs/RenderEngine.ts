@@ -148,8 +148,8 @@ export class RenderEngine {
 			
 
 		} catch (error) {
-			console.warn("⚠️ Audio initialization failed:", error);
-			console.warn("⚠️ Audio features will be disabled");
+			console.warn("Audio initialization failed:", error);
+			console.warn("Audio features will be disabled");
 		}
 	}
 
@@ -321,13 +321,13 @@ export class RenderEngine {
 			oscillator.stop(this.audioContext.currentTime + 0.5);
 			
 		} catch (error) {
-			console.error("⚠️ Simple beep test failed:", error);
+			console.error("Simple beep test failed:", error);
 		}
 	}
 
 	private playDirectBeep(frequency: number, duration: number, volume: number): void {
 		if (!this.audioContext) {
-			console.warn("⚠️ No audio context available for beep");
+			console.warn("No audio context available for beep");
 			return;
 		}
 		try {
@@ -348,7 +348,7 @@ export class RenderEngine {
 			oscillator.start(this.audioContext.currentTime);
 			oscillator.stop(this.audioContext.currentTime + duration);
 		} catch (error) {
-			console.warn("⚠️ Failed to play beep:", error);
+			console.warn("Failed to play beep:", error);
 		}
 	}
 
@@ -377,7 +377,7 @@ export class RenderEngine {
 				oscillator.stop(this.audioContext!.currentTime + duration);
 			});
 		} catch (error) {
-			console.warn("⚠️ Failed to play chord:", error);
+			console.warn("Failed to play chord:", error);
 		}
 	}
 
@@ -404,7 +404,7 @@ export class RenderEngine {
 				this.initializeBallSystem();
 				
 			} catch (err2) {
-				console.error("❌ Failed to load assets:", err2);
+				console.error("Failed to load assets:", err2);
 			}
 		}
 	}
@@ -482,7 +482,7 @@ export class RenderEngine {
 		// Paddle existence checked
 		
 		if (!leftPaddle || !rightPaddle) {
-			console.error("❌ Paddles not found in scene! Available meshes:");
+			console.error("Paddles not found in scene! Available meshes:");
 			return;
 		}
 	}
@@ -491,7 +491,7 @@ export class RenderEngine {
 		const floorPlane = this.scene.getMeshByName('floorPlane');
 		
 		if (!floorPlane) {
-			console.warn("⚠️ Floor plane not found, using default boundaries");
+			console.warn("Floor plane not found, using default boundaries");
 			return;
 		}
 		// Force bounding box recalculation to get current world coordinates
@@ -921,7 +921,7 @@ private debugVisualizeFloorBounds(): void {
 	private initializeBallSystem(): void {
 		const ball = this.scene.getMeshByName('pongBall');
 		if (!ball) {
-			console.warn("⚠️ Ball not found in scene");
+			console.warn("Ball not found in scene");
 			return;
 		}
 	}

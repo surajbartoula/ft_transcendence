@@ -249,6 +249,7 @@ export class OnlineMatchLobbyPage implements Page {
 
     public cleanup(): void {
         this.removeSocketEventListeners();
+        this.removeEventListeners();
         
         if (this.searchTimeout) {
             clearTimeout(this.searchTimeout);
@@ -292,6 +293,66 @@ export class OnlineMatchLobbyPage implements Page {
             randomMatchButton.addEventListener('click', this.handleRandomMatch.bind(this));
         }
 
+    }
+
+    private removeEventListeners(): void {
+        const backButton = document.getElementById('backButton');
+        if (backButton) {
+            backButton.removeEventListener('click', this.handleBackClick.bind(this));
+        }
+
+        const userSearchInput = document.getElementById('userSearchInput') as HTMLInputElement;
+        if (userSearchInput) {
+            userSearchInput.removeEventListener('input', this.handleSearchInput.bind(this));
+        }
+
+        const onlineUsersTab = document.getElementById('onlineUsersTab');
+        if (onlineUsersTab) {
+            onlineUsersTab.removeEventListener('click', () => this.switchTab('online'));
+        }
+
+        const searchResultsTab = document.getElementById('searchResultsTab');
+        if (searchResultsTab) {
+            searchResultsTab.removeEventListener('click', () => this.switchTab('search'));
+        }
+
+        const refreshOnlineButton = document.getElementById('refreshOnlineButton');
+        if (refreshOnlineButton) {
+            refreshOnlineButton.removeEventListener('click', this.loadOnlineUsers.bind(this));
+        }
+
+        const refreshListButton = document.getElementById('refreshListButton');
+        if (refreshListButton) {
+            refreshListButton.removeEventListener('click', this.refreshCurrentList.bind(this));
+        }
+
+        const randomMatchButton = document.getElementById('randomMatchButton');
+        if (randomMatchButton) {
+            randomMatchButton.removeEventListener('click', this.handleRandomMatch.bind(this));
+        }
+
+        // Remove dynamically added challenge button listeners
+        const challengeButtons = document.querySelectorAll('.challenge-button');
+        challengeButtons.forEach(button => {
+            button.removeEventListener('click', this.handleChallenge.bind(this));
+        });
+
+        // Remove dynamically added invitation button listeners
+        const acceptButtons = document.querySelectorAll('.accept-invitation-btn');
+        acceptButtons.forEach(button => {
+            button.removeEventListener('click', (e) => {
+                const invitationId = (e.target as HTMLElement).getAttribute('data-invitation-id');
+                this.respondToInvitation(parseInt(invitationId!), 'accepted');
+            });
+        });
+
+        const declineButtons = document.querySelectorAll('.decline-invitation-btn');
+        declineButtons.forEach(button => {
+            button.removeEventListener('click', (e) => {
+                const invitationId = (e.target as HTMLElement).getAttribute('data-invitation-id');
+                this.respondToInvitation(parseInt(invitationId!), 'declined');
+            });
+        });
     }
 
     private setupSocketEventListeners(): void {

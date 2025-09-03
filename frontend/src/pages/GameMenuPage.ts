@@ -136,7 +136,6 @@ export class GameMenuPage implements Page {
     }
 
     public async initialize(): Promise<void> {
-        this.bindElements();
         this.attachEventListeners();
         await Promise.all([
             this.loadUserStats(),
@@ -146,10 +145,6 @@ export class GameMenuPage implements Page {
 
     public cleanup(): void {
         this.removeEventListeners();
-    }
-
-    private bindElements(): void {
-        // Elements are bound via event delegation
     }
 
     private attachEventListeners(): void {

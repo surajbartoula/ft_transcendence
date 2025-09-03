@@ -373,10 +373,15 @@ export class ChatPage implements Page {
     }
 
     cleanup(): void {
+        // Remove socket/window event listeners
         window.removeEventListener('globalMessage', this.handleGlobalMessage);
         window.removeEventListener('openSpecificChat', this.handleOpenSpecificChat);
         window.removeEventListener('game_invitation_response', this.handleGameInvitationResponse as EventListener);
         window.removeEventListener('game_ready', this.handleGameReady as EventListener);
+        
+        // Remove DOM event listeners
+        this.removeEventListeners();
+        
         /** Clear typing timeouts */
         Object.values(this.typingTimeout).forEach(timeout => clearTimeout(timeout));
         this.typingTimeout = {};
@@ -637,6 +642,121 @@ export class ChatPage implements Page {
         document.getElementById('closeProfileModal')?.addEventListener('click', () => this.hideProfileModal());
         document.getElementById('closeProfileModalBtn')?.addEventListener('click', () => this.hideProfileModal());
         document.getElementById('profileGameInvite')?.addEventListener('click', () => this.profileToGameInvite());
+    }
+
+    private removeEventListeners(): void {
+        /** Tab switching */
+        document.getElementById('chatsTab')?.removeEventListener('click', () => this.switchTab('chats'));
+        document.getElementById('friendsTab')?.removeEventListener('click', () => this.switchTab('friends'));
+        document.getElementById('requestsTab')?.removeEventListener('click', () => this.switchTab('requests'));
+        document.getElementById('blockedTab')?.removeEventListener('click', () => this.switchTab('blocked'));
+        
+        /** Search */
+        const searchInput = document.getElementById('searchInput') as HTMLInputElement;
+        if (searchInput) {
+            searchInput.removeEventListener('input', this.debounce(() => this.handleSearch(searchInput.value), 300));
+        }
+        
+        /** Send button */
+        document.getElementById('sendBtn')?.removeEventListener('click', () => this.sendMessage());
+        
+        /** Close chat */
+        document.getElementById('closeChatBtn')?.removeEventListener('click', () => this.closeChat());
+        
+        /** Block/Unblock buttons */
+        document.getElementById('blockBtn')?.removeEventListener('click', () => this.blockCurrentUser());
+        document.getElementById('unblockBtn')?.removeEventListener('click', () => this.unblockCurrentUser());
+        
+        /** Game invite button */
+        document.getElementById('gameInviteBtn')?.removeEventListener('click', () => this.showGameInviteModal());
+        
+        /** Profile view button */
+        document.getElementById('viewProfileBtn')?.removeEventListener('click', () => this.showProfileModal());
+        
+        /** Add friend modal */
+        document.getElementById('addFriendBtn')?.removeEventListener('click', () => this.showAddFriendModal());
+        document.getElementById('cancelAddFriend')?.removeEventListener('click', () => this.hideAddFriendModal());
+        
+        /** Friend search in modal */
+        const friendSearchInput = document.getElementById('friendSearchInput') as HTMLInputElement;
+        if (friendSearchInput) {
+            friendSearchInput.removeEventListener('input', this.debounce(() => this.searchUsersForFriend(friendSearchInput.value), 300));
+        }
+        
+        /** Game invite modal */
+        document.getElementById('cancelGameInvite')?.removeEventListener('click', () => this.hideGameInviteModal());
+        document.getElementById('sendGameInvite')?.removeEventListener('click', () => this.sendGameInvitation());
+        
+        /** Profile modal */
+        document.getElementById('closeProfileModal')?.removeEventListener('click', () => this.hideProfileModal());
+        document.getElementById('closeProfileModalBtn')?.removeEventListener('click', () => this.hideProfileModal());
+        document.getElementById('profileGameInvite')?.removeEventListener('click', () => this.profileToGameInvite());
+        
+        /** Remove message input listeners */
+        this.removeMessageInputListeners();
+        
+        /** Remove dynamically created event listeners */
+        this.removeDynamicEventListeners();
+    }
+
+    private removeMessageInputListeners(): void {
+        const messageInput = document.getElementById('messageInput') as HTMLInputElement;
+        
+        if (messageInput) {
+            messageInput.removeEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+
+            messageInput.removeEventListener('input', () => {
+                this.handleTyping();
+            });
+
+            messageInput.removeEventListener('blur', () => {
+                this.stopTyping();
+            });
+
+            messageInput.removeEventListener('input', (e) => {
+                const target = e.target as HTMLInputElement;
+                if (target.value.trim() === '') {
+                    this.stopTyping();
+                } else {
+                    this.handleTyping();
+                }
+            });
+        }
+    }
+
+    private removeDynamicEventListeners(): void {
+        /** Remove chat item click listeners */
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.removeEventListener('click', () => {});
+        });
+
+        /** Remove friend item click listeners */
+        document.querySelectorAll('.friend-item').forEach(item => {
+            item.removeEventListener('click', () => {});
+        });
+
+        /** Remove friend request accept/decline listeners */
+        document.querySelectorAll('.accept-friend').forEach(btn => {
+            btn.removeEventListener('click', () => {});
+        });
+        document.querySelectorAll('.decline-friend').forEach(btn => {
+            btn.removeEventListener('click', () => {});
+        });
+
+        /** Remove unblock user listeners */
+        document.querySelectorAll('.unblock-user').forEach(btn => {
+            btn.removeEventListener('click', () => {});
+        });
+
+        /** Remove search result listeners */
+        document.querySelectorAll('.send-friend-request').forEach(btn => {
+            btn.removeEventListener('click', () => {});
+        });
     }
 
     private async loadInitialData(): Promise<void> {
@@ -1810,7 +1930,7 @@ export class ChatPage implements Page {
         }
         
         if (!currentFriend) {
-            console.error('👤 ERROR: No friend selected for profile view');
+            console.error('ERROR: No friend selected for profile view');
             showError('No friend selected to view profile');
             return;
         }

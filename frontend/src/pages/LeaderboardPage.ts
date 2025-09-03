@@ -213,6 +213,33 @@ export class LeaderboardPage implements Page {
     }
 
     public cleanup(): void {
+        // Remove event listeners
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (refreshBtn) {
+            refreshBtn.removeEventListener('click', () => this.fetchLeaderboard());
+        }
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.removeEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('logout'));
+            });
+        }
+
+        // Remove sidebar navigation listeners
+        const sidebarItems = document.querySelectorAll('.sidebar-item:not(#logoutBtn)');
+        sidebarItems.forEach(item => {
+            item.removeEventListener('click', (e) => {
+                e.preventDefault();
+                const route = item.getAttribute('data-route');
+                if (route) {
+                    window.location.hash = route;
+                }
+            });
+        });
+
         // Remove global reference
         if ((window as any).leaderboardPage === this) {
             delete (window as any).leaderboardPage;

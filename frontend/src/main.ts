@@ -145,7 +145,7 @@ class App {
 							gameSocket.connect();
 						}
 					} else {
-						console.log('⚠️ Page visible but no valid auth data, skipping reconnection');
+						console.log('Page visible but no valid auth data, skipping reconnection');
 					}
 				}, 300); // Delay to allow any ongoing cleanup to complete
 			}
@@ -174,7 +174,7 @@ class App {
 				globalSocket.connect();
 				gameSocket.connect();
 			} else {
-				console.warn('⚠️ Missing token or user data, skipping socket connection');
+				console.warn('Missing token or user data, skipping socket connection');
 				console.warn('Token exists:', !!token);
 				console.warn('User data exists:', !!userData);
 			}
