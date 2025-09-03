@@ -249,8 +249,8 @@ class GameSetupState extends GameState {
             this.systems.uiManager.showPlayerSetup({
                 title: "Local Multiplayer Setup",
                 players: [
-                    { label: "Player 1 Name", placeholder: "Enter Player 1 name", defaultValue: "Player 1" },
-                    { label: "Player 2 Name", placeholder: "Enter Player 2 name", defaultValue: "Player 2" }
+                    { label: "Player 1 Name (Left Pedal)", placeholder: "Enter Player 1 name", defaultValue: "Player 1" },
+                    { label: "Player 2 Name (Right Pedal)", placeholder: "Enter Player 2 name", defaultValue: "Player 2" }
                 ],
                 onStart: (playerNames) => {
                     this.stateManager.setGameMode({
@@ -266,7 +266,7 @@ class GameSetupState extends GameState {
             this.systems.uiManager.showPlayerSetup({
                 title: "Play Against AI",
                 players: [
-                    { label: "Your Name", placeholder: "Enter your name", defaultValue: "Player" }
+                    { label: "Your Name (Right Pedal)", placeholder: "Enter your name", defaultValue: "Player" }
                 ],
                 onStart: (playerNames) => {
                     this.stateManager.setGameMode({
