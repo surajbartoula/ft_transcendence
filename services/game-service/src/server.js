@@ -52,17 +52,8 @@ try {
 }
 
 const fastify = Fastify({
-  logger: {
-    level: 'info',
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        translateTime: 'HH:MM:ss Z',
-        ignore: 'pid,hostname'
-      }
-    }
-  },
-  https: httpsOptions
+	logger: false,
+	https: httpsOptions
 });
 
 const PORT = process.env.PORT || 3004;

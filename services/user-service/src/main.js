@@ -36,17 +36,7 @@ try {
 }
 
 const fastify = Fastify({
-	logger: {
-		level: process.env.LOG_LEVEL || 'info',
-		transport: {
-			target: 'pino-pretty',
-			options: {
-				colorize: true,
-				translateTime: 'SYS:standard', /** Convert to Human readable time */
-				ignore: 'pid,hostname' /** Don't include pid & hostname stuff */
-			}
-		}
-	},
+	logger: false,
 	https: httpsOptions
 });
 
