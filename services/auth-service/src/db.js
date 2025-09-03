@@ -30,8 +30,6 @@ export const db = new sqlite3.Database(dbPath, (err) => {
 	if (err) {
 		console.error('Error opening database:', err.message);
 		process.exit(1);
-	} else {
-		console.log('Connected auth.db at:', dbPath);
 	}
 });
 
@@ -68,7 +66,7 @@ export const initDB = () => {
 		db.run(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
 		db.run(`CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON email_verification_codes(email)`);
 		db.run(`CREATE INDEX IF NOT EXISTS idx_verification_codes_code ON email_verification_codes(code)`);
-		console.log('Database schema initialized successfully');
+		// console.log('Database schema initialized successfully');
 	});
 };
 

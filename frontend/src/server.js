@@ -305,12 +305,6 @@ const start = async () => {
         await fastify.listen({ port: PORT, host: '0.0.0.0' });
         
 		fastify.log.info(`🛜  Frontend running on port ${process.env.FRONTEND_URL}`);
-        fastify.log.info(`🚀 Gateway service running on port ${PORT}`);
-        fastify.log.info(`📡 Proxying to services:`);
-        Object.entries(services).forEach(([name, url]) => {
-            fastify.log.info(`   - ${name}: ${url}`);
-        });
-		fastify.log.info(`🔌 Direct Socket.IO connections to backend services`);
     } catch (err) {
         fastify.log.error(err);
         process.exit(1);

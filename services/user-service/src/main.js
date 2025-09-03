@@ -129,7 +129,7 @@ const start = async () => {
 		const port = process.env.PORT || 3002;
 		const host = process.env.HOST || '0.0.0.0';
 		await fastify.listen({ port: parseInt(port), host });
-		fastify.log.info(`User service listening on https://${host}:${port}`);
+		// fastify.log.info(`User service listening on https://${host}:${port}`);
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);

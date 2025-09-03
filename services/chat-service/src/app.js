@@ -83,7 +83,7 @@ async function start() {
 	await initDatabase();
 	await setupFastify();
 	await fastify.listen({ port: PORT, host: '0.0.0.0' });
-	console.log(`Chat service running on port ${PORT}`);
+	// console.log(`Chat service running on port ${PORT}`);
 	} catch (err) {
 	fastify.log.error(err);
 	process.exit(1);

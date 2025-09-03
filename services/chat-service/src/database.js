@@ -24,8 +24,7 @@ function getDatabasePath() {
 export function initDatabase() {
 	const dbPath = getDatabasePath();
 	db = new sqlite3.Database(dbPath);
-	console.log('Connected chat.db at:', dbPath);
-	
+	// console.log('Connected chat.db at:', dbPath);
 	/** Promisify database methods with proper context handling */
 	db.runAsync = function(sql, params = []) {
 		return new Promise((resolve, reject) => {

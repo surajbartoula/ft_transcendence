@@ -212,8 +212,7 @@ async function start() {
             port: PORT, 
             host: '0.0.0.0' 
         });
-
-        console.log(`Pong Game Service running at: ${address}`);
+        // console.log(`Pong Game Service running at: ${address}`);
 
     } catch (error) {
         console.error('Failed to start server:', error);

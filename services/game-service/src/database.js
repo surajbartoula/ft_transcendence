@@ -251,8 +251,6 @@ export function initializeDatabase() {
                                                     CREATE INDEX IF NOT EXISTS idx_blocked_users_blocked ON blocked_users(blocked_id);
                                                 `, (err) => {
                                                     if (err) return reject(err);
-                                                    
-                                                    console.log('✅ Database initialized successfully!');
                                                     resolve();
                                                 });
                                             });

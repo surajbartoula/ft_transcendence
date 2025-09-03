@@ -71,7 +71,7 @@ const start = async () => {
 			port: 3001,
 			host: '0.0.0.0'
 		});
-		console.log('Auth service running on https://localhost:3001');
+		// console.log('Auth service running on https://localhost:3001');
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);
