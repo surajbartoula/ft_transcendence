@@ -87,9 +87,72 @@ export class ChatPage implements Page {
 
 	render(): string {
 		return `
-			<div class="h-screen bg-gray-900 flex overflow-hidden">
+			<div class="h-screen bg-black relative overflow-hidden flex">
+				<!-- Tron-inspired animated background -->
+				<div class="absolute inset-0 opacity-30">
+					<!-- Animated grid -->
+					<div class="absolute inset-0" style="background-image: 
+						linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+						linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+						background-size: 40px 40px; 
+						animation: grid-move 20s linear infinite;">
+					</div>
+					
+					<!-- Glowing circuit lines -->
+					<div class="absolute inset-0">
+						<div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+						<div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+						<div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+						<div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+					</div>
+					
+					<!-- Floating particles -->
+					<div class="absolute inset-0">
+						<div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+						<div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+						<div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+						<div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+					</div>
+					
+					<!-- Hexagonal pattern overlay -->
+					<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+				</div>
+				
+				<style>
+					@keyframes grid-move {
+						0% { transform: translate(0, 0); }
+						100% { transform: translate(40px, 40px); }
+					}
+					
+					@keyframes line-glow {
+						0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+						50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+					}
+					
+					.tron-glow {
+						box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+					}
+					
+					.tron-border {
+						border: 1px solid rgba(0, 255, 255, 0.3);
+						position: relative;
+					}
+					
+					.tron-border::before {
+						content: '';
+						position: absolute;
+						top: -1px;
+						left: -1px;
+						right: -1px;
+						bottom: -1px;
+						background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+						z-index: -1;
+						border-radius: inherit;
+					}
+				</style>
+				
 				<!-- Sidebar -->
-				<div class="w-96 bg-gray-800 border-r border-gray-700 flex flex-col">
+				<div class="w-96 bg-slate-800/70 backdrop-blur-sm border-r border-cyan-500/30 flex flex-col relative z-10 tron-border tron-glow">
 					<!-- Header -->
 					<button data-route="/dashboard" class="text-gray-400 hover:text-white transition-colors items-center justify-center h-18 p-4">
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,20 +248,20 @@ export class ChatPage implements Page {
 				</div>
 
 				<!-- Chat Area -->
-				<div class="flex-1 flex flex-col">
+				<div class="flex-1 flex flex-col relative z-10">
 					<!-- Chat Header -->
-					<div id="chatHeader" class="bg-gray-800 border-b border-gray-700 p-4 hidden">
+					<div id="chatHeader" class="bg-slate-800/70 backdrop-blur-sm border-b border-cyan-500/30 p-4 hidden tron-border">
 						<div class="flex items-center">
 							<img id="chatAvatar" class="w-10 h-10 rounded-full mr-3" src="" alt="">
 							<div class="flex-1">
-								<h2 id="chatName" class="text-white font-semibold"></h2>
+								<h2 id="chatName" class="text-cyan-300 font-semibold"></h2>
 								<p id="chatStatus" class="text-sm text-gray-400"></p>
 							</div>
 							<div class="flex items-center space-x-2">
-								<button id="viewProfileBtn" class="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1.5 rounded-md hidden transition-colors" title="View Profile">
+								<button id="viewProfileBtn" class="bg-slate-600/70 hover:bg-slate-500/70 text-white text-sm px-3 py-1.5 rounded-md hidden transition-all duration-300 tron-border" title="View Profile">
 									👤 Profile
 								</button>
-								<button id="gameInviteBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1.5 rounded-md hidden transition-colors" title="Challenge to a Game">
+								<button id="gameInviteBtn" class="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white text-sm px-3 py-1.5 rounded-md hidden transition-all duration-300 tron-glow" title="Challenge to a Game">
 									🏓 Challenge
 								</button>
 								<button id="blockBtn" class="text-red-400 hover:text-red-300 p-2" title="Block User">
@@ -267,13 +330,13 @@ export class ChatPage implements Page {
 
 				<!-- Add Friend Modal -->
 				<div id="addFriendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-					<div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-						<h3 class="text-lg font-semibold text-white mb-4">Add Friend</h3>
+					<div class="bg-slate-800/90 backdrop-blur-md rounded-lg p-6 max-w-md w-full mx-4 tron-border tron-glow">
+						<h3 class="text-lg font-semibold text-cyan-300 mb-4">Add Friend</h3>
 						<input id="friendSearchInput" type="text" placeholder="Search by username..." 
-							class="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+							class="w-full bg-slate-900/50 border border-cyan-500/30 text-white placeholder-gray-400 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
 						<div id="friendSearchResults" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
 						<div class="flex justify-end space-x-3">
-							<button id="cancelAddFriend" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+							<button id="cancelAddFriend" class="px-4 py-2 text-cyan-400 hover:text-cyan-300 transition-colors">Cancel</button>
 						</div>
 					</div>
 				</div>
