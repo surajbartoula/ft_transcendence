@@ -13,7 +13,6 @@ export class SharedGamePage implements Page {
     private gameMode: 'local' | 'ai' | 'remote' = 'local';
     private player1Name: string = 'Player 1';
     private player2Name: string = 'Player 2';
-    private hasShownLoading: boolean = false;
     
     // Tournament support
     private tournamentId: string | null = null;
@@ -33,15 +32,6 @@ export class SharedGamePage implements Page {
 
                 <!-- Game Container -->
                 <div id="gameContainer" class="flex-1 relative bg-black overflow-hidden">
-                    <!-- Loading State -->
-                    <div id="gameLoading" class="absolute inset-0 flex items-center justify-center bg-slate-900">
-                        <div class="text-center">
-                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                            <p class="text-white text-lg">Loading Game...</p>
-                            <p class="text-gray-400 text-sm mt-2" id="loadingMessage">Initializing 3D engine and game systems</p>
-                        </div>
-                    </div>
-                    
                     <!-- Game Canvas -->
                     <canvas 
                         id="gameCanvas" 
@@ -136,7 +126,6 @@ export class SharedGamePage implements Page {
         
         this.isGameInitialized = false;
         this.gameCanvas = null;
-        this.hasShownLoading = false;
         
     }
 
@@ -197,7 +186,34 @@ export class SharedGamePage implements Page {
     }
 
     private removeEventListeners(): void {
+        // Remove system events
         window.removeEventListener('resize', this.handleWindowResize);
+        
+        // Remove button event listeners
+        const retryButton = document.getElementById('retryButton');
+        if (retryButton) {
+            retryButton.removeEventListener('click', this.handleRetry.bind(this));
+        }
+
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        if (backToMenuButton) {
+            backToMenuButton.removeEventListener('click', this.handleBackClick.bind(this));
+        }
+
+        const playAgainButton = document.getElementById('playAgainButton');
+        if (playAgainButton) {
+            playAgainButton.removeEventListener('click', this.handlePlayAgain.bind(this));
+        }
+
+        const backToMenuFromGameOver = document.getElementById('backToMenuFromGameOver');
+        if (backToMenuFromGameOver) {
+            backToMenuFromGameOver.removeEventListener('click', this.handleBackClick.bind(this));
+        }
+
+        // Remove canvas event listeners
+        if (this.gameCanvas) {
+            this.gameCanvas.removeEventListener('contextmenu', (e) => e.preventDefault());
+        }
     }
 
     private async initializeGame(): Promise<void> {
@@ -212,7 +228,6 @@ export class SharedGamePage implements Page {
                 throw new Error('WebGL is not supported in this browser');
             }
 
-            this.updateLoadingMessage('Creating game manager...');
             this.gameManager = new PongGameManager(this.gameCanvas);
             
             if (this.gameManager) {
@@ -223,10 +238,26 @@ export class SharedGamePage implements Page {
                     this.showGameStateIfReady();
                 });
 
-                this.updateLoadingMessage('Starting game session...');
                 await this.initializeBackendSession();
                 
-                this.updateLoadingMessage('Initializing game mode...');
+                // For tournaments, show canvas immediately so users can see the game board during countdown
+                if (this.tournamentId && this.matchId) {
+                    const canvas = document.getElementById('gameCanvas');
+                    if (canvas) {
+                        canvas.style.display = 'block';
+                        
+                        // Ensure canvas dimensions are correct
+                        if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {
+                            canvas.style.width = '100%';
+                            canvas.style.height = '100%';
+                        }
+                        
+                        // Force engine resize to fix blurry canvas
+                        if ((this.gameManager as any)?.renderEngine?.engine) {
+                            (this.gameManager as any).renderEngine.engine.resize();
+                        }
+                    }
+                }
                 
                 // Start game mode - this will set the initial state
                 await this.startGameBasedOnMode();
@@ -250,12 +281,6 @@ export class SharedGamePage implements Page {
         }
     }
 
-    private updateLoadingMessage(message: string): void {
-        const loadingMessage = document.getElementById('loadingMessage');
-        if (loadingMessage) {
-            loadingMessage.textContent = message;
-        }
-    }
 
     private async startGameBasedOnMode(): Promise<void> {
         if (!this.gameManager) return;
@@ -426,23 +451,10 @@ export class SharedGamePage implements Page {
         if (this.gameManager) {
             const currentState = this.gameManager.getCurrentStateName();
             
-            const loading = document.getElementById('gameLoading');
             const canvas = document.getElementById('gameCanvas');
             const error = document.getElementById('gameError');
             
             if (currentState) {
-                // Show loading only once for local multiplayer setup, then hide permanently
-                if (!this.hasShownLoading && this.gameMode === 'local' && currentState === 'gameSetup') {
-                    // First time local multiplayer setup - keep loading visible
-                    this.hasShownLoading = true;
-                    return;
-                }
-                
-                // For all other cases: hide loading and show canvas
-                if (loading) {
-                    loading.style.display = 'none';
-                }
-                
                 if (canvas) {
                     canvas.style.display = 'block';
                     
@@ -463,12 +475,9 @@ export class SharedGamePage implements Page {
     }
 
     private showError(message: string): void {
-        const loading = document.getElementById('gameLoading');
         const canvas = document.getElementById('gameCanvas');
         const error = document.getElementById('gameError');
         const errorMessage = document.getElementById('errorMessage');
-        
-        if (loading) loading.style.display = 'none';
         if (canvas) canvas.style.display = 'none';
         if (error) error.style.display = 'flex';
         if (errorMessage) errorMessage.textContent = message;

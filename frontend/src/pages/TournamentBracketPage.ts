@@ -335,13 +335,25 @@ export class TournamentBracketPage implements Page {
                             <div class="match-card bg-slate-700 border border-slate-600 rounded-lg p-4 ${match.isComplete ? 'opacity-75' : ''}">
                                 <div class="space-y-2">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-white ${match.winner?.id === match.player1.id ? 'font-bold text-green-400' : ''}">${match.player1.name}</span>
-                                        <span class="text-gray-400">${match.score ? match.score.player1 : '-'}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-yellow-500 rounded-full" title="Left side"></div>
+                                            <span class="text-white ${match.winner?.id === match.player1.id ? 'font-bold text-green-400' : ''}">${match.player1.name}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-gray-400">${match.score ? match.score.player1 : '-'}</span>
+                                            <span class="text-xs text-gray-500">L</span>
+                                        </div>
                                     </div>
                                     <div class="w-full h-px bg-slate-600"></div>
                                     <div class="flex items-center justify-between">
-                                        <span class="text-white ${match.winner?.id === match.player2.id ? 'font-bold text-green-400' : ''}">${match.player2.name}</span>
-                                        <span class="text-gray-400">${match.score ? match.score.player2 : '-'}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-blue-500 rounded-full" title="Right side"></div>
+                                            <span class="text-white ${match.winner?.id === match.player2.id ? 'font-bold text-green-400' : ''}">${match.player2.name}</span>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-gray-400">${match.score ? match.score.player2 : '-'}</span>
+                                            <span class="text-xs text-gray-500">R</span>
+                                        </div>
                                     </div>
                                 </div>
                                 ${!match.isComplete && this.currentMatch?.id === match.id ? `
@@ -385,9 +397,17 @@ export class TournamentBracketPage implements Page {
                     <span class="text-sm text-gray-400">Match ${match.matchNumber}</span>
                 </div>
                 <div class="space-y-2">
-                    <div class="text-white font-medium">${match.player1.name}</div>
-                    <div class="text-gray-400 text-sm">vs</div>
-                    <div class="text-white font-medium">${match.player2.name}</div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full" title="Left side"></div>
+                        <div class="text-white font-medium">${match.player1.name}</div>
+                        <span class="text-xs text-gray-500 ml-auto">LEFT</span>
+                    </div>
+                    <div class="text-center text-gray-400 text-sm">vs</div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-blue-500 rounded-full" title="Right side"></div>
+                        <div class="text-white font-medium">${match.player2.name}</div>
+                        <span class="text-xs text-gray-500 ml-auto">RIGHT</span>
+                    </div>
                 </div>
             </div>
         `).join('');
@@ -414,9 +434,21 @@ export class TournamentBracketPage implements Page {
             <div class="space-y-3">
                 <div class="text-sm text-gray-400">Round ${this.currentMatch.roundNumber} - Match ${this.currentMatch.matchNumber}</div>
                 <div class="space-y-2">
-                    <div class="text-white font-semibold">${this.currentMatch.player1.name}</div>
-                    <div class="text-gray-400 text-sm">vs</div>
-                    <div class="text-white font-semibold">${this.currentMatch.player2.name}</div>
+                    <div class="flex items-center justify-between bg-slate-700 rounded-lg p-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-yellow-500 rounded-full" title="Left side"></div>
+                            <div class="text-white font-semibold">${this.currentMatch.player1.name}</div>
+                        </div>
+                        <div class="text-xs text-gray-400 bg-slate-800 px-2 py-1 rounded">LEFT</div>
+                    </div>
+                    <div class="text-center text-gray-400 text-sm font-medium">VS</div>
+                    <div class="flex items-center justify-between bg-slate-700 rounded-lg p-3">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-blue-500 rounded-full" title="Right side"></div>
+                            <div class="text-white font-semibold">${this.currentMatch.player2.name}</div>
+                        </div>
+                        <div class="text-xs text-gray-400 bg-slate-800 px-2 py-1 rounded">RIGHT</div>
+                    </div>
                 </div>
             </div>
         `;
