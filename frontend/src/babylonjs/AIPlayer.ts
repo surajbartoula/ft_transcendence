@@ -10,7 +10,7 @@ export class AIPlayer {
     private renderEngine: RenderEngine;
     private isActive: boolean = false;
     private lastUpdateTime: number = 0;
-    private updateInterval: number = 300; // AI makes decisions more frequently (3x per second)
+    private updateInterval: number = 1000; // AI makes decisions more frequently (3x per second)
     private trackingInterval: number = 50; // AI tracks ball position very frequently  
     private lastTrackingTime: number = 0;
     private currentInput: number = 0;
