@@ -23,15 +23,77 @@ export class SettingsPage implements Page {
 
     public render(): string {
         return `
-            <div class="fixed inset-0 flex h-screen bg-slate-900">
+            <div class="fixed inset-0 flex h-screen bg-black relative overflow-hidden">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
                 ${this.renderSidebar()}
-                <div class="flex-1 p-8 overflow-y-auto">
+                <div class="flex-1 p-8 overflow-y-auto relative z-10 bg-slate-900/50 backdrop-blur-sm">
                     <div class="fade-in">
-                        <h1 class="text-3xl font-bold text-white mb-6">Settings</h1>
+                        <h1 class="text-3xl font-bold text-cyan-400 mb-6">Settings</h1>
                         
                         <!-- Security Settings Section -->
-                        <div class="bg-slate-800 p-6 rounded-lg mb-6">
-                            <h2 class="text-xl font-semibold text-white mb-4">Security</h2>
+                        <div class="bg-slate-800/70 backdrop-blur-sm p-6 rounded-lg mb-6 tron-border tron-glow">
+                            <h2 class="text-xl font-semibold text-cyan-300 mb-4">Security</h2>
                             
                             <!-- Password Change Section -->
                             <div id="password-section-container" class="mb-6">
@@ -61,9 +123,9 @@ export class SettingsPage implements Page {
 
     private renderGooglePasswordSection(): string {
         return `
-            <div class="p-4 bg-slate-700 rounded-lg">
+            <div class="p-4 bg-slate-700/70 backdrop-blur-sm rounded-lg tron-border">
                 <div class="flex items-start space-x-4">
-                    <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center tron-glow">
                         <svg class="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -72,10 +134,10 @@ export class SettingsPage implements Page {
                         </svg>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-lg font-medium text-white mb-2">Google Account Password</h3>
+                        <h3 class="text-lg font-medium text-cyan-300 mb-2">Google Account Password</h3>
                         <div class="text-sm text-gray-300 space-y-2">
                             <p>🔒 Your password is managed through your Google account.</p>
-                            <p>🔄 To change your password, visit your <a href="https://myaccount.google.com/password" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Google Account Password</a> settings.</p>
+                            <p>🔄 To change your password, visit your <a href="https://myaccount.google.com/password" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline">Google Account Password</a> settings.</p>
                             <p>⚡ Changes to your Google password will automatically apply to this account.</p>
                         </div>
                     </div>
@@ -86,9 +148,9 @@ export class SettingsPage implements Page {
 
     private renderRegularPasswordSection(): string {
         return `
-            <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
+            <div class="flex items-center justify-between p-4 bg-slate-700/70 backdrop-blur-sm rounded-lg tron-border">
                 <div class="flex-1">
-                    <h3 class="text-lg font-medium text-white">Password</h3>
+                    <h3 class="text-lg font-medium text-cyan-300">Password</h3>
                     <p class="text-sm text-gray-400 mt-1">
                         Change your account password to keep it secure
                     </p>
@@ -96,7 +158,7 @@ export class SettingsPage implements Page {
                 <div class="ml-4">
                     <button 
                         id="changePasswordBtn" 
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+                        class="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-glow"
                     >
                         Change Password
                     </button>
@@ -116,9 +178,9 @@ export class SettingsPage implements Page {
     private renderGoogle2FASection(): string {
         return `
             <!-- Google OAuth User 2FA Section -->
-            <div class="p-4 bg-slate-700 rounded-lg">
+            <div class="p-4 bg-slate-700/70 backdrop-blur-sm rounded-lg tron-border">
                 <div class="flex items-start space-x-4">
-                    <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center tron-glow">
                         <svg class="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -127,11 +189,11 @@ export class SettingsPage implements Page {
                         </svg>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-lg font-medium text-white mb-2">Google Account Security</h3>
+                        <h3 class="text-lg font-medium text-cyan-300 mb-2">Google Account Security</h3>
                         <div class="text-sm text-gray-300 space-y-2">
                             <p>🔒 Your account is protected by Google's advanced security features.</p>
                             <p>🛡️ Two-Factor Authentication is managed through your Google account settings.</p>
-                            <p>⚙️ To enable/disable 2FA, visit your <a href="https://myaccount.google.com/security" target="_blank" class="text-blue-400 hover:text-blue-300 underline">Google Account Security</a> settings.</p>
+                            <p>⚙️ To enable/disable 2FA, visit your <a href="https://myaccount.google.com/security" target="_blank" class="text-cyan-400 hover:text-cyan-300 underline">Google Account Security</a> settings.</p>
                         </div>
                     </div>
                 </div>
@@ -142,9 +204,9 @@ export class SettingsPage implements Page {
     private renderRegular2FASection(): string {
         return `
             <!-- Regular User 2FA Toggle -->
-            <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
+            <div class="flex items-center justify-between p-4 bg-slate-700/70 backdrop-blur-sm rounded-lg tron-border">
                 <div class="flex-1">
-                    <h3 class="text-lg font-medium text-white">Two-Factor Authentication</h3>
+                    <h3 class="text-lg font-medium text-cyan-300">Two-Factor Authentication</h3>
                     <p class="text-sm text-gray-400 mt-1">
                         Add an extra layer of security to your account with 2FA
                     </p>
@@ -158,7 +220,7 @@ export class SettingsPage implements Page {
                             ${this.is2FAEnabled ? 'checked' : ''}
                             ${this.isSetupInProgress ? 'disabled' : ''}
                         >
-                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${this.isSetupInProgress ? 'opacity-50 cursor-not-allowed' : ''}"></div>
+                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-cyan-500 peer-checked:to-cyan-600 ${this.isSetupInProgress ? 'opacity-50 cursor-not-allowed' : ''}"></div>
                     </label>
                 </div>
             </div>
@@ -172,7 +234,7 @@ export class SettingsPage implements Page {
 
     private render2FAStatus(): string {
         return `
-            <div class="mt-4 p-4 bg-green-900/20 border border-green-800 rounded-lg">
+            <div class="mt-4 p-4 bg-green-900/20 border border-green-800/50 rounded-lg tron-border">
                 <div class="flex items-center">
                     <svg class="w-5 h-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
@@ -194,42 +256,42 @@ export class SettingsPage implements Page {
         return `
             <!-- Change Password Modal -->
             <div id="changePasswordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="bg-slate-800 rounded-lg shadow-xl w-96 max-w-md mx-4">
+                <div class="bg-slate-800/90 backdrop-blur-md rounded-lg shadow-xl w-96 max-w-md mx-4 tron-border tron-glow">
                     <div class="p-6">
                         <div class="flex items-center mb-4">
-                            <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center mr-3 tron-glow">
+                                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2 2 2 0 00-2 2m-2-2h.01M9 9h.01M9 12h.01M9 15h.01M12 9h.01M12 12h.01M12 15h.01" />
                                 </svg>
                             </div>
-                            <h3 class="text-lg font-medium text-white">Change Password</h3>
+                            <h3 class="text-lg font-medium text-cyan-300">Change Password</h3>
                         </div>
                         
                         <form id="changePasswordForm" class="space-y-4">
                             <!-- Current Password -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-2">
+                                <label class="block text-sm font-medium text-cyan-400 mb-2">
                                     Current Password
                                 </label>
                                 <input 
                                     type="password" 
                                     id="currentPassword" 
                                     placeholder="Enter your current password" 
-                                    class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 tron-glow transition-all"
                                     required
                                 >
                             </div>
                             
                             <!-- New Password -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-2">
+                                <label class="block text-sm font-medium text-cyan-400 mb-2">
                                     New Password
                                 </label>
                                 <input 
                                     type="password" 
                                     id="newPassword" 
                                     placeholder="Enter your new password" 
-                                    class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 tron-glow transition-all"
                                     required
                                     minlength="6"
                                 >
@@ -238,24 +300,24 @@ export class SettingsPage implements Page {
                             
                             <!-- Confirm New Password -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-300 mb-2">
+                                <label class="block text-sm font-medium text-cyan-400 mb-2">
                                     Confirm New Password
                                 </label>
                                 <input 
                                     type="password" 
                                     id="confirmNewPassword" 
                                     placeholder="Confirm your new password" 
-                                    class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 tron-glow transition-all"
                                     required
                                 >
                             </div>
                         </form>
                         
                         <div class="flex gap-3 mt-6">
-                            <button id="confirmPasswordChange" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button id="confirmPasswordChange" class="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 tron-glow">
                                 Change Password
                             </button>
-                            <button id="cancelPasswordChange" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded">
+                            <button id="cancelPasswordChange" class="flex-1 bg-slate-600/70 hover:bg-slate-500/70 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-border">
                                 Cancel
                             </button>
                         </div>
@@ -265,24 +327,24 @@ export class SettingsPage implements Page {
 
             <!-- Enable 2FA Confirmation Modal -->
             <div id="enable2FAModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="bg-slate-800 rounded-lg shadow-xl w-96 max-w-md mx-4">
+                <div class="bg-slate-800/90 backdrop-blur-md rounded-lg shadow-xl w-96 max-w-md mx-4 tron-border tron-glow">
                     <div class="p-6">
                         <div class="flex items-center mb-4">
-                            <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center mr-3 tron-glow">
+                                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-1a2 2 0 00-2-2H6a2 2 0 00-2 2v1a2 2 0 002 2zM12 15V9m0 0l4-4m-4 4L8 5" />
                                 </svg>
                             </div>
-                            <h3 class="text-lg font-medium text-white">Enable Two-Factor Authentication</h3>
+                            <h3 class="text-lg font-medium text-cyan-300">Enable Two-Factor Authentication</h3>
                         </div>
                         <p class="text-sm text-gray-300 mb-6">
                             This will require you to use an authenticator app to generate codes when logging in, significantly increasing your account security.
                         </p>
                         <div class="flex gap-3">
-                            <button id="confirmEnable2FA" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
+                            <button id="confirmEnable2FA" class="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-glow">
                                 Enable 2FA
                             </button>
-                            <button id="cancelEnable2FA" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded">
+                            <button id="cancelEnable2FA" class="flex-1 bg-slate-600/70 hover:bg-slate-500/70 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-border">
                                 Cancel
                             </button>
                         </div>
@@ -292,15 +354,15 @@ export class SettingsPage implements Page {
 
             <!-- 2FA Setup Modal with QR Code -->
             <div id="setup2FAModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="bg-slate-800/90 backdrop-blur-md rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto tron-border tron-glow">
                     <div class="p-6">
                         <div class="flex items-center mb-4">
-                            <div class="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                                <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center mr-3 tron-glow">
+                                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                                 </svg>
                             </div>
-                            <h3 class="text-lg font-medium text-white">Set up Two-Factor Authentication</h3>
+                            <h3 class="text-lg font-medium text-cyan-300">Set up Two-Factor Authentication</h3>
                         </div>
 
                         <!-- Setup Steps -->
@@ -324,18 +386,18 @@ export class SettingsPage implements Page {
 
                         <!-- Manual Entry Section -->
                         <div class="mb-6">
-                            <button id="showManualEntry" class="text-blue-400 hover:text-blue-300 text-sm underline">
+                            <button id="showManualEntry" class="text-cyan-400 hover:text-cyan-300 text-sm underline transition-colors">
                                 Can't scan QR code? Enter manually
                             </button>
-                            <div id="manualEntrySection" class="hidden mt-3 p-3 bg-slate-700 rounded">
-                                <p class="text-sm text-gray-300 mb-2">Manual entry key:</p>
-                                <code id="manualKey" class="text-xs text-green-400 bg-slate-900 p-2 rounded block break-all"></code>
+                            <div id="manualEntrySection" class="hidden mt-3 p-3 bg-slate-700/70 backdrop-blur-sm rounded tron-border">
+                                <p class="text-sm text-cyan-300 mb-2">Manual entry key:</p>
+                                <code id="manualKey" class="text-xs text-green-400 bg-slate-900/70 p-2 rounded block break-all tron-border"></code>
                             </div>
                         </div>
 
                         <!-- Verification Code Input -->
                         <div class="mb-6">
-                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <label class="block text-sm font-medium text-cyan-400 mb-2">
                                 Enter verification code from your authenticator app:
                             </label>
                             <input 
@@ -343,16 +405,16 @@ export class SettingsPage implements Page {
                                 id="verificationCode" 
                                 maxlength="6" 
                                 placeholder="123456" 
-                                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-lg tracking-widest"
+                                class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 text-center text-lg tracking-widest tron-glow transition-all"
                             >
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="flex gap-3">
-                            <button id="verify2FASetup" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button id="verify2FASetup" class="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 tron-glow">
                                 Verify & Enable
                             </button>
-                            <button id="cancelSetup2FA" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded">
+                            <button id="cancelSetup2FA" class="flex-1 bg-slate-600/70 hover:bg-slate-500/70 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-border">
                                 Cancel
                             </button>
                         </div>
@@ -362,7 +424,7 @@ export class SettingsPage implements Page {
 
             <!-- Disable 2FA Confirmation Modal -->
             <div id="disable2FAModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
-                <div class="bg-slate-800 rounded-lg shadow-xl w-96 max-w-md mx-4">
+                <div class="bg-slate-800/90 backdrop-blur-md rounded-lg shadow-xl w-96 max-w-md mx-4 tron-border tron-glow">
                     <div class="p-6">
                         <div class="flex items-center mb-4">
                             <div class="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
@@ -378,20 +440,20 @@ export class SettingsPage implements Page {
                         
                         <!-- Password Input -->
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <label class="block text-sm font-medium text-cyan-400 mb-2">
                                 Enter your password:
                             </label>
                             <input 
                                 type="password" 
                                 id="disable2FAPassword" 
                                 placeholder="Enter your password" 
-                                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-400 tron-glow transition-all"
                             >
                         </div>
                         
                         <!-- 2FA Code Input -->
                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                            <label class="block text-sm font-medium text-cyan-400 mb-2">
                                 Enter your current 2FA code to confirm:
                             </label>
                             <input 
@@ -399,15 +461,15 @@ export class SettingsPage implements Page {
                                 id="disable2FACode" 
                                 maxlength="6" 
                                 placeholder="123456" 
-                                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-center text-lg tracking-widest"
+                                class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-400 text-center text-lg tracking-widest tron-glow transition-all"
                             >
                         </div>
                         
                         <div class="flex gap-3">
-                            <button id="confirmDisable2FA" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button id="confirmDisable2FA" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-medium py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 tron-glow">
                                 Disable 2FA
                             </button>
-                            <button id="cancelDisable2FA" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded">
+                            <button id="cancelDisable2FA" class="flex-1 bg-slate-600/70 hover:bg-slate-500/70 text-white font-medium py-2 px-4 rounded transition-all duration-300 tron-border">
                                 Cancel
                             </button>
                         </div>
@@ -898,41 +960,43 @@ export class SettingsPage implements Page {
     }
 
     private renderSidebar(): string {
-        return this.getSidebar('/dashboard/settings');
+        return this.getSidebar();
     }
 
-    private getSidebar(activeRoute: string): string {
-        const navItems = [
-            { route: '/dashboard', icon: '🎮', label: 'Dashboard' },
-            { route: '/dashboard/profile', icon: '👤', label: 'Profile' },
-            { route: '/dashboard/leaderboard', icon: '🏆', label: 'Leaderboard' },
-            { route: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
-            { route: '/chat', icon: '💬', label: 'Chat' }
-        ];
+    private getSidebar(): string {
         return `
-            <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
-                <div class="p-6 border-b border-slate-700">
+            <div class="w-64 bg-slate-900/90 backdrop-blur-sm border-r border-cyan-500/30 flex flex-col h-full relative z-10 tron-glow">
+                <div class="p-6 border-b border-cyan-500/30">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <div class="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center tron-glow">
                             <span class="text-white font-bold text-lg">G</span>
                         </div>
-                        <h1 class="text-xl font-bold text-blue-400">GameHub</h1>
+                        <h1 class="text-xl font-bold text-cyan-400">GameHub</h1>
                     </div>
                 </div>
                 
                 <nav class="p-4 space-y-2 flex-1">
-                    ${navItems.map(item => {
-                        const isActive = item.route === activeRoute;
-                        const activeClasses = isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700';
-                        return `
-                            <a href="#" data-route="${item.route}" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg ${activeClasses} transition-colors">
-                                <span>${item.icon}</span>
-                                <span>${item.label}</span>
-                            </a>
-                        `;
-                    }).join('')}
-                    
-                    <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
+                    <a href="#" data-route="/dashboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>🎮</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/profile" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/leaderboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>🏆</span>
+                        <span>Leaderboard</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/settings" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all duration-300 tron-border tron-glow">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" data-route="/chat" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>💬</span>
+                        <span>Chat</span>
+                    </a>
+                    <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-all duration-300">
                         <span>🚪</span>
                         <span>Logout</span>
                     </a>

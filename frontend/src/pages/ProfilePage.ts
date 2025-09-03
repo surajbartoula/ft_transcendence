@@ -33,21 +33,83 @@ export class ProfilePage implements Page {
 
     public render(): string {
         return `
-            <div class="fixed inset-0 flex h-screen bg-slate-900">
+            <div class="fixed inset-0 flex h-screen bg-black relative overflow-hidden">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
                 ${this.renderSidebar()}
-                <div class="flex-1 p-8 overflow-y-auto">
+                <div class="flex-1 p-8 overflow-y-auto relative z-10 bg-slate-900/50 backdrop-blur-sm">
                     <div class="fade-in max-w-4xl mx-auto">
-                        <h2 class="text-3xl font-bold mb-6 text-white">Profile Settings</h2>
+                        <h2 class="text-3xl font-bold mb-6 text-cyan-400">Profile Settings</h2>
                         
                         <!-- Profile Header -->
-                        <div class="bg-slate-800 rounded-lg p-6 mb-6">
+                        <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 mb-6 tron-border tron-glow">
                             <div class="flex items-center space-x-6">
                                 <div class="relative">
-                                    <div class="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-2xl font-bold" id="profileAvatar">
+                                    <div class="w-24 h-24 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-2xl font-bold tron-glow" id="profileAvatar">
                                         <span class="text-white">📷</span>
                                     </div>
-                                    <img id="profilePhoto" class="w-24 h-24 rounded-full object-cover hidden" alt="Profile Photo">
-                                    <button class="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition-colors" id="avatarButton">
+                                    <img id="profilePhoto" class="w-24 h-24 rounded-full object-cover hidden tron-glow" alt="Profile Photo">
+                                    <button class="absolute bottom-0 right-0 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white p-2 rounded-full transition-all duration-300 tron-glow" id="avatarButton">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -64,10 +126,10 @@ export class ProfilePage implements Page {
                         </div>
 
                         <!-- Profile Display -->
-                        <div id="profileDisplay" class="bg-slate-800 rounded-lg p-6 mb-6" style="display: none;">
+                        <div id="profileDisplay" class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 mb-6 tron-border tron-glow" style="display: none;">
                             <div class="flex justify-between items-start mb-4">
-                                <h3 class="text-lg font-semibold text-white">Profile Information</h3>
-                                <button id="editProfileBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center">
+                                <h3 class="text-lg font-semibold text-cyan-300">Profile Information</h3>
+                                <button id="editProfileBtn" class="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 tron-glow flex items-center">
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                     </svg>
@@ -76,25 +138,25 @@ export class ProfilePage implements Page {
                             </div>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">Display name</label>
-                                    <p id="displayUsername" class="text-white">-</p>
+                                    <label class="block text-sm font-medium text-cyan-400 mb-1">Display name</label>
+                                    <p id="displayUsername" class="text-white text-lg">-</p>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-300 mb-1">Bio</label>
-                                    <p id="displayBio" class="text-white">No bio provided</p>
+                                    <label class="block text-sm font-medium text-cyan-400 mb-1">Bio</label>
+                                    <p id="displayBio" class="text-gray-200">No bio provided</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Profile Form -->
-                        <div id="profileFormContainer" class="bg-slate-800 rounded-lg p-6 mb-6">
-                            <h3 class="text-lg font-semibold text-white mb-4">Personal Information</h3>
+                        <div id="profileFormContainer" class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 mb-6 tron-border tron-glow">
+                            <h3 class="text-lg font-semibold text-cyan-300 mb-4">Personal Information</h3>
                             <form id="profileForm" class="space-y-6">
                                 <div>
-                                    <label for="username" class="block text-sm font-medium text-gray-300 mb-2">Username *</label>
+                                    <label for="username" class="block text-sm font-medium text-cyan-400 mb-2">Username *</label>
                                     <div class="relative">
                                         <input type="text" id="username" name="username" required
-                                               class="w-full p-3 pr-12 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                               class="w-full p-3 pr-12 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 focus:bg-slate-900/70 transition-all tron-glow"
                                                placeholder="Enter your username">
                                         <div id="usernameIndicator" class="absolute inset-y-0 right-0 pr-3 items-center hidden">
                                             <!-- Loading spinner -->
@@ -114,19 +176,19 @@ export class ProfilePage implements Page {
                                 </div>
                                 
                                 <div>
-                                    <label for="bio" class="block text-sm font-medium text-gray-300 mb-2">Bio</label>
+                                    <label for="bio" class="block text-sm font-medium text-cyan-400 mb-2">Bio</label>
                                     <textarea id="bio" name="bio" rows="4"
-                                              class="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                              class="w-full p-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 focus:bg-slate-900/70 transition-all resize-none tron-glow"
                                               placeholder="Tell us about yourself..."></textarea>
                                     <p class="text-xs text-gray-500 mt-1">Maximum 500 characters</p>
                                 </div>
 
                                 <!-- Action Buttons -->
                                 <div class="flex justify-center items-center space-x-4">
-                                    <button type="button" id="cancelBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-colors" style="display: none;">
+                                    <button type="button" id="cancelBtn" class="bg-slate-600/70 hover:bg-slate-500/70 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 tron-border" style="display: none;">
                                         Cancel
                                     </button>
-                                    <button type="submit" id="saveButton" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                                    <button type="submit" id="saveButton" class="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 tron-glow">
                                         Save Profile
                                     </button>
                                 </div>
@@ -661,37 +723,39 @@ export class ProfilePage implements Page {
     }
 
     private renderSidebar(): string {
-        const navItems = [
-            { route: '/dashboard', icon: '🎮', label: 'Dashboard' },
-            { route: '/dashboard/profile', icon: '👤', label: 'Profile', active: true },
-            { route: '/dashboard/leaderboard', icon: '🏆', label: 'Leaderboard' },
-            { route: '/dashboard/settings', icon: '⚙️', label: 'Settings' },
-            { route: '/chat', icon: '💬', label: 'Chat' }
-        ];
-
         return `
-            <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
-                <div class="p-6 border-b border-slate-700">
+            <div class="w-64 bg-slate-900/90 backdrop-blur-sm border-r border-cyan-500/30 flex flex-col h-full relative z-10 tron-glow">
+                <div class="p-6 border-b border-cyan-500/30">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <div class="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center tron-glow">
                             <span class="text-white font-bold text-lg">G</span>
                         </div>
-                        <h1 class="text-xl font-bold text-blue-400">GameHub</h1>
+                        <h1 class="text-xl font-bold text-cyan-400">GameHub</h1>
                     </div>
                 </div>
                 
                 <nav class="p-4 space-y-2 flex-1">
-                    ${navItems.map(item => {
-                        const activeClasses = item.active ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-700';
-                        return `
-                            <a href="#" data-route="${item.route}" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg ${activeClasses} transition-colors">
-                                <span>${item.icon}</span>
-                                <span>${item.label}</span>
-                            </a>
-                        `;
-                    }).join('')}
-                    
-                    <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
+                    <a href="#" data-route="/dashboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>🎮</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/profile" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all duration-300 tron-border tron-glow">
+                        <span>👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/leaderboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>🏆</span>
+                        <span>Leaderboard</span>
+                    </a>
+                    <a href="#" data-route="/dashboard/settings" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" data-route="/chat" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
+                        <span>💬</span>
+                        <span>Chat</span>
+                    </a>
+                    <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-all duration-300">
                         <span>🚪</span>
                         <span>Logout</span>
                     </a>
