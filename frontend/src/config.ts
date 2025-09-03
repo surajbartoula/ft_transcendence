@@ -41,7 +41,6 @@ export const GAME_CONFIG = {
     DEFAULT_SETTINGS: {
         sound: true,
         music: false,
-        difficulty: 'hard',
         theme: 'dark'
     },
     GAME_MODES: {

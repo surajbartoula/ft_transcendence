@@ -10,8 +10,8 @@ export class AIPlayer {
     private renderEngine: RenderEngine;
     private isActive: boolean = false;
     private lastUpdateTime: number = 0;
-    private updateInterval: number = 1000; // AI makes decisions once per second
-    private trackingInterval: number = 100; // AI tracks ball position more frequently  
+    private updateInterval: number = 300; // AI makes decisions more frequently (3x per second)
+    private trackingInterval: number = 50; // AI tracks ball position very frequently  
     private lastTrackingTime: number = 0;
     private currentInput: number = 0;
     
@@ -20,13 +20,11 @@ export class AIPlayer {
     private ballVelocity: BABYLON.Vector3 = new BABYLON.Vector3();
     private paddlePosition: BABYLON.Vector3 = new BABYLON.Vector3();
     private predictedBallY: number = 0;
-    private difficulty: 'easy' | 'medium' | 'hard' = 'hard';
-    
-    // AI behavior parameters
-    private reactionTime: number = 50; // ms delay - more responsive
-    private accuracy: number = 0.9; // Higher accuracy for better shot tracking
+    // AI behavior parameters - fixed for consistent gameplay
+    private reactionTime: number = 50; // ms delay - responsive
+    private accuracy: number = 0.95; // High accuracy for challenging gameplay
     private maxSpeed: number = 1.0; // Speed multiplier (same as human players)
-    private anticipationDistance: number = 12; // Closer tracking distance
+    private anticipationDistance: number = 15; // Optimal tracking distance
     private previousBallPosition: BABYLON.Vector3 = new BABYLON.Vector3();
 
     constructor(physicsSystem: PhysicsSystem, renderEngine: RenderEngine) {
@@ -45,38 +43,13 @@ export class AIPlayer {
         this.ballPosition.set(0, 0, 0);
         this.ballVelocity.set(0, 0, 0);
         
-        // Set AI to hard difficulty by default
-        this.setDifficulty('hard');
+        // AI parameters are now fixed - no difficulty setting needed
     }
 
     stop(): void {
         this.isActive = false;
         this.currentInput = 0;
         // AI Player stopped
-    }
-
-    setDifficulty(difficulty: 'easy' | 'medium' | 'hard'): void {
-        this.difficulty = difficulty;
-        
-        switch (difficulty) {
-            case 'easy':
-                this.accuracy = 0.6;
-                this.reactionTime = 200;
-                this.anticipationDistance = 10;
-                break;
-            case 'medium':
-                this.accuracy = 0.8;
-                this.reactionTime = 100;
-                this.anticipationDistance = 12;
-                break;
-            case 'hard':
-                this.accuracy = 0.95;
-                this.reactionTime = 30; // Very responsive
-                this.anticipationDistance = 15;
-                break;
-        }
-        
-        // AI difficulty set
     }
 
     update(deltaTime: number): void {
@@ -172,61 +145,62 @@ export class AIPlayer {
         const ballVelX = this.ballVelocity.x;
         const ballVelZ = this.ballVelocity.z;
 
-        // Check if ball is moving towards AI paddle (right side)
-        if (ballVelX > 0.5 && ballX < paddleX) {
+        // Always predict if ball is moving towards AI paddle (right side)
+        if (ballVelX > 0.1 && ballX < paddleX) {
             const timeToReach = (paddleX - ballX) / ballVelX;
-            const distance = paddleX - ballX;
-            if (distance < 8 && timeToReach < 0.8) {
-                let directPrediction = ballZ + (ballVelZ * timeToReach);
-                const wallTop = 9.5;
-                const wallBottom = -9.5;
-                directPrediction = Math.max(wallBottom, Math.min(wallTop, directPrediction));
-                this.predictedBallY = directPrediction;
-                
-                // Direct shot detected
-                return;
-            }
-            
-            // Normal prediction for longer shots with bounces
             let predictedZ = ballZ + (ballVelZ * timeToReach);
             
-            // Handle wall bounces for longer shots
+            // Improved wall bounce handling
             const wallTop = 9.5;
             const wallBottom = -9.5;
             
-            // Check if ball will hit walls
-            if (Math.abs(ballVelZ) > 0.1) { // Only if ball has significant Z velocity
-                if (predictedZ > wallTop) {
-                    // Will hit top wall
-                    const wallHitTime = (wallTop - ballZ) / ballVelZ;
-                    const remainingTime = timeToReach - wallHitTime;
-                    if (remainingTime > 0) {
-                        predictedZ = wallTop - (ballVelZ * remainingTime);
+            // Handle multiple bounces more accurately
+            if (Math.abs(ballVelZ) > 0.01) {
+                let remainingTime = timeToReach;
+                let currentZ = ballZ;
+                let currentVelZ = ballVelZ;
+                
+                // Simulate up to 3 bounces
+                for (let i = 0; i < 3 && remainingTime > 0; i++) {
+                    if (currentVelZ > 0) {
+                        // Moving toward top wall
+                        const timeToWall = (wallTop - currentZ) / currentVelZ;
+                        if (timeToWall < remainingTime && timeToWall > 0) {
+                            currentZ = wallTop;
+                            currentVelZ = -Math.abs(currentVelZ); // Bounce
+                            remainingTime -= timeToWall;
+                            continue;
+                        }
+                    } else if (currentVelZ < 0) {
+                        // Moving toward bottom wall
+                        const timeToWall = (wallBottom - currentZ) / currentVelZ;
+                        if (timeToWall < remainingTime && timeToWall > 0) {
+                            currentZ = wallBottom;
+                            currentVelZ = Math.abs(currentVelZ); // Bounce
+                            remainingTime -= timeToWall;
+                            continue;
+                        }
                     }
-                } else if (predictedZ < wallBottom) {
-                    // Will hit bottom wall  
-                    const wallHitTime = (wallBottom - ballZ) / ballVelZ;
-                    const remainingTime = timeToReach - wallHitTime;
-                    if (remainingTime > 0) {
-                        predictedZ = wallBottom - (ballVelZ * remainingTime);
-                    }
+                    
+                    // No more bounces, calculate final position
+                    predictedZ = currentZ + (currentVelZ * remainingTime);
+                    break;
                 }
             }
             
             // Clamp to field boundaries
             predictedZ = Math.max(wallBottom, Math.min(wallTop, predictedZ));
             
-            // Add minimal error for realism
-            const error = (Math.random() - 0.5) * (1 - this.accuracy) * 1.0;
+            // Reduce error significantly for better accuracy
+            const error = (Math.random() - 0.5) * (1 - this.accuracy) * 0.3;
             this.predictedBallY = predictedZ + error;
             
-            // Long shot prediction
-        } else if (ballVelX < -0.5) {
-            // Ball moving away - return to center gradually
-            this.predictedBallY = ballZ * 0.3;
+        } else if (ballVelX < -0.1) {
+            // Ball moving away - smart positioning
+            this.predictedBallY = ballZ * 0.5; // Less aggressive centering
         } else {
-            // Ball moving slowly or sideways - track current position
-            this.predictedBallY = ballZ * 0.7;
+            // Ball moving slowly - track more aggressively
+            this.predictedBallY = ballZ;
         }
     }
 
@@ -235,41 +209,40 @@ export class AIPlayer {
         const targetZ = this.predictedBallY;
         const difference = targetZ - paddleZ;
         
-        // Check if this is an urgent situation (direct shot)
+        // Check if this is an urgent situation (ball approaching)
         const ballX = this.ballPosition.x;
         const paddleX = this.paddlePosition.x;
         const distance = paddleX - ballX;
         const ballVelX = this.ballVelocity.x;
-        const isDirectThreat = ballVelX > 0.5 && distance < 8;
+        const isDirectThreat = ballVelX > 0.2 && distance < 12; // More sensitive detection
         
-        // Adjust dead zone based on urgency
-        const deadZone = isDirectThreat ? 0.1 : 0.2; // Smaller dead zone for direct threats
+        // Much smaller dead zone for better accuracy
+        const deadZone = isDirectThreat ? 0.05 : 0.1; // Smaller dead zones
         
         if (Math.abs(difference) < deadZone) {
             this.scheduleInput(0);
             return;
         }
         
-        // Determine movement direction
+        // Determine movement direction and intensity
         let desiredInput = 0;
+        const distance_abs = Math.abs(difference);
+        
         if (difference > 0) {
             desiredInput = 1; // Move up/forward
         } else if (difference < 0) {
             desiredInput = -1; // Move down/backward
         }
         
-        // Scale input based on urgency and distance
-        const distance_abs = Math.abs(difference);
+        // Improved intensity calculation
         let intensity;
         
         if (isDirectThreat) {
-            // For direct threats, move at full speed immediately
-            intensity = 1.0;
-            // Urgent move required
+            // For threats, use proportional speed but ensure minimum intensity
+            intensity = Math.max(0.6, Math.min(1.0, distance_abs / 2.0));
         } else {
-            // Normal proportional movement
-            intensity = Math.min(1.0, distance_abs / 3.0);
-            // Normal move
+            // For normal situations, use more responsive movement
+            intensity = Math.max(0.3, Math.min(1.0, distance_abs / 2.5));
         }
         
         desiredInput *= intensity;
@@ -290,41 +263,11 @@ export class AIPlayer {
     }
 
     // Public method to get AI stats for UI display
-    getAIStats(): { difficulty: string, accuracy: number, reactionTime: number } {
+    getAIStats(): { accuracy: number, reactionTime: number } {
         return {
-            difficulty: this.difficulty,
             accuracy: this.accuracy,
             reactionTime: this.reactionTime
         };
     }
 
-    // Method to make AI miss occasionally
-    private shouldMiss(): boolean {
-        const missChance = this.difficulty === 'easy' ? 0.15 : 
-                          this.difficulty === 'medium' ? 0.08 : 0.03;
-        return Math.random() < missChance;
-    }
-
-    private useDefensiveStrategy(): void {
-        // Focus on returning ball to center
-        this.accuracy = Math.min(this.accuracy, 0.9);
-        this.anticipationDistance = Math.max(this.anticipationDistance, 18);
-    }
-
-    private useAggressiveStrategy(): void {
-        // Try to win points with angled shots
-        this.accuracy = Math.max(this.accuracy, 0.7);
-        this.reactionTime = Math.max(this.reactionTime, 150);
-    }
-
-    private useAdaptiveStrategy(): void {
-        // Adapt based on game state
-        const currentScore = { left: 0, right: 0 }; // Get from score manager
-        
-        if (currentScore.right < currentScore.left) {
-            this.useAggressiveStrategy();
-        } else {
-            this.useDefensiveStrategy();
-        }
-    }
 }

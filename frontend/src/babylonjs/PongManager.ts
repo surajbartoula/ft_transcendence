@@ -168,7 +168,7 @@ export class PongGameManager {
     // PUBLIC API METHODS
     // =====================================
     
-    // AI difficulty is now always set to hard
+    // AI uses fixed parameters for consistent gameplay
 
     /**
      * Get current game mode information
@@ -232,11 +232,10 @@ export class PongGameManager {
     }
 
     /**
-     * Start a new AI game (always on hard difficulty) - goes through setup state first
+     * Start a new AI game - goes through setup state first
      */
     public async startAIGame(playerName?: string): Promise<void> {
-        // Set AI to hard difficulty
-        this.aiPlayer.setDifficulty('hard');
+        // AI uses fixed parameters - no difficulty setting needed
         
         // Create game session for AI game
         await this.createGameSession('ai');

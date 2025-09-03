@@ -14,40 +14,102 @@ export class DashboardPage implements Page {
 
     public render(): string {
         return `
-            <div class="fixed inset-0 flex h-screen bg-slate-900">
+            <div class="fixed inset-0 flex h-screen bg-black relative overflow-hidden">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
                 <!-- Sidebar -->
-                <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
-                    <div class="p-6 border-b border-slate-700">
+                <div class="w-64 bg-slate-900/90 backdrop-blur-sm border-r border-cyan-500/30 flex flex-col h-full relative z-10 tron-glow">
+                    <div class="p-6 border-b border-cyan-500/30">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                            <div class="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center tron-glow">
                                 <span class="text-white font-bold text-lg">G</span>
                             </div>
-                            <h1 class="text-xl font-bold text-blue-400">GameHub</h1>
+                            <h1 class="text-xl font-bold text-cyan-400">GameHub</h1>
                         </div>
                     </div>
                     
                     <nav class="p-4 space-y-2 flex-1">
-                        <a href="#" id="playButton" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                        <a href="#" id="playButton" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 transition-all duration-300 tron-border tron-glow">
                             <span>🎮</span>
                             <span>Play Pong</span>
                         </a>
-                        <a href="#" data-route="/dashboard/profile" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                        <a href="#" data-route="/dashboard/profile" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
                             <span>👤</span>
                             <span>Profile</span>
                         </a>
-                        <a href="#" data-route="/dashboard/leaderboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                        <a href="#" data-route="/dashboard/leaderboard" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
                             <span>🏆</span>
                             <span>Leaderboard</span>
                         </a>
-                        <a href="#" data-route="/dashboard/settings" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                        <a href="#" data-route="/dashboard/settings" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
                             <span>⚙️</span>
                             <span>Settings</span>
                         </a>
-                        <a href="#" data-route="/chat" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                        <a href="#" data-route="/chat" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-slate-300 hover:text-cyan-400 hover:bg-slate-800/50 transition-all duration-300 hover:tron-border">
                             <span>💬</span>
                             <span>Chat</span>
                         </a>
-                        <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors">
+                        <a href="#" id="logoutBtn" class="sidebar-item flex items-center space-x-3 p-3 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-all duration-300">
                             <span>🚪</span>
                             <span>Logout</span>
                         </a>
@@ -55,24 +117,24 @@ export class DashboardPage implements Page {
                 </div>
 
                 <!-- Main Content -->
-                <div class="flex-1 p-8 overflow-y-auto">
+                <div class="flex-1 p-8 overflow-y-auto relative z-10 bg-slate-900/50 backdrop-blur-sm">
                     <!-- User Profile Header -->
                     <div class="flex items-center justify-between mb-8 animate-slide-down">
                         <div class="flex items-center space-x-4">
-                            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl font-bold animate-bounce-in hover:scale-110 transition-transform duration-300" id="userAvatar">
+                            <div class="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-xl font-bold animate-bounce-in hover:scale-110 transition-transform duration-300 tron-glow" id="userAvatar">
                                 <div class="loading-spinner"></div>
                             </div>
                             <div class="animate-fade-in-left">
                                 <h2 class="text-2xl text-white font-bold" id="userName">Loading...</h2>
                                 <p class="text-gray-400" id="userHandle">@loading</p>
                                 <div class="flex items-center space-x-2 mt-1">
-                                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                    <span class="text-sm text-green-400">Online</span>
+                                    <div class="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                                    <span class="text-sm text-cyan-400">Online</span>
                                 </div>
                             </div>
                         </div>
                         <div class="text-right animate-fade-in-right">
-                            <div class="text-3xl font-bold text-yellow-500 hover:scale-105 transition-transform duration-200" id="userRating">0</div>
+                            <div class="text-3xl font-bold text-cyan-400 hover:scale-105 transition-transform duration-200 tron-glow" id="userRating">0</div>
                             <div class="text-sm text-gray-400">Rating</div>
                         </div>
                     </div>
@@ -81,21 +143,21 @@ export class DashboardPage implements Page {
                     <div class="mb-8 animate-fade-in-up" style="animation-delay: 0.2s">
                         <h3 class="text-xl font-semibold text-white mb-4">Quick Actions</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <button id="quickPlayButton" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 flex items-center justify-center space-x-3 animate-slide-up" style="animation-delay: 0.3s">
+                            <button id="quickPlayButton" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 flex items-center justify-center space-x-3 animate-slide-up tron-border tron-glow" style="animation-delay: 0.3s">
                                 <span class="text-2xl animate-bounce-slow">🏓</span>
                                 <div class="text-left">
                                     <div class="font-bold text-lg">Play Pong</div>
-                                    <div class="text-sm text-blue-100">Start playing now</div>
+                                    <div class="text-sm text-cyan-100">Start playing now</div>
                                 </div>
                             </button>
-                            <button data-route="/dashboard/profile" class="bg-slate-700 hover:bg-slate-600 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-slate-500/25 flex items-center justify-center space-x-3 animate-slide-up" style="animation-delay: 0.4s">
+                            <button data-route="/dashboard/profile" class="bg-slate-800/70 hover:bg-slate-700/70 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/25 flex items-center justify-center space-x-3 animate-slide-up tron-border backdrop-blur-sm" style="animation-delay: 0.4s">
                                 <span class="text-2xl hover:animate-pulse">👤</span>
                                 <div class="text-left">
                                     <div class="font-bold text-lg">View Profile</div>
                                     <div class="text-sm text-gray-300">Edit your profile</div>
                                 </div>
                             </button>
-                            <button data-route="/dashboard/leaderboard" class="bg-slate-700 hover:bg-slate-600 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-slate-500/25 flex items-center justify-center space-x-3 animate-slide-up" style="animation-delay: 0.5s">
+                            <button data-route="/dashboard/leaderboard" class="bg-slate-800/70 hover:bg-slate-700/70 text-white p-6 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/25 flex items-center justify-center space-x-3 animate-slide-up tron-border backdrop-blur-sm" style="animation-delay: 0.5s">
                                 <span class="text-2xl hover:animate-bounce">🏆</span>
                                 <div class="text-left">
                                     <div class="font-bold text-lg">Leaderboard</div>
@@ -109,22 +171,22 @@ export class DashboardPage implements Page {
                     <div class="mb-8 animate-fade-in-up" style="animation-delay: 0.6s">
                         <h3 class="text-xl font-semibold text-white mb-4">Game Statistics</h3>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                            <div class="bg-slate-700 rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-600 hover:shadow-xl animate-stat-card cursor-pointer" style="animation-delay: 0.7s">
-                                <div class="text-3xl font-bold text-blue-400 counter-animation" id="gamesPlayed" data-target="0">0</div>
+                            <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-700/70 hover:shadow-xl hover:shadow-cyan-500/20 animate-stat-card cursor-pointer tron-border relative" style="animation-delay: 0.7s">
+                                <div class="text-3xl font-bold text-cyan-400 counter-animation" id="gamesPlayed" data-target="0">0</div>
                                 <div class="text-gray-400 mt-1">Games Played</div>
-                                <div class="absolute top-2 right-2 text-blue-400 opacity-30">🎮</div>
+                                <div class="absolute top-2 right-2 text-cyan-400 opacity-30">🎮</div>
                             </div>
-                            <div class="bg-slate-700 rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-600 hover:shadow-xl animate-stat-card cursor-pointer" style="animation-delay: 0.8s">
+                            <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-700/70 hover:shadow-xl hover:shadow-green-500/20 animate-stat-card cursor-pointer tron-border relative" style="animation-delay: 0.8s">
                                 <div class="text-3xl font-bold text-green-400 counter-animation" id="wins" data-target="0">0</div>
                                 <div class="text-gray-400 mt-1">Wins</div>
                                 <div class="absolute top-2 right-2 text-green-400 opacity-30">🏆</div>
                             </div>
-                            <div class="bg-slate-700 rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-600 hover:shadow-xl animate-stat-card cursor-pointer" style="animation-delay: 0.9s">
+                            <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-700/70 hover:shadow-xl hover:shadow-red-500/20 animate-stat-card cursor-pointer tron-border relative" style="animation-delay: 0.9s">
                                 <div class="text-3xl font-bold text-red-400 counter-animation" id="losses" data-target="0">0</div>
                                 <div class="text-gray-400 mt-1">Losses</div>
                                 <div class="absolute top-2 right-2 text-red-400 opacity-30">💔</div>
                             </div>
-                            <div class="bg-slate-700 rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-600 hover:shadow-xl animate-stat-card cursor-pointer" style="animation-delay: 1.0s">
+                            <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg p-6 transform transition-all duration-300 hover:scale-105 hover:bg-slate-700/70 hover:shadow-xl hover:shadow-yellow-500/20 animate-stat-card cursor-pointer tron-border relative" style="animation-delay: 1.0s">
                                 <div class="text-3xl font-bold text-yellow-400 counter-animation" id="winRate" data-target="0">0%</div>
                                 <div class="text-gray-400 mt-1">Win Rate</div>
                                 <div class="absolute top-2 right-2 text-yellow-400 opacity-30">📊</div>
@@ -135,8 +197,8 @@ export class DashboardPage implements Page {
                     <!-- Recent Games -->
                     <div class="mb-8 animate-fade-in-up" style="animation-delay: 1.1s">
                         <h3 class="text-xl font-semibold mb-4 text-white">Recent Games</h3>
-                        <div class="bg-slate-800 rounded-lg overflow-hidden transform transition-all duration-300 hover:shadow-xl">
-                            <div class="grid grid-cols-4 gap-4 p-4 bg-slate-700 text-sm font-medium text-gray-300">
+                        <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg overflow-hidden transform transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/20 tron-border">
+                            <div class="grid grid-cols-4 gap-4 p-4 bg-slate-700/70 backdrop-blur-sm text-sm font-medium text-gray-300">
                                 <div class="animate-fade-in" style="animation-delay: 1.2s">GAME</div>
                                 <div class="animate-fade-in" style="animation-delay: 1.3s">OPPONENT</div>
                                 <div class="animate-fade-in" style="animation-delay: 1.4s">RESULT</div>
