@@ -16,19 +16,82 @@ export class TournamentBracketPage implements Page {
 
     public render(): string {
         return `
-            <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-purple-900 flex flex-col">
+            <div class="min-h-screen bg-black relative overflow-hidden flex flex-col">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
+                
                 <!-- Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-4">
+                <div class="bg-slate-900/90 backdrop-blur-sm border-b border-cyan-500/30 p-4 relative z-10 tron-glow flex-shrink-0">
                     <div class="flex items-center justify-between max-w-7xl mx-auto">
                         <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
+                            <button id="backButton" class="flex items-center space-x-2 text-cyan-400 hover:text-cyan-300 transition-colors tron-glow">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                                 </svg>
                                 <span>Back to Setup</span>
                             </button>
-                            <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-2xl font-bold text-white flex items-center">
+                            <div class="h-6 w-px bg-cyan-500/30"></div>
+                            <h1 class="text-2xl font-bold text-cyan-400 flex items-center">
                                 <svg class="w-8 h-8 text-purple-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                 </svg>
@@ -36,10 +99,10 @@ export class TournamentBracketPage implements Page {
                             </h1>
                         </div>
                         <div class="flex items-center space-x-4">
-                            <div id="tournamentStats" class="text-sm text-gray-400">
+                            <div id="tournamentStats" class="text-sm text-cyan-300">
                                 Loading tournament...
                             </div>
-                            <button id="startNextMatchButton" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <button id="startNextMatchButton" class="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-glow" disabled>
                                 Start Next Match
                             </button>
                         </div>
@@ -47,50 +110,50 @@ export class TournamentBracketPage implements Page {
                 </div>
 
                 <!-- Main Content -->
-                <div class="flex-1 p-6 overflow-auto">
+                <div class="flex-1 p-6 overflow-auto relative z-10 bg-slate-900/50 backdrop-blur-sm">
                     <div class="max-w-7xl mx-auto">
                         <div class="grid lg:grid-cols-4 gap-6">
                             <!-- Tournament Info Panel -->
                             <div class="lg:col-span-1 space-y-6">
                                 <!-- Tournament Status -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-lg font-semibold text-white mb-4">Tournament Status</h2>
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-lg font-semibold text-cyan-300 mb-4">Tournament Status</h2>
                                     <div class="space-y-3">
                                         <div class="flex justify-between">
-                                            <span class="text-gray-300">Current Round:</span>
+                                            <span class="text-cyan-300">Current Round:</span>
                                             <span class="text-white font-semibold" id="currentRound">-</span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-gray-300">Total Rounds:</span>
+                                            <span class="text-cyan-300">Total Rounds:</span>
                                             <span class="text-white font-semibold" id="totalRounds">-</span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-gray-300">Completed Matches:</span>
+                                            <span class="text-cyan-300">Completed Matches:</span>
                                             <span class="text-white font-semibold" id="completedMatches">-</span>
                                         </div>
                                         <div class="flex justify-between">
-                                            <span class="text-gray-300">Remaining Players:</span>
+                                            <span class="text-cyan-300">Remaining Players:</span>
                                             <span class="text-white font-semibold" id="remainingPlayers">-</span>
                                         </div>
-                                        <div class="pt-2 border-t border-slate-600">
+                                        <div class="pt-2 border-t border-cyan-500/30">
                                             <div class="text-center">
                                                 <div id="tournamentProgress" class="text-lg font-bold text-purple-400">0%</div>
-                                                <div class="text-xs text-gray-400">Complete</div>
+                                                <div class="text-xs text-cyan-400">Complete</div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Current Match Info -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-lg font-semibold text-white mb-4">Current Match</h2>
-                                    <div id="currentMatchInfo" class="text-center text-gray-400 py-4">
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-lg font-semibold text-cyan-300 mb-4">Current Match</h2>
+                                    <div id="currentMatchInfo" class="text-center text-cyan-400 py-4">
                                         No active match
                                     </div>
                                 </div>
 
                                 <!-- Tournament Winner -->
-                                <div id="tournamentWinnerPanel" class="bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-lg border border-yellow-500 p-6 hidden">
+                                <div id="tournamentWinnerPanel" class="bg-gradient-to-r from-yellow-600/70 to-yellow-700/70 backdrop-blur-sm rounded-lg border border-yellow-500/50 p-6 hidden tron-border tron-glow">
                                     <h2 class="text-lg font-semibold text-white mb-4 flex items-center">
                                         <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732L14.146 12.8l-1.179 4.456a1 1 0 01-1.934 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732L9.854 7.2l1.179-4.456A1 1 0 0112 2z" clip-rule="evenodd"></path>
@@ -99,7 +162,7 @@ export class TournamentBracketPage implements Page {
                                     </h2>
                                     <div id="tournamentWinner" class="text-center">
                                         <div class="text-2xl font-bold text-white mb-2"></div>
-                                        <button id="newTournamentButton" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors">
+                                        <button id="newTournamentButton" class="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-lg transition-all tron-glow">
                                             New Tournament
                                         </button>
                                     </div>
@@ -145,20 +208,20 @@ export class TournamentBracketPage implements Page {
 
                 <!-- Match Result Modal -->
                 <div id="matchResultModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-                    <div class="bg-slate-800 rounded-lg border border-slate-700 p-8 max-w-md w-full mx-4">
-                        <h3 class="text-xl font-semibold text-white mb-6 text-center">Match Result</h3>
+                    <div class="bg-slate-900/90 backdrop-blur-md rounded-lg border border-cyan-500/50 p-8 max-w-md w-full mx-4 tron-border tron-glow">
+                        <h3 class="text-xl font-semibold text-cyan-400 mb-6 text-center">Match Result</h3>
                         <div id="matchResultContent" class="space-y-4">
                             <div class="text-center">
-                                <div id="matchPlayers" class="text-lg text-gray-300 mb-4"></div>
+                                <div id="matchPlayers" class="text-lg text-cyan-300 mb-4"></div>
                                 <div id="matchScore" class="text-2xl font-bold text-white mb-4"></div>
-                                <div id="matchWinner" class="text-lg text-green-400 font-semibold"></div>
+                                <div id="matchWinner" class="text-lg text-cyan-400 font-semibold"></div>
                             </div>
                         </div>
                         <div class="flex space-x-4 mt-8">
-                            <button id="continueButton" class="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors">
+                            <button id="continueButton" class="flex-1 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-lg transition-all tron-glow">
                                 Continue Tournament
                             </button>
-                            <button id="closeModalButton" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                            <button id="closeModalButton" class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/70 border border-cyan-500/30 text-cyan-300 rounded-lg transition-all tron-glow">
                                 Close
                             </button>
                         </div>
@@ -326,43 +389,43 @@ export class TournamentBracketPage implements Page {
             <div class="tournament-bracket flex space-x-8 overflow-x-auto pb-4">
                 ${bracket.rounds.map((round, roundIndex) => `
                     <div class="flex flex-col space-y-4 min-w-60">
-                        <h3 class="text-center text-white font-semibold mb-4">
+                        <h3 class="text-center text-cyan-400 font-semibold mb-4 tron-glow">
                             ${roundIndex === bracket.rounds.length - 1 ? 'Final' : 
                               roundIndex === bracket.rounds.length - 2 ? 'Semifinal' :
                               `Round ${roundIndex + 1}`}
                         </h3>
                         ${round.map(match => `
-                            <div class="match-card bg-slate-700 border border-slate-600 rounded-lg p-4 ${match.isComplete ? 'opacity-75' : ''}">
+                            <div class="match-card bg-slate-900/50 backdrop-blur-sm border border-cyan-500/30 rounded-lg p-4 ${match.isComplete ? 'opacity-75' : ''} tron-border tron-glow">
                                 <div class="space-y-2">
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-2">
-                                            <div class="w-2 h-2 bg-yellow-500 rounded-full" title="Left side"></div>
-                                            <span class="text-white ${match.winner?.id === match.player1.id ? 'font-bold text-green-400' : ''}">${match.player1.name}</span>
+                                            <div class="w-2 h-2 bg-cyan-400 rounded-full" title="Left side"></div>
+                                            <span class="text-white ${match.winner?.id === match.player1.id ? 'font-bold text-cyan-400' : ''}">${match.player1.name}</span>
                                         </div>
                                         <div class="flex items-center space-x-2">
-                                            <span class="text-gray-400">${match.score ? match.score.player1 : '-'}</span>
-                                            <span class="text-xs text-gray-500">L</span>
+                                            <span class="text-cyan-300">${match.score ? match.score.player1 : '-'}</span>
+                                            <span class="text-xs text-cyan-400/70">L</span>
                                         </div>
                                     </div>
-                                    <div class="w-full h-px bg-slate-600"></div>
+                                    <div class="w-full h-px bg-cyan-500/30"></div>
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-2">
-                                            <div class="w-2 h-2 bg-blue-500 rounded-full" title="Right side"></div>
-                                            <span class="text-white ${match.winner?.id === match.player2.id ? 'font-bold text-green-400' : ''}">${match.player2.name}</span>
+                                            <div class="w-2 h-2 bg-cyan-400 rounded-full" title="Right side"></div>
+                                            <span class="text-white ${match.winner?.id === match.player2.id ? 'font-bold text-cyan-400' : ''}">${match.player2.name}</span>
                                         </div>
                                         <div class="flex items-center space-x-2">
-                                            <span class="text-gray-400">${match.score ? match.score.player2 : '-'}</span>
-                                            <span class="text-xs text-gray-500">R</span>
+                                            <span class="text-cyan-300">${match.score ? match.score.player2 : '-'}</span>
+                                            <span class="text-xs text-cyan-400/70">R</span>
                                         </div>
                                     </div>
                                 </div>
                                 ${!match.isComplete && this.currentMatch?.id === match.id ? `
                                     <div class="mt-2 text-center">
-                                        <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded">Playing</span>
+                                        <span class="px-2 py-1 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white text-xs rounded tron-glow">Playing</span>
                                     </div>
                                 ` : match.isComplete ? `
                                     <div class="mt-2 text-center">
-                                        <span class="px-2 py-1 bg-green-600 text-white text-xs rounded">Complete</span>
+                                        <span class="px-2 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs rounded tron-glow">Complete</span>
                                     </div>
                                 ` : ''}
                             </div>
@@ -383,7 +446,7 @@ export class TournamentBracketPage implements Page {
 
         if (upcomingMatches.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-gray-400 py-4 col-span-full">
+                <div class="text-center text-cyan-400/70 py-4 col-span-full">
                     No upcoming matches
                 </div>
             `;
@@ -391,22 +454,22 @@ export class TournamentBracketPage implements Page {
         }
 
         container.innerHTML = upcomingMatches.map(match => `
-            <div class="bg-slate-700 rounded-lg border border-slate-600 p-4">
+            <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-4 tron-border tron-glow">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-gray-400">Round ${match.roundNumber}</span>
-                    <span class="text-sm text-gray-400">Match ${match.matchNumber}</span>
+                    <span class="text-sm text-cyan-400">Round ${match.roundNumber}</span>
+                    <span class="text-sm text-cyan-400">Match ${match.matchNumber}</span>
                 </div>
                 <div class="space-y-2">
                     <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-yellow-500 rounded-full" title="Left side"></div>
+                        <div class="w-2 h-2 bg-cyan-400 rounded-full" title="Left side"></div>
                         <div class="text-white font-medium">${match.player1.name}</div>
-                        <span class="text-xs text-gray-500 ml-auto">LEFT</span>
+                        <span class="text-xs text-cyan-400/70 ml-auto">LEFT</span>
                     </div>
-                    <div class="text-center text-gray-400 text-sm">vs</div>
+                    <div class="text-center text-cyan-300 text-sm">vs</div>
                     <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-blue-500 rounded-full" title="Right side"></div>
+                        <div class="w-2 h-2 bg-cyan-400 rounded-full" title="Right side"></div>
                         <div class="text-white font-medium">${match.player2.name}</div>
-                        <span class="text-xs text-gray-500 ml-auto">RIGHT</span>
+                        <span class="text-xs text-cyan-400/70 ml-auto">RIGHT</span>
                     </div>
                 </div>
             </div>
@@ -423,7 +486,7 @@ export class TournamentBracketPage implements Page {
 
         if (!this.currentMatch) {
             container.innerHTML = `
-                <div class="text-gray-400">
+                <div class="text-cyan-400/70">
                     ${this.tournament.isComplete ? 'Tournament Complete!' : 'No active match'}
                 </div>
             `;
@@ -432,22 +495,22 @@ export class TournamentBracketPage implements Page {
 
         container.innerHTML = `
             <div class="space-y-3">
-                <div class="text-sm text-gray-400">Round ${this.currentMatch.roundNumber} - Match ${this.currentMatch.matchNumber}</div>
+                <div class="text-sm text-cyan-400">Round ${this.currentMatch.roundNumber} - Match ${this.currentMatch.matchNumber}</div>
                 <div class="space-y-2">
-                    <div class="flex items-center justify-between bg-slate-700 rounded-lg p-3">
+                    <div class="flex items-center justify-between bg-slate-900/50 backdrop-blur-sm rounded-lg p-3 border border-cyan-500/30 tron-glow">
                         <div class="flex items-center space-x-2">
-                            <div class="w-3 h-3 bg-yellow-500 rounded-full" title="Left side"></div>
+                            <div class="w-3 h-3 bg-cyan-400 rounded-full" title="Left side"></div>
                             <div class="text-white font-semibold">${this.currentMatch.player1.name}</div>
                         </div>
-                        <div class="text-xs text-gray-400 bg-slate-800 px-2 py-1 rounded">LEFT</div>
+                        <div class="text-xs text-cyan-400 bg-slate-800/70 px-2 py-1 rounded border border-cyan-500/30">LEFT</div>
                     </div>
-                    <div class="text-center text-gray-400 text-sm font-medium">VS</div>
-                    <div class="flex items-center justify-between bg-slate-700 rounded-lg p-3">
+                    <div class="text-center text-cyan-300 text-sm font-medium">VS</div>
+                    <div class="flex items-center justify-between bg-slate-900/50 backdrop-blur-sm rounded-lg p-3 border border-cyan-500/30 tron-glow">
                         <div class="flex items-center space-x-2">
-                            <div class="w-3 h-3 bg-blue-500 rounded-full" title="Right side"></div>
+                            <div class="w-3 h-3 bg-cyan-400 rounded-full" title="Right side"></div>
                             <div class="text-white font-semibold">${this.currentMatch.player2.name}</div>
                         </div>
-                        <div class="text-xs text-gray-400 bg-slate-800 px-2 py-1 rounded">RIGHT</div>
+                        <div class="text-xs text-cyan-400 bg-slate-800/70 px-2 py-1 rounded border border-cyan-500/30">RIGHT</div>
                     </div>
                 </div>
             </div>

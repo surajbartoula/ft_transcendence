@@ -56,27 +56,90 @@ export class OnlineMatchLobbyPage implements Page {
 
     public render(): string {
         return `
-            <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-orange-900 flex flex-col">
+            <div class="min-h-screen bg-black relative overflow-hidden flex flex-col">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
+                
                 <!-- Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-4">
+                <div class="bg-slate-900/90 backdrop-blur-sm border-b border-cyan-500/30 p-4 relative z-10 tron-glow flex-shrink-0">
                     <div class="flex items-center justify-between max-w-6xl mx-auto">
                         <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
+                            <button id="backButton" class="flex items-center space-x-2 text-cyan-400 hover:text-cyan-300 transition-colors tron-glow">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                                 </svg>
                                 <span>Back to Game Menu</span>
                             </button>
-                            <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-2xl font-bold text-white flex items-center">
-                                <svg class="w-8 h-8 text-orange-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="h-6 w-px bg-cyan-500/30"></div>
+                            <h1 class="text-2xl font-bold text-cyan-400 flex items-center">
+                                <svg class="w-8 h-8 text-purple-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9"></path>
                                 </svg>
                                 <span>Online Match</span>
                             </h1>
                         </div>
                         <div class="flex items-center space-x-4">
-                            <div class="text-sm text-gray-400">
+                            <div class="text-sm text-cyan-300">
                                 Find opponents and challenge them to a match
                             </div>
                         </div>
@@ -84,16 +147,16 @@ export class OnlineMatchLobbyPage implements Page {
                 </div>
 
                 <!-- Main Content -->
-                <div class="flex-1 p-6">
+                <div class="flex-1 p-6 relative z-10">
                     <div class="max-w-6xl mx-auto">
                         <div class="grid lg:grid-cols-3 gap-6">
                             <!-- Player Search -->
                             <div class="lg:col-span-2 space-y-6">
                                 <!-- Search Section -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                                <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
                                     <div class="flex items-center justify-between mb-4">
-                                        <h2 class="text-xl font-semibold text-white">Find Players</h2>
-                                        <button id="refreshOnlineButton" class="text-gray-300 hover:text-white transition-colors">
+                                        <h2 class="text-xl font-semibold text-cyan-400">Find Players</h2>
+                                        <button id="refreshOnlineButton" class="text-cyan-300 hover:text-cyan-200 transition-colors tron-glow">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                             </svg>
@@ -107,19 +170,19 @@ export class OnlineMatchLobbyPage implements Page {
                                                 type="text" 
                                                 id="userSearchInput"
                                                 placeholder="Search players by username..."
-                                                class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                                class="w-full px-4 py-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow"
                                             >
-                                            <svg class="absolute right-3 top-3 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="absolute right-3 top-3 w-5 h-5 text-cyan-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                             </svg>
                                         </div>
 
                                         <!-- Quick Tabs -->
                                         <div class="flex space-x-2">
-                                            <button id="onlineUsersTab" class="px-4 py-2 bg-orange-600 text-white rounded-lg font-medium transition-colors">
+                                            <button id="onlineUsersTab" class="px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-lg font-medium transition-all tron-glow">
                                                 Online Players
                                             </button>
-                                            <button id="searchResultsTab" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors">
+                                            <button id="searchResultsTab" class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/70 border border-cyan-500/30 text-cyan-300 rounded-lg font-medium transition-all tron-glow">
                                                 Search Results
                                             </button>
                                         </div>
@@ -127,16 +190,16 @@ export class OnlineMatchLobbyPage implements Page {
                                 </div>
 
                                 <!-- Players List -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                                <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
                                     <div class="flex items-center justify-between mb-4">
-                                        <h2 id="playersListTitle" class="text-xl font-semibold text-white">Online Players</h2>
-                                        <div id="playersCount" class="text-sm text-gray-400">
+                                        <h2 id="playersListTitle" class="text-xl font-semibold text-cyan-400">Online Players</h2>
+                                        <div id="playersCount" class="text-sm text-cyan-300">
                                             Loading...
                                         </div>
                                     </div>
                                     <div id="playersList" class="space-y-3">
-                                        <div class="text-center text-gray-400 py-8">
-                                            <div class="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                        <div class="text-center text-cyan-400/70 py-8">
+                                            <div class="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                                             <p>Loading players...</p>
                                         </div>
                                     </div>
@@ -146,17 +209,17 @@ export class OnlineMatchLobbyPage implements Page {
                             <!-- Sidebar -->
                             <div class="space-y-6">
                                 <!-- Game Invitations -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+                                <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
                                     <div class="flex items-center justify-between mb-4">
-                                        <h2 class="text-lg font-semibold text-white">Invitations</h2>
-                                        <div id="invitationsBadge" class="px-2 py-1 bg-red-600 text-white text-xs rounded-full hidden">0</div>
+                                        <h2 class="text-lg font-semibold text-cyan-400">Invitations</h2>
+                                        <div id="invitationsBadge" class="px-2 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full hidden tron-glow">0</div>
                                     </div>
                                     
                                     <!-- Received Invitations -->
                                     <div class="mb-4">
-                                        <h3 class="text-sm font-medium text-gray-300 mb-2">Received</h3>
+                                        <h3 class="text-sm font-medium text-cyan-300 mb-2">Received</h3>
                                         <div id="receivedInvitations" class="space-y-2">
-                                            <div class="text-center text-gray-400 py-4 text-sm">
+                                            <div class="text-center text-cyan-400/70 py-4 text-sm">
                                                 No pending invitations
                                             </div>
                                         </div>
@@ -164,9 +227,9 @@ export class OnlineMatchLobbyPage implements Page {
 
                                     <!-- Sent Invitations -->
                                     <div>
-                                        <h3 class="text-sm font-medium text-gray-300 mb-2">Sent</h3>
+                                        <h3 class="text-sm font-medium text-cyan-300 mb-2">Sent</h3>
                                         <div id="sentInvitations" class="space-y-2">
-                                            <div class="text-center text-gray-400 py-4 text-sm">
+                                            <div class="text-center text-cyan-400/70 py-4 text-sm">
                                                 No sent invitations
                                             </div>
                                         </div>
@@ -174,27 +237,27 @@ export class OnlineMatchLobbyPage implements Page {
                                 </div>
 
                                 <!-- Quick Actions -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+                                <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-lg font-semibold text-cyan-400 mb-4">Quick Actions</h2>
                                     <div class="space-y-3">
-                                        <button id="randomMatchButton" class="w-full py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
+                                        <button id="randomMatchButton" class="w-full py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-lg transition-all tron-glow">
                                             Find Random Match
                                         </button>
-                                        <button id="refreshListButton" class="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                                        <button id="refreshListButton" class="w-full py-2 bg-slate-800/50 hover:bg-slate-700/70 border border-cyan-500/30 text-cyan-300 rounded-lg transition-all tron-glow">
                                             Refresh Players
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- Connection Status -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-lg font-semibold text-white mb-4">Connection</h2>
+                                <div class="bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-lg font-semibold text-cyan-400 mb-4">Connection</h2>
                                     <div class="space-y-2">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-gray-300">Game Server</span>
+                                            <span class="text-cyan-300">Game Server</span>
                                             <div id="gameServerStatus" class="flex items-center">
                                                 <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                                                <span class="text-sm text-gray-400">Connecting...</span>
+                                                <span class="text-sm text-cyan-400/70">Connecting...</span>
                                             </div>
                                         </div>
                                     </div>
@@ -205,17 +268,17 @@ export class OnlineMatchLobbyPage implements Page {
                 </div>
 
                 <!-- Game Invitation Modal -->
-                <div id="invitationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-                    <div class="bg-slate-800 rounded-lg border border-slate-700 p-8 max-w-md w-full mx-4">
-                        <h3 class="text-xl font-semibold text-white mb-6 text-center">Game Invitation</h3>
+                <div id="invitationModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+                    <div class="bg-slate-900/90 backdrop-blur-md rounded-lg border border-cyan-500/50 p-8 max-w-md w-full mx-4 tron-border tron-glow">
+                        <h3 class="text-xl font-semibold text-cyan-400 mb-6 text-center">Game Invitation</h3>
                         <div id="invitationContent" class="space-y-4">
                             <!-- Dynamic content -->
                         </div>
                         <div class="flex space-x-4 mt-8">
-                            <button id="acceptInvitationButton" class="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                            <button id="acceptInvitationButton" class="flex-1 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white rounded-lg transition-all tron-glow">
                                 Accept
                             </button>
-                            <button id="declineInvitationButton" class="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                            <button id="declineInvitationButton" class="flex-1 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white rounded-lg transition-all tron-glow">
                                 Decline
                             </button>
                         </div>
@@ -499,18 +562,18 @@ export class OnlineMatchLobbyPage implements Page {
         const titleElement = document.getElementById('playersListTitle');
 
         if (tab === 'online') {
-            onlineTab?.classList.remove('bg-slate-700', 'hover:bg-slate-600');
-            onlineTab?.classList.add('bg-orange-600');
-            searchTab?.classList.remove('bg-orange-600');
-            searchTab?.classList.add('bg-slate-700', 'hover:bg-slate-600');
+            onlineTab?.classList.remove('bg-slate-800/50', 'hover:bg-slate-700/70', 'border', 'border-cyan-500/30', 'text-cyan-300');
+            onlineTab?.classList.add('bg-gradient-to-r', 'from-cyan-600', 'to-cyan-700', 'text-white');
+            searchTab?.classList.remove('bg-gradient-to-r', 'from-cyan-600', 'to-cyan-700', 'text-white');
+            searchTab?.classList.add('bg-slate-800/50', 'hover:bg-slate-700/70', 'border', 'border-cyan-500/30', 'text-cyan-300');
             
             if (titleElement) titleElement.textContent = 'Online Players';
             this.updatePlayersList();
         } else {
-            searchTab?.classList.remove('bg-slate-700', 'hover:bg-slate-600');
-            searchTab?.classList.add('bg-orange-600');
-            onlineTab?.classList.remove('bg-orange-600');
-            onlineTab?.classList.add('bg-slate-700', 'hover:bg-slate-600');
+            searchTab?.classList.remove('bg-slate-800/50', 'hover:bg-slate-700/70', 'border', 'border-cyan-500/30', 'text-cyan-300');
+            searchTab?.classList.add('bg-gradient-to-r', 'from-cyan-600', 'to-cyan-700', 'text-white');
+            onlineTab?.classList.remove('bg-gradient-to-r', 'from-cyan-600', 'to-cyan-700', 'text-white');
+            onlineTab?.classList.add('bg-slate-800/50', 'hover:bg-slate-700/70', 'border', 'border-cyan-500/30', 'text-cyan-300');
             
             if (titleElement) titleElement.textContent = 'Search Results';
             this.updatePlayersList();
@@ -519,7 +582,7 @@ export class OnlineMatchLobbyPage implements Page {
 
     private getCurrentTabPlayers(): UserSearchResult[] {
         const searchTab = document.getElementById('searchResultsTab');
-        return searchTab?.classList.contains('bg-orange-600') ? this.searchResults : this.onlineUsers;
+        return searchTab?.classList.contains('from-cyan-600') ? this.searchResults : this.onlineUsers;
     }
 
     private updatePlayersList(): void {
@@ -535,9 +598,9 @@ export class OnlineMatchLobbyPage implements Page {
         }
 
         if (players.length === 0) {
-            const isSearchTab = document.getElementById('searchResultsTab')?.classList.contains('bg-orange-600');
+            const isSearchTab = document.getElementById('searchResultsTab')?.classList.contains('from-cyan-600');
             playersListElement.innerHTML = `
-                <div class="text-center text-gray-400 py-8">
+                <div class="text-center text-cyan-400/70 py-8">
                     <p>${isSearchTab ? 'No players found' : 'No players online'}</p>
                 </div>
             `;
@@ -549,14 +612,14 @@ export class OnlineMatchLobbyPage implements Page {
             const playerId = player.id || (player as any).user_id || (player as any)._id || '';
             
             return `
-                <div class="flex items-center justify-between p-4 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
+                <div class="flex items-center justify-between p-4 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 hover:bg-slate-800/70 transition-all tron-border tron-glow">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        <div class="w-10 h-10 bg-gradient-to-r from-cyan-600 to-cyan-700 rounded-full flex items-center justify-center text-white font-semibold tron-glow">
                             ${player.username?.charAt(0)?.toUpperCase() || '?'}
                         </div>
                         <div>
                             <div class="text-white font-medium">${player.display_name || player.username}</div>
-                            <div class="text-xs text-gray-400">
+                            <div class="text-xs text-cyan-300">
                                 ${player.game_stats ? 
                                     `${player.game_stats.total_games} games • ${player.game_stats.win_rate}% win rate • ${player.game_stats.ranking_points} pts` 
                                     : 'No game history'
@@ -565,7 +628,7 @@ export class OnlineMatchLobbyPage implements Page {
                         </div>
                     </div>
                     <button 
-                        class="challenge-button px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg transition-colors"
+                        class="challenge-button px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white text-sm rounded-lg transition-all tron-glow"
                         data-user-id="${playerId}"
                         data-username="${player.username}"
                         ${!playerId ? 'disabled title="User ID not available"' : ''}
@@ -590,26 +653,26 @@ export class OnlineMatchLobbyPage implements Page {
         if (receivedElement) {
             if (this.pendingInvitations.length === 0) {
                 receivedElement.innerHTML = `
-                    <div class="text-center text-gray-400 py-4 text-sm">
+                    <div class="text-center text-cyan-400/70 py-4 text-sm">
                         No pending invitations
                     </div>
                 `;
             } else {
                 receivedElement.innerHTML = this.pendingInvitations.map((inv: GameInvitation) => `
-                    <div class="p-3 bg-slate-700 rounded-lg border border-slate-600">
+                    <div class="p-3 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 tron-border tron-glow">
                         <div class="flex items-center justify-between mb-2">
                             <div class="text-white text-sm font-medium">${inv.sender_username || inv.sender?.username || inv.sender?.display_name || 'Unknown'}</div>
                         </div>
-                        <div class="text-xs text-gray-400 mb-3">${inv.message}</div>
+                        <div class="text-xs text-cyan-300 mb-3">${inv.message}</div>
                         <div class="flex space-x-2">
                             <button 
-                                class="accept-invitation-btn flex-1 py-1 px-2 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                                class="accept-invitation-btn flex-1 py-1 px-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white text-xs rounded transition-all tron-glow"
                                 data-invitation-id="${inv.id}"
                             >
                                 Accept
                             </button>
                             <button 
-                                class="decline-invitation-btn flex-1 py-1 px-2 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                                class="decline-invitation-btn flex-1 py-1 px-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-xs rounded transition-all tron-glow"
                                 data-invitation-id="${inv.id}"
                             >
                                 Decline
@@ -638,15 +701,15 @@ export class OnlineMatchLobbyPage implements Page {
         if (sentElement) {
             if (this.sentInvitations.length === 0) {
                 sentElement.innerHTML = `
-                    <div class="text-center text-gray-400 py-4 text-sm">
+                    <div class="text-center text-cyan-400/70 py-4 text-sm">
                         No sent invitations
                     </div>
                 `;
             } else {
                 sentElement.innerHTML = this.sentInvitations.map((inv: GameInvitation) => `
-                    <div class="p-3 bg-slate-700 rounded-lg">
+                    <div class="p-3 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-cyan-500/30 tron-border tron-glow">
                         <div class="text-white text-sm font-medium mb-1">${inv.receiver_username || 'Unknown'}</div>
-                        <div class="text-xs text-gray-400">Waiting for response...</div>
+                        <div class="text-xs text-cyan-300">Waiting for response...</div>
                     </div>
                 `).join('');
             }
@@ -733,7 +796,7 @@ export class OnlineMatchLobbyPage implements Page {
     }
 
     private async refreshCurrentList(): Promise<void> {
-        const isOnlineTab = document.getElementById('onlineUsersTab')?.classList.contains('bg-orange-600');
+        const isOnlineTab = document.getElementById('onlineUsersTab')?.classList.contains('from-cyan-600');
         if (isOnlineTab) {
             await this.loadOnlineUsers();
         } else {
@@ -833,12 +896,12 @@ export class OnlineMatchLobbyPage implements Page {
         if (isConnected) {
             statusElement.innerHTML = `
                 <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span class="text-sm text-green-400">Connected</span>
+                <span class="text-sm text-cyan-400">Connected</span>
             `;
         } else {
             statusElement.innerHTML = `
                 <div class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                <span class="text-sm text-red-400">Disconnected</span>
+                <span class="text-sm text-cyan-400/70">Disconnected</span>
             `;
         }
     }

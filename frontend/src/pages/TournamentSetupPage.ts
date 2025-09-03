@@ -13,47 +13,110 @@ export class TournamentSetupPage implements Page {
 
     public render(): string {
         return `
-            <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-purple-900 flex flex-col">
+            <div class="min-h-screen bg-black relative overflow-hidden flex flex-col">
+                <!-- Tron-inspired animated background -->
+                <div class="absolute inset-0 opacity-30">
+                    <!-- Animated grid -->
+                    <div class="absolute inset-0" style="background-image: 
+                        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+                        background-size: 40px 40px; 
+                        animation: grid-move 20s linear infinite;">
+                    </div>
+                    
+                    <!-- Glowing circuit lines -->
+                    <div class="absolute inset-0">
+                        <div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent shadow-cyan-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite;"></div>
+                        <div class="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-blue-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 1.5s;"></div>
+                        <div class="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-purple-500 to-transparent shadow-purple-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 0.5s;"></div>
+                        <div class="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-pink-500 to-transparent shadow-pink-500 shadow-sm animate-pulse" style="animation: line-glow 3s ease-in-out infinite; animation-delay: 2s;"></div>
+                    </div>
+                    
+                    <!-- Floating particles -->
+                    <div class="absolute inset-0">
+                        <div class="absolute w-1 h-1 bg-cyan-400 rounded-full animate-ping" style="top: 20%; left: 15%; animation-delay: 0s;"></div>
+                        <div class="absolute w-1 h-1 bg-blue-400 rounded-full animate-ping" style="top: 60%; left: 80%; animation-delay: 1s;"></div>
+                        <div class="absolute w-1 h-1 bg-purple-400 rounded-full animate-ping" style="top: 40%; left: 60%; animation-delay: 2s;"></div>
+                        <div class="absolute w-1 h-1 bg-pink-400 rounded-full animate-ping" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+                    </div>
+                    
+                    <!-- Hexagonal pattern overlay -->
+                    <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 25px 25px, rgba(0, 255, 255, 0.2) 2px, transparent 2px); background-size: 50px 50px;"></div>
+                </div>
+                
+                <style>
+                    @keyframes grid-move {
+                        0% { transform: translate(0, 0); }
+                        100% { transform: translate(40px, 40px); }
+                    }
+                    
+                    @keyframes line-glow {
+                        0%, 100% { opacity: 0.3; box-shadow: 0 0 5px currentColor; }
+                        50% { opacity: 1; box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+                    }
+                    
+                    .tron-glow {
+                        box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                    }
+                    
+                    .tron-border {
+                        border: 1px solid rgba(0, 255, 255, 0.3);
+                        position: relative;
+                    }
+                    
+                    .tron-border::before {
+                        content: '';
+                        position: absolute;
+                        top: -1px;
+                        left: -1px;
+                        right: -1px;
+                        bottom: -1px;
+                        background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+                        z-index: -1;
+                        border-radius: inherit;
+                    }
+                </style>
+                
                 <!-- Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-4">
+                <div class="bg-slate-900/90 backdrop-blur-sm border-b border-cyan-500/30 p-4 relative z-10 tron-glow flex-shrink-0">
                     <div class="flex items-center justify-between max-w-4xl mx-auto">
                         <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
+                            <button id="backButton" class="flex items-center space-x-2 text-cyan-400 hover:text-cyan-300 transition-colors tron-glow">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                                 </svg>
                                 <span>Back to Menu</span>
                             </button>
-                            <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-2xl font-bold text-white flex items-center">
+                            <div class="h-6 w-px bg-cyan-500/30"></div>
+                            <h1 class="text-2xl font-bold text-cyan-400 flex items-center">
                                 <svg class="w-8 h-8 text-purple-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                 </svg>
                                 Tournament Setup
                             </h1>
                         </div>
-                        <div class="text-sm text-gray-400">
+                        <div class="text-sm text-cyan-300">
                             Create a tournament bracket
                         </div>
                     </div>
                 </div>
 
                 <!-- Main Content -->
-                <div class="flex-1 p-8">
+                <div class="flex-1 p-8 relative z-10 bg-slate-900/50 backdrop-blur-sm">
                     <div class="max-w-6xl mx-auto">
                         <!-- Tournament Mode Selector -->
-                        <div class="mb-8 bg-slate-800 rounded-lg border border-slate-700 p-6">
-                            <h2 class="text-xl font-semibold text-white mb-4">Tournament Type</h2>
+                        <div class="mb-8 bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                            <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Type</h2>
                             <div class="grid grid-cols-2 gap-4">
-                                <div class="tournament-mode-card cursor-pointer p-4 border border-slate-600 rounded-lg hover:border-blue-500 transition-colors" data-mode="local">
+                                <div class="tournament-mode-card cursor-pointer p-4 border border-cyan-500/30 rounded-lg hover:border-cyan-400 transition-all duration-300 tron-border hover:tron-glow" data-mode="local">
                                     <div class="flex items-center space-x-3">
-                                        <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center tron-glow">
                                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                             </svg>
                                         </div>
                                         <div>
-                                            <h3 class="text-lg font-semibold text-white">Local Tournament</h3>
+                                            <h3 class="text-lg font-semibold text-cyan-300">Local Tournament</h3>
                                             <p class="text-sm text-gray-400">Play with friends locally</p>
                                         </div>
                                     </div>
@@ -66,30 +129,30 @@ export class TournamentSetupPage implements Page {
                             <!-- Left Column: Player Setup -->
                             <div class="space-y-6">
                                 <!-- Tournament Info -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-xl font-semibold text-white mb-4">Tournament Information</h2>
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Information</h2>
                                     <div class="space-y-4">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-300 mb-2">Tournament Name</label>
+                                            <label class="block text-sm font-medium text-cyan-400 mb-2">Tournament Name</label>
                                             <input 
                                                 type="text" 
                                                 id="tournamentName"
                                                 placeholder="Enter tournament name"
-                                                class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow"
                                                 value="Pong Tournament ${new Date().toLocaleDateString()}"
                                             >
                                         </div>
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-2">Min Players</label>
-                                                <select id="minPlayersSelect" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                                <label class="block text-sm font-medium text-cyan-400 mb-2">Min Players</label>
+                                                <select id="minPlayersSelect" class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
                                                     <option value="2">2</option>
                                                     <option value="4">4</option>
                                                 </select>
                                             </div>
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-300 mb-2">Max Players</label>
-                                                <select id="maxPlayersSelect" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                                <label class="block text-sm font-medium text-cyan-400 mb-2">Max Players</label>
+                                                <select id="maxPlayersSelect" class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
                                                     <option value="4">4</option>
                                                     <option value="8" selected>8</option>
                                                     <option value="16">16</option>
@@ -100,20 +163,20 @@ export class TournamentSetupPage implements Page {
                                 </div>
 
                                 <!-- Add Players -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-xl font-semibold text-white mb-4">Add Players</h2>
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-xl font-semibold text-cyan-300 mb-4">Add Players</h2>
                                     <div class="space-y-4">
                                         <div class="flex space-x-2">
                                             <input 
                                                 type="text" 
                                                 id="playerNameInput"
                                                 placeholder="Enter player name"
-                                                class="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                class="flex-1 px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow"
                                                 maxlength="20"
                                             >
                                             <button 
                                                 id="addPlayerButton"
-                                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md transition-colors flex items-center"
+                                                class="px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-400 hover:to-purple-500 text-white rounded-md transition-all duration-300 flex items-center tron-glow"
                                             >
                                                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -124,16 +187,16 @@ export class TournamentSetupPage implements Page {
                                         
                                         <!-- Quick Add Buttons -->
                                         <div class="flex flex-wrap gap-2">
-                                            <button class="quick-add-btn px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors">
+                                            <button class="quick-add-btn px-3 py-1 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white text-sm rounded transition-all duration-300 tron-border">
                                                 Player 1
                                             </button>
-                                            <button class="quick-add-btn px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors">
+                                            <button class="quick-add-btn px-3 py-1 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white text-sm rounded transition-all duration-300 tron-border">
                                                 Player 2
                                             </button>
-                                            <button class="quick-add-btn px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors">
+                                            <button class="quick-add-btn px-3 py-1 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white text-sm rounded transition-all duration-300 tron-border">
                                                 Player 3
                                             </button>
-                                            <button class="quick-add-btn px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors">
+                                            <button class="quick-add-btn px-3 py-1 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white text-sm rounded transition-all duration-300 tron-border">
                                                 Player 4
                                             </button>
                                         </div>
@@ -145,21 +208,21 @@ export class TournamentSetupPage implements Page {
                                 </div>
 
                                 <!-- Tournament Controls -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-xl font-semibold text-white mb-4">Tournament Options</h2>
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Options</h2>
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-gray-300">Auto-fill remaining slots</span>
+                                            <span class="text-cyan-300">Auto-fill remaining slots</span>
                                             <label class="relative inline-flex items-center cursor-pointer">
                                                 <input type="checkbox" id="autoFillToggle" class="sr-only peer">
-                                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-purple-600"></div>
                                             </label>
                                         </div>
                                         <div class="flex items-center justify-between">
-                                            <span class="text-gray-300">Shuffle player order</span>
+                                            <span class="text-cyan-300">Shuffle player order</span>
                                             <label class="relative inline-flex items-center cursor-pointer">
                                                 <input type="checkbox" id="shuffleToggle" class="sr-only peer" checked>
-                                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-purple-600"></div>
                                             </label>
                                         </div>
                                     </div>
@@ -169,14 +232,14 @@ export class TournamentSetupPage implements Page {
                                 <div class="flex space-x-4">
                                     <button 
                                         id="startTournamentButton"
-                                        class="flex-1 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        class="flex-1 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-glow"
                                         disabled
                                     >
                                         Start Tournament
                                     </button>
                                     <button 
                                         id="previewBracketButton"
-                                        class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        class="px-6 py-3 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-border"
                                         disabled
                                     >
                                         Preview Bracket
@@ -187,12 +250,12 @@ export class TournamentSetupPage implements Page {
                             <!-- Right Column: Players List -->
                             <div class="space-y-6">
                                 <!-- Current Players -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-xl font-semibold text-white mb-4">Tournament Players</h2>
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Players</h2>
                                     <div id="playersContainer" class="space-y-2">
-                                        <div class="text-center text-gray-400 py-8" id="emptyPlayersMessage">
-                                            <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                        <div class="text-center text-cyan-400 py-8" id="emptyPlayersMessage">
+                                            <svg class="w-12 h-12 mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                             </svg>
                                             No players added yet
                                             <div class="text-sm mt-1">Add at least ${this.minPlayers} players to start</div>
@@ -201,10 +264,10 @@ export class TournamentSetupPage implements Page {
                                 </div>
 
                                 <!-- Tournament Preview -->
-                                <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                                    <h2 class="text-xl font-semibold text-white mb-4">Tournament Preview</h2>
-                                    <div id="tournamentPreview" class="text-center text-gray-400 py-8">
-                                        <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="bg-slate-800/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 p-6 tron-border tron-glow">
+                                    <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Preview</h2>
+                                    <div id="tournamentPreview" class="text-center text-cyan-400 py-8">
+                                        <svg class="w-12 h-12 mx-auto mb-2 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
                                         Tournament structure will appear here

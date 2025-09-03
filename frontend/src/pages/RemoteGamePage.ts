@@ -44,38 +44,43 @@ export class RemoteGamePage implements Page {
 
     public render(): string {
         return `
-            <div class="fixed inset-0 bg-slate-900 flex flex-col h-screen">
+            <div class="fixed inset-0 bg-black flex flex-col h-screen">
                 <!-- Remote Game Header -->
-                <div class="bg-slate-800 border-b border-slate-700 p-3 z-20 relative">
+                <div class="bg-slate-900/90 backdrop-blur-sm border-b border-cyan-500/30 p-3 z-20 relative tron-glow">
+                    <style>
+                        .tron-glow {
+                            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), 0 0 20px rgba(0, 255, 255, 0.1);
+                        }
+                    </style>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-4">
-                            <button id="backButton" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors z-30 relative">
+                            <button id="backButton" class="flex items-center space-x-2 text-cyan-400 hover:text-cyan-300 transition-colors z-30 relative tron-glow">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                                 </svg>
                                 <span>Exit Game</span>
                             </button>
-                            <div class="h-6 w-px bg-slate-600"></div>
-                            <h1 class="text-xl font-bold text-white">Remote Match</h1>
+                            <div class="h-6 w-px bg-cyan-500/30"></div>
+                            <h1 class="text-xl font-bold text-cyan-400">Remote Match</h1>
                         </div>
                         <div class="flex items-center space-x-6">
                             <!-- Player Status -->
                             <div class="flex items-center space-x-4">
 								<div class="text-center">
 									<div id="player2Name" class="text-white font-semibold">${this.player2Name}</div>
-									<div id="player2Score" class="text-2xl font-bold text-red-400">0</div>
+									<div id="player2Score" class="text-2xl font-bold text-cyan-400">0</div>
 								</div>
-								<div class="text-2xl text-gray-400 font-bold">VS</div>
+								<div class="text-2xl text-cyan-300 font-bold">VS</div>
                                 <div class="text-center">
                                     <div id="player1Name" class="text-white font-semibold">${this.player1Name}</div>
-                                    <div id="player1Score" class="text-2xl font-bold text-blue-400">0</div>
+                                    <div id="player1Score" class="text-2xl font-bold text-cyan-400">0</div>
                                 </div>
                             </div>
                             <!-- Connection Status -->
                             <div class="flex items-center space-x-2">
                                 <div id="connectionStatus" class="flex items-center">
-                                    <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-                                    <span class="text-sm text-yellow-400">Connecting...</span>
+                                    <div class="w-2 h-2 bg-cyan-500 rounded-full mr-2"></div>
+                                    <span class="text-sm text-cyan-400">Connecting...</span>
                                 </div>
                             </div>
                         </div>
