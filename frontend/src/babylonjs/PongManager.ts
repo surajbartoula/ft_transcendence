@@ -197,13 +197,6 @@ export class PongGameManager {
     }
 
     /**
-     * Get AI statistics for display
-     */
-    public getAIStats(): any {
-        return this.aiPlayer.getAIStats();
-    }
-
-    /**
      * Force navigate to a specific game state
      */
     public async navigateToState(stateName: string, data?: any): Promise<void> {
@@ -549,32 +542,6 @@ export class PongGameManager {
         } catch (error) {
             // Error syncing remote game state
         }
-    }
-    
-    // =====================================
-    // DEBUG METHODS
-    // =====================================
-    
-    /**
-     * Enable debug mode with additional logging and overlays
-     */
-    public enableDebugMode(): void {
-        // Debug mode enabled
-        // Add debug overlays, performance monitors, etc.
-    }
-
-    /**
-     * Get debug information
-     */
-    public getDebugInfo(): any {
-        return {
-            gameState: this.gameState,
-            currentMode: this.getGameMode(),
-            score: this.getScore(),
-            aiStats: this.getAIStats(),
-            performance: this.getPerformanceMetrics(),
-            tournament: this.getCurrentTournament()
-        };
     }
 
     // =====================================
