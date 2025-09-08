@@ -2,7 +2,6 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import httpProxy from '@fastify/http-proxy';
 import fastifyStatic from '@fastify/static';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv'
 import path from 'path';
 import { fileURLToPath } from 'url';
