@@ -81,8 +81,9 @@ export class GameMenuPage implements Page {
                                 </svg>
                                 <span>Back to Dashboard</span>
                             </button>
-                            <div class="h-6 w-px bg-cyan-500/30"></div>
-                            <h1 class="text-2xl font-bold text-cyan-400">Game Menu</h1>
+                        </div>
+                        <div class="flex-1 flex justify-center">
+                            <img src="/textures/tronpong.png" alt="TRON PONG" class="h-8 max-w-none" style="filter: drop-shadow(0 0 8px #00ffff);"/>
                         </div>
                         <div class="text-sm text-cyan-300">
                             Choose your game mode

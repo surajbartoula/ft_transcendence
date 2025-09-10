@@ -279,7 +279,9 @@ export class GUIManager {
         this.mainMenu.innerHTML = `
             <div class="tron-container">
                 <div class="tron-grid-bg"></div>
-                <h1 class="tron-title">TRON PONG</h1>
+                <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 30px;">
+                    <img src="/textures/tronpong.png" alt="TRON PONG" style="max-width:420px; width:80%; filter: drop-shadow(0 0 12px #00ffff); display: block;"/>
+                </div>
                 <div style="margin: 40px 0;">
                     <button id="localGameBtn" class="tron-button">Local Multiplayer</button>
                     <button id="aiGameBtn" class="tron-button">Play Against AI</button>
