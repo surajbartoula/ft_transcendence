@@ -212,13 +212,6 @@ export class TournamentSetupPage implements Page {
                                     <h2 class="text-xl font-semibold text-cyan-300 mb-4">Tournament Options</h2>
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-cyan-300">Auto-fill remaining slots</span>
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" id="autoFillToggle" class="sr-only peer">
-                                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-purple-600"></div>
-                                            </label>
-                                        </div>
-                                        <div class="flex items-center justify-between">
                                             <span class="text-cyan-300">Shuffle player order</span>
                                             <label class="relative inline-flex items-center cursor-pointer">
                                                 <input type="checkbox" id="shuffleToggle" class="sr-only peer" checked>
@@ -453,17 +446,8 @@ export class TournamentSetupPage implements Page {
         }
 
         const tournamentName = (document.getElementById('tournamentName') as HTMLInputElement)?.value || 'Tournament';
-        const autoFill = (document.getElementById('autoFillToggle') as HTMLInputElement)?.checked || false;
         const shuffle = (document.getElementById('shuffleToggle') as HTMLInputElement)?.checked || false;
         let finalPlayers = [...this.players];
-
-        // Auto-fill if enabled
-        if (autoFill && finalPlayers.length < this.maxPlayers) {
-            const playersToAdd = this.maxPlayers - finalPlayers.length;
-            for (let i = 0; i < playersToAdd; i++) {
-                finalPlayers.push(`Player ${finalPlayers.length + 1}`);
-            }
-        }
 
         // Shuffle if enabled
         if (shuffle) {
