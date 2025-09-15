@@ -39,7 +39,6 @@ export class GameStateManager {
 
     constructor(systems: Omit<SystemReferences, 'aiPlayer' | 'tournamentManager'>, pongManager?: any) {
         this.pongManager = pongManager;
-        
         // Initialize AI and get Tournament singleton instance
         const aiPlayer = new AIPlayer(systems.physicsSystem, systems.renderEngine);
         const tournamentManager = TournamentManager.getInstance(); // Use singleton pattern
@@ -71,14 +70,12 @@ export class GameStateManager {
         if (newState) {
             this.currentState = newState;
             await this.currentState.enter(data);
-            // State changed
-            
             // Trigger state change callbacks
             this.stateChangeCallbacks.forEach(callback => {
                 try {
                     callback(stateName);
                 } catch (error) {
-                    // State change callback error
+                    console.warn("State change callback error:", error);
                 }
             });
         }
@@ -86,7 +83,6 @@ export class GameStateManager {
 
     setGameMode(mode: GameMode): void {
         this.currentGameMode = mode;
-        // Game mode set
     }
 
     getGameMode(): GameMode {
@@ -160,8 +156,6 @@ export class GameStateManager {
     }
 
     public dispose(): void {
-        // GameStateManager disposing
-        
         // Clear countdown timer if it exists in any state
         const states = Array.from(this.states.values());
         states.forEach(state => {
@@ -179,15 +173,11 @@ export class GameStateManager {
         if (this.systems.uiManager) {
             this.systems.uiManager.clearCountdown();
         }
-        
         // Also directly remove countdown from DOM
         const countdownEl = document.querySelector('[data-game-element="countdown"]');
         if (countdownEl) {
-            // Removing countdown element
             countdownEl.remove();
         }
-        
-        // GameStateManager disposal complete
     }
 }
 
@@ -243,8 +233,6 @@ class MenuState extends GameState {
 // =====================================
 class GameSetupState extends GameState {
     enter(data: { type: 'local' | 'ai' }): void {
-        // Entered Game Setup State
-        
         if (data.type === 'local') {
             this.systems.uiManager.showPlayerSetup({
                 title: "Local Multiplayer Setup",
@@ -303,20 +291,15 @@ class PlayingState extends GameState {
     }
 
     async enter(data?: any): Promise<void> {
-        // Entered Playing State
         this.matchData = data;
-        
         // Set up physics system
         this.systems.physicsSystem.setRenderEngine(this.systems.renderEngine);
         this.systems.physicsSystem.setScoreManager(this.systems.scoreManager);
-        
         // Initialize AI if needed
         const gameMode = this.stateManager.getGameMode();
         if (gameMode.type === 'ai') {
             this.systems.aiPlayer.initialize();
         }
-        
-        // Show game UI
         this.systems.uiManager.showGameUI({
             player1Name: gameMode.player1Name || "Player 1",
             player2Name: gameMode.player2Name || "Player 2",
@@ -338,7 +321,6 @@ class PlayingState extends GameState {
         this.cleanupInputHandlers();
         this.systems.physicsSystem.stopBall();
         this.systems.uiManager.hideGameUI();
-        
         // Stop AI if active
         if (this.stateManager.getGameMode().type === 'ai') {
             this.systems.aiPlayer.stop();
@@ -347,10 +329,9 @@ class PlayingState extends GameState {
 
     update(deltaTime: number): void {
         this.updatePaddleMovement(deltaTime);
-        
         // Check for game end conditions
         const score = this.systems.scoreManager.getScore();
-        const winningScore = 7; // Configurable
+        const winningScore = 7;
         
         if (score.left >= winningScore || score.right >= winningScore) {
             this.handleGameEnd();
@@ -398,16 +379,13 @@ class PlayingState extends GameState {
 
     private updatePaddleMovement(deltaTime: number): void {
         const gameMode = this.stateManager.getGameMode();
-        
         // Left paddle movement (Player 1)
         let leftInput = 0;
         if (this.systems.inputManager.isKeyPressed('arrowup')) leftInput += 1;
         if (this.systems.inputManager.isKeyPressed('arrowdown')) leftInput -= 1;
-
         if (leftInput !== 0) {
             this.systems.physicsSystem.updatePaddlePosition('paddleLeft', leftInput, deltaTime);
         }
-
         // Right paddle movement (Player 2 or AI)
         if (gameMode.type === 'ai') {
             // AI controls right paddle
@@ -445,10 +423,7 @@ class PlayingState extends GameState {
                 // For local games, we can't determine the specific user, so just pass null
                 winnerId = null;
             }
-            
-            // Game ended
-            
-            // Update the game session with results through the state manager
+            // Game ended. Update the game session with results through the state manager
             this.stateManager.updateGameSessionFromState(score, winnerId);
         }
         
@@ -493,7 +468,6 @@ class PlayingState extends GameState {
 // =====================================
 class PausedState extends GameState {
     enter(): void {
-        // Entered Paused State
         (this.stateManager as any).paused = true;
         this.systems.uiManager.showPause({
             onResume: () => {
@@ -582,8 +556,6 @@ class PausedState extends GameState {
 // =====================================
 class GameOverState extends GameState {
     enter(data: { winner: string, score: any, gameMode: GameMode }): void {
-        // Entered Game Over State
-        
         this.systems.uiManager.showGameOver({
             winner: data.winner,
             score: data.score,
@@ -626,10 +598,8 @@ class TournamentResultsState extends GameState {
         
         const tournament = this.systems.tournamentManager.getTournament(data.tournamentId);
         if (!tournament) return;
-
         // Show tournament-specific match results screen
         const winnerDisplayName = data.winner;
-        
         // Find the next match in the tournament
         const nextMatch = this.findNextMatch(tournament);
         
@@ -640,7 +610,6 @@ class TournamentResultsState extends GameState {
             onContinue: () => this.navigateToTournamentBracket(tournament, data),
             onMainMenu: () => this.navigateToTournamentBracket(tournament, data) // Keep them in tournament flow
         });
-
         // Auto-continue after showing celebration
         this.celebrationTimer = setTimeout(() => {
             this.navigateToTournamentBracket(tournament, data);
@@ -662,10 +631,8 @@ class TournamentResultsState extends GameState {
             clearTimeout(this.celebrationTimer);
             this.celebrationTimer = null;
         }
-
         // Hide tournament results screen
         this.systems.uiManager.hideTournamentResults();
-
         // Navigate back to tournament bracket with updated tournament state
         const playersParam = encodeURIComponent(JSON.stringify(tournament.players.map((p: any) => p.name)));
         const navigationPath = `/game/tournament/bracket?players=${playersParam}&name=${encodeURIComponent(tournament.name || 'Tournament')}`;
