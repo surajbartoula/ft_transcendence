@@ -81,7 +81,6 @@ class App {
 
 	private setupRoutes(): void {
 		const routes = [
-			{ path: '/', page: () => new LoginPage(), requiresAuth: false },
 			{ path: '/login', page: () => new LoginPage(), requiresAuth: false },
 			{ path: '/auth/success', page: () => this.createAuthSuccessPage(), requiresAuth: false },
 			{ path: '/verify-email', page: () => new EmailVerificationPage(), requiresAuth: false},
@@ -165,6 +164,9 @@ class App {
 			showError('An unexpected error occurred');
 		});
 
+		// Listen for cross-tab logout events
+		window.addEventListener('storage', this.handleStorageChange.bind(this));
+
 		window.addEventListener('userLoggedIn', () => {
 			// Validate that we actually have valid user data and token before connecting
 			const token = localStorage.getItem('token');
@@ -227,17 +229,45 @@ class App {
 		this.logout();
 	}
 
+	private handleStorageChange(event: StorageEvent): void {
+		// Check if token or userData was removed in another tab
+		if ((event.key === 'token' || event.key === 'userData') && event.newValue === null) {
+			this.handleCrossTabLogout();
+		}
+	}
+
+	private handleCrossTabLogout(): void {
+		// Only handle if this tab still has a user session
+		if (this.currentUser && this.token) {
+			clearAllClickableNotifications();
+
+			// Dispatch userLoggedOut event before clearing data
+			window.dispatchEvent(new CustomEvent('userLoggedOut'));
+
+			// Clear local state without triggering storage events again
+			this.token = null;
+			this.currentUser = null;
+
+			// Navigate to login
+			setTimeout(() => {
+				this.router.setAuthenticated(false);
+				this.router.navigate('/login');
+				showNotification('You have been logged out from another tab', 'info');
+			}, 150);
+		}
+	}
+
 	private logout(): void {
 		clearAllClickableNotifications();
 		/** Dispatch userLoggedOut event before clearing data */
 		window.dispatchEvent(new CustomEvent('userLoggedOut'));
-		
+
 		// Clear all authentication data
 		localStorage.removeItem('token');
 		localStorage.removeItem('userData');
 		this.token = null;
 		this.currentUser = null;
-		
+
 		// Ensure sockets are properly disconnected before navigation
 		setTimeout(() => {
 			this.router.setAuthenticated(false);
