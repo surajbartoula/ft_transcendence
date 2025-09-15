@@ -56,15 +56,12 @@ import { ScoreManager } from "./ScoreManager";
 		this.resetBallPosition();
 		this.startBallMovement();
 		this.ballActive = true;
-		// Ball movement started
 	}
 
 	resumeBall(): void {
 		if (!this.renderEngine) return;
-		
 		// Resume ball without resetting position
 		this.ballActive = true;
-		// Ball movement resumed
 	}
 
 	stopBall(): void {
@@ -88,7 +85,6 @@ import { ScoreManager } from "./ScoreManager";
 		const dir = new BABYLON.Vector3(randomX, 0, randomZ).normalize();
 		this.ballSpeed = 18;
 		this.ballVelocity = dir.scale(this.ballSpeed);
-		// Ball velocity set
 	}
 
 	updatePaddlePosition(paddleName: string, inputDirection: number, deltaTime: number): void {
@@ -128,35 +124,26 @@ import { ScoreManager } from "./ScoreManager";
 		
 		const floorPlane = this.renderEngine.getMesh('floorPlane');
 		if (!floorPlane) return position;
-		
 		// Get floor boundaries
 		floorPlane.computeWorldMatrix(true);
 		floorPlane.getBoundingInfo().update(floorPlane.getWorldMatrix());
 		const floorBounds = floorPlane.getBoundingInfo().boundingBox;
-		
 		// Get paddle dimensions
 		paddle.computeWorldMatrix(true);
 		paddle.getBoundingInfo().update(paddle.getWorldMatrix());
 		const paddleBounds = paddle.getBoundingInfo().boundingBox;
 		const paddleDepth = Math.abs(paddleBounds.maximumWorld.z - paddleBounds.minimumWorld.z);
-		
 		// Clamp paddle position to stay within floor bounds
 		const minZ = floorBounds.minimumWorld.z + (paddleDepth / 2);
 		const maxZ = floorBounds.maximumWorld.z - (paddleDepth / 2);
-		
 		const clampedPosition = position.clone();
 		clampedPosition.z = Math.max(minZ, Math.min(maxZ, position.z));
-		
-		// Silently clamp without logging (working as expected)
-		
 		return clampedPosition;
 	}
 
 	update(deltaTime: number): void {
 		if (!this.ballActive || !this.renderEngine) return;
-		
 		// During remote multiplayer, physics updates are disabled
-		// Ball position and physics are controlled by the backend
 		if (!this.isRemoteMode) {
 			this.updateBallPosition(deltaTime);
 		}
@@ -164,17 +151,14 @@ import { ScoreManager } from "./ScoreManager";
 
 	private updateBallPosition(deltaTime: number): void {
 		if (!this.renderEngine) return;
-		
 		const ball = this.renderEngine.getMesh('pongBall');
 		if (!ball) return;
-		
 		// Move ball using frame-rate independent integration
 		const dt = Math.max(0, deltaTime) / 1000; // seconds
 		if (dt > 0) {
 			const displacement = this.ballVelocity.scale(dt);
 			ball.position.addInPlace(displacement);
 		}
-		
 		// Check collisions
 		this.checkBallCollisions(ball);
 	}
@@ -202,8 +186,6 @@ import { ScoreManager } from "./ScoreManager";
 			// Wall collision detected (top)
 			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
 				this.renderEngine.playBallWallBounceSound();
-			} else {
-				// Cannot play wall bounce sound
 			}
 		}
 		
@@ -213,8 +195,6 @@ import { ScoreManager } from "./ScoreManager";
 			// Wall collision detected (bottom)
 			if (this.renderEngine && this.renderEngine.playBallWallBounceSound) {
 				this.renderEngine.playBallWallBounceSound();
-			} else {
-				// Cannot play wall bounce sound
 			}
 		}
 	}
@@ -233,10 +213,7 @@ import { ScoreManager } from "./ScoreManager";
 			// Left paddle collision detected
 			if (this.renderEngine && this.renderEngine.playBallHitSound) {
 				this.renderEngine.playBallHitSound();
-			} else {
-				// Cannot play paddle hit sound
 			}
-			// Ball hit left paddle
 		}
 
 		// Check collision with right paddle  
@@ -246,10 +223,7 @@ import { ScoreManager } from "./ScoreManager";
 			// Right paddle collision detected
 			if (this.renderEngine && this.renderEngine.playBallHitSound) {
 				this.renderEngine.playBallHitSound();
-			} else {
-				// Cannot play paddle hit sound
 			}
-			// Ball hit right paddle
 		}
 
 		// Check if ball went past paddles (scoring)
@@ -275,7 +249,6 @@ import { ScoreManager } from "./ScoreManager";
 	}
 
 	private ballCollidesWithPaddle(ball: BABYLON.AbstractMesh, paddle: BABYLON.AbstractMesh, ballRadius: number): boolean {
-		// Simple collision detection between ball and paddle
 		const ballPos = ball.position;
 		const paddlePos = paddle.position;
 
@@ -307,8 +280,6 @@ import { ScoreManager } from "./ScoreManager";
 		// Normalize and rescale to maintain proper speed
 		this.ballVelocity.normalize();
 		this.ballVelocity.scaleInPlace(this.ballSpeed);
-		
-		// Ball speed increased
 	}
 
 	private resetBall(): void {
@@ -342,7 +313,6 @@ import { ScoreManager } from "./ScoreManager";
 		this.ballSpeed = 18;
 		this.ballVelocity = dir.scale(this.ballSpeed);
 		this.ballActive = true;
-		// Ball reset to center
 	}
 
 	// Getter methods for AI to access ball data
@@ -369,20 +339,13 @@ import { ScoreManager } from "./ScoreManager";
 	 */
 	syncRemoteState(ball: any, _paddle1: any, _paddle2: any): void {
 		try {
-			// During remote multiplayer, the backend handles all physics
-			// Frontend physics system is essentially disabled - just sync visual state
+			// During remote multiplayer, the backend handles all physics. Frontend physics system is essentially disabled
 			if (ball) {
-				// Backend handles physics, frontend just follows
-				// Ball velocity is managed by backend, we just maintain active state
 				this.ballActive = true;
 				this.setRemoteMode(true);
 			}
-			
-			// Note: Ball position and paddle positions are updated directly by RenderEngine
-			// This method primarily ensures the physics system doesn't interfere with remote sync
-			
 		} catch (error) {
-			// Error syncing remote state
+			console.log("Error syncing remote state:", error);
 		}
 	}
 
