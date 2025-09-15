@@ -44,13 +44,7 @@ export class RenderEngine {
 		// Registering GLB loader
 		if (!BABYLON.SceneLoader.IsPluginForExtensionAvailable(".glb")) {
 			BABYLON.SceneLoader.RegisterPlugin(new GLTFFileLoader());
-			// GLB loader registered successfully
-		} else {
-			// GLB loader already available
 		}
-		
-		// Verify loader is now available
-		// GLB loader check complete
 	}
 
 	async initialize(): Promise<void> {
@@ -61,8 +55,6 @@ export class RenderEngine {
 		this.isInitializing = true;
 		
 		try {
-			// Initializing Render Engine
-			
 			this.setupCamera();
 			this.setupLighting();
 			this.setupCustomMaterials();
@@ -92,11 +84,9 @@ export class RenderEngine {
 	private setupCamera(): void {
 		// Create ArcRotateCamera with desired position
 		this.camera = new BABYLON.ArcRotateCamera("camera", -1.569, 0.593, 43.461, BABYLON.Vector3.Zero(), this.scene);
-		
 		// Lock the camera - disable all controls
 		this.camera.attachControl(this.canvas, false);
 		this.camera.inputs.clear();
-		
 		this.scene.activeCamera = this.camera;
 	}
 	
@@ -107,8 +97,7 @@ export class RenderEngine {
 		if (!this.camera) return;
 		
 		// Keep the same camera position for all players to maintain game layout
-		// The difference should be in the UI/HUD, not camera position
-		this.camera.alpha = -1.569; // Original position
+		this.camera.alpha = -1.569;
 		this.camera.beta = 0.593;
 		this.camera.radius = 43.461;
 		this.camera.setTarget(BABYLON.Vector3.Zero());
@@ -142,8 +131,6 @@ export class RenderEngine {
 				document.addEventListener('click', unlockAudio);
 				document.addEventListener('keydown', unlockAudio);
 			}
-
-			// Generate and create sound effects
 			this.createSoundEffects();
 			
 
@@ -155,9 +142,6 @@ export class RenderEngine {
 
 	private createSoundEffects(): void {
 		if (!this.audioContext) return;
-
-		// Instead of complex Babylon.js Sound objects, we'll use direct Web Audio API
-		// This eliminates the blob conversion issues
 	}
 
 	private createBeepSound(frequency: number, duration: number, volume: number): BABYLON.Sound {
@@ -298,11 +282,9 @@ export class RenderEngine {
 	}
 
 	private testSimpleBeep(): void {
-		// Test a simple direct Web Audio API beep
 		if (!this.audioContext) {
 			return;
 		}
-		
 		try {
 			// Create a simple oscillator
 			const oscillator = this.audioContext.createOscillator();
@@ -456,10 +438,6 @@ export class RenderEngine {
 		}
 	}
 
-
-
-
-
 	private togglePause(): void {
 		this.isPaused = !this.isPaused;
 		
@@ -575,19 +553,9 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 	// Calculate new intended position
 	const moveDirection = new BABYLON.Vector3(0, 0, inputDirection * moveSpeed);
 	const intendedNewPosition = paddle.position.add(moveDirection);
-	
-	// Attempting paddle move
-	// Paddle dimensions calculated
-	
-	// Cast rays from CURRENT paddle position, not intended position
-	// This prevents premature collision detection
 	const currentLeadingEdgeZ = inputDirection > 0 ? 
 		paddle.position.z + (paddleDepth / 2) :  // Current front edge
 		paddle.position.z - (paddleDepth / 2);   // Current back edge
-		
-	// Casting rays from leading edge
-	
-	// Create ray starting positions at the CURRENT leading edge of the paddle
 	const rayStartPositions = [
 		// Center of current leading edge
 		new BABYLON.Vector3(paddle.position.x, paddle.position.y, currentLeadingEdgeZ),
@@ -613,11 +581,6 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 	let collisionDetected = false;
 	let closestDistance = Infinity;
 	let hitWallName = "";
-	
-	// Enable ray visualization for debugging
-	// this.debugVisualizeRays(rayStartPositions, rayDirection, rayDistance);
-	
-	// Cast rays from all positions on the leading edge
 	rayStartPositions.forEach((rayStart, index) => {
 		const ray = new BABYLON.Ray(rayStart, rayDirection, rayDistance);
 		const hit = this.scene.pickWithRay(ray);
@@ -630,11 +593,9 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 				closestDistance = hit.distance;
 				hitWallName = hit.pickedMesh.name;
 			}
-			// Ray hit detected
 		}
 	});
 	
-	// Alternative approach: Check if the paddle would go beyond floor edges
 	if (!collisionDetected) {
 		// Get floor bounds for precise edge detection
 		const floorPlane = this.scene.getMeshByName('floorPlane');
@@ -652,10 +613,6 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 			const minimalBuffer = 0.01; // Even smaller buffer for precise edge alignment
 			const maxFloorZ = floorBounds.maximumWorld.z - minimalBuffer;
 			const minFloorZ = floorBounds.minimumWorld.z + minimalBuffer;
-			
-			// Floor Z bounds calculated
-			// Leading edge position calculated
-			
 			// Check if leading edge would go beyond floor boundaries AFTER the move
 			if (inputDirection > 0 && newLeadingEdgeZ > maxFloorZ) {
 				// Moving forward: check if leading edge exceeds floor
@@ -696,12 +653,9 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 				
 				collisionDetected = true;
 				hitWallName = inputDirection > 0 ? "forwardWall" : "backwardWall";
-				// Paddle would partially leave floor
-				// Floor bounds checked
 			}
 		}
 	}
-	
 	// Apply movement based on collision detection
 	if (collisionDetected) {
 		// Paddle blocked by collision
@@ -710,7 +664,6 @@ private updatePaddlePosition(paddle: BABYLON.AbstractMesh, inputDirection: numbe
 	} else {
 		// Safe to move
 		paddle.position.z = intendedNewPosition.z;
-		// Paddle moved safely
 	}
 }
 
@@ -747,11 +700,6 @@ private debugVisualizeFloorBounds(): void {
 	floorPlane.computeWorldMatrix(true);
 	floorPlane.getBoundingInfo().update(floorPlane.getWorldMatrix());
 	const floorBounds = floorPlane.getBoundingInfo().boundingBox;
-	
-	// Floor bounds X calculated
-	// Floor bounds Y calculated
-	// Floor bounds Z calculated
-	
 	// Create visual markers at floor corners for debugging
 	const floorY = floorBounds.maximumWorld.y + 0.1; // Slightly above floor
 	const cornerHeight = 0.5;
@@ -932,17 +880,12 @@ private debugVisualizeFloorBounds(): void {
 	public updateBallPosition(x: number, y: number, vx: number, vy: number): void {
 		const ballObject = this.gameObjects.get('ball');
 		if (!ballObject || !ballObject.mesh) return;
-
-		// Convert backend 2D coordinates to 3D coordinates
-		// Backend uses 0-800 (x) and 0-600 (y), we need to map to our 3D space
 		const ballMesh = ballObject.mesh;
-		
 		// Map backend coordinates to 3D space
 		// Backend: x=0-800 maps to X=-20 to +20 in 3D
 		// Backend: y=0-600 maps to Z=+15 to -15 in 3D (INVERTED for correct orientation)
 		ballMesh.position.x = ((x / 800) * 40) - 20; // Map 0-800 to -20 to +20
 		ballMesh.position.z = 15 - ((y / 600) * 30); // Map 0-600 to +15 to -15 (INVERTED)
-		
 		// Update velocity for future predictions/smoothing
 		this.ballVelocity.x = (vx / 800) * 40; // Scale velocity accordingly
 		this.ballVelocity.z = -(vy / 600) * 30; // Invert Z velocity to match coordinate system
@@ -980,10 +923,7 @@ private debugVisualizeFloorBounds(): void {
 		if (this.isDisposed) {
 			return; // Already disposed
 		}
-		
 		this.isDisposed = true;
-		
-		
 		try {
 			// Stop render loop first
 			if (this.engine) {
