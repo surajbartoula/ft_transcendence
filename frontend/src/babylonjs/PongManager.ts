@@ -27,7 +27,6 @@ export class PongGameManager {
     private gameLoopFn: ((timestamp: number) => void) | null = null;
     private isDisposed: boolean = false;
     private isInitializing: boolean = false;
-    
     // Game session tracking
     private currentGameMode: 'local' | 'ai' | 'remote' | 'tournament' = 'local';
     private currentGameSessionId: string | null = null;
@@ -40,9 +39,7 @@ export class PongGameManager {
         this.audioManager = new AudioManager();
         this.uiManager = new UIManager();
         this.scoreManager = new ScoreManager();
-        
-        // Initialize game state manager with core systems only
-        // (GameStateManager creates its own aiPlayer and tournamentManager)
+        // Initialize game state manager with core systems only (GameStateManager creates its own aiPlayer and tournamentManager)
         this.gameState = new GameStateManager({
             renderEngine: this.renderEngine,
             inputManager: this.inputManager,
@@ -51,7 +48,6 @@ export class PongGameManager {
             uiManager: this.uiManager,
             scoreManager: this.scoreManager
         }, this);
-
         // Get references to AI and Tournament systems from GameStateManager
         this.aiPlayer = this.gameState.getAIPlayer();
         this.tournamentManager = this.gameState.getTournamentManager();
@@ -69,7 +65,6 @@ export class PongGameManager {
         try {
             // Initialize all systems in proper order
             await this.renderEngine.initialize();
-            
             // Check if disposed during async initialization
             if (this.isDisposed) {
                 return;
@@ -112,54 +107,41 @@ export class PongGameManager {
             if (!this.isRunning || !this.gameLoopFn) {
                 return;
             }
-
             const deltaTime = timestamp - this.lastTime;
             this.lastTime = timestamp;
-
             try {
                 // Update all systems
                 this.gameState.update(deltaTime);
-                
                 // Only update physics if game is not paused
                 const isPaused = this.gameState.isPaused();
                 if (!isPaused) {
                     this.physicsSystem.update(deltaTime);
-                } else {
-                    // Physics paused - skipping physics update
                 }
-                
                 this.renderEngine.update(deltaTime);
                 this.uiManager.update(deltaTime);
-
-                // Render
                 this.renderEngine.render();
                 this.uiManager.render();
 
             } catch (error) {
-                // Error in game loop
                 // Stop the loop on error to prevent infinite error spam
                 this.stopGameLoop();
                 return;
             }
-
             // Schedule next frame only if still running and not disposed
             if (this.isRunning && this.gameLoopFn && this.animationFrameId !== null) {
                 this.animationFrameId = requestAnimationFrame(this.gameLoopFn);
             }
         };
-
         // Start the loop
         this.animationFrameId = requestAnimationFrame(this.gameLoopFn);
     }
     
     private stopGameLoop(): void {
         this.isRunning = false;
-        
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
-        
         // Clear the function reference to prevent memory leaks
         this.gameLoopFn = null;
     }
@@ -167,8 +149,6 @@ export class PongGameManager {
     // =====================================
     // PUBLIC API METHODS
     // =====================================
-    
-    // AI uses fixed parameters for consistent gameplay
 
     /**
      * Get current game mode information
@@ -209,7 +189,6 @@ export class PongGameManager {
     public async startLocalGame(player1Name?: string, player2Name?: string): Promise<void> {
         // Create game session for local game
         await this.createGameSession('local');
-        
         // If names are provided, skip setup and go directly to playing
         if (player1Name && player2Name) {
             this.gameState.setGameMode({
@@ -228,11 +207,8 @@ export class PongGameManager {
      * Start a new AI game - goes through setup state first
      */
     public async startAIGame(playerName?: string): Promise<void> {
-        // AI uses fixed parameters - no difficulty setting needed
-        
         // Create game session for AI game
         await this.createGameSession('ai');
-        
         // If player name is provided, skip setup and go directly to playing
         if (playerName) {
             this.gameState.setGameMode({
@@ -318,8 +294,8 @@ export class PongGameManager {
     } {
         return {
             fps: Math.round(1000 / (this.lastTime - (this.lastTime - 16.67))),
-            renderTime: 0, // Would need to implement timing
-            physicsTime: 0 // Would need to implement timing
+            renderTime: 0,
+            physicsTime: 0
         };
     }
 
@@ -335,7 +311,6 @@ export class PongGameManager {
             let response: Response;
             
             if (existingSessionId) {
-                // Fetch existing session (for remote games from invitations)
                 // Fetching existing game session
                 response = await fetch(`/api/game/session/${existingSessionId}`, {
                     method: 'GET',
@@ -345,7 +320,6 @@ export class PongGameManager {
                 });
             } else {
                 // Create new session (for local/AI games)
-                // Creating new game session
                 response = await fetch('/api/game/session', {
                     method: 'POST',
                     headers: {
@@ -372,12 +346,11 @@ export class PongGameManager {
             }
 
             const data = JSON.parse(text);
-            // Game session response received
             // Store session ID for later use
             this.currentGameSessionId = data.game_session?.id || null;
             
         } catch (error) {
-            // Game service connection failed, playing offline mode
+            console.error("Game service connection failed, playing offline mode", error);
         }
     }
 
@@ -406,11 +379,8 @@ export class PongGameManager {
             if (!response.ok) {
                 throw new Error('Failed to update game session');
             }
-
-            // Game session updated
-            
         } catch (error) {
-            // Failed to update game session
+            console.error("Failed to update game session", error);
         }
     }
 
@@ -433,7 +403,7 @@ export class PongGameManager {
                 })
             });
         } catch (error) {
-            // Failed to record game event
+            console.error("Failed to record game event", error);
         }
     }
 
@@ -444,19 +414,14 @@ export class PongGameManager {
         if (this.isDisposed) {
             return; // Already disposed
         }
-        
         this.isDisposed = true;
-        
-        
         // Stop render loop first to prevent any further frame requests
         this.stopGameLoop();
-
         try {
             // Stop AI
             if (this.aiPlayer) {
                 this.aiPlayer.stop();
             }
-            
             // Dispose all systems with null checks
             if (this.renderEngine) {
                 this.renderEngine.dispose();
@@ -521,26 +486,21 @@ export class PongGameManager {
      */
     public syncRemoteGameState(ball: any, paddle1: any, paddle2: any): void {
         try {
-            // Sync paddle positions received from backend
-            
             // Update ball position and velocity in render engine
             if (this.renderEngine && ball) {
                 this.renderEngine.updateBallPosition(ball.x, ball.y, ball.vx, ball.vy);
             }
-            
             // Update paddle positions in render engine  
             if (this.renderEngine && paddle1 && paddle2) {
                 // Updating 3D paddle positions
                 this.renderEngine.updatePaddlePositions(paddle1.y, paddle2.y);
             }
-            
             // Update physics system state to match backend
             if (this.physicsSystem && ball) {
                 this.physicsSystem.syncRemoteState(ball, paddle1, paddle2);
             }
-            
         } catch (error) {
-            // Error syncing remote game state
+            console.error("Error syncing remote game state", error);
         }
     }
 
@@ -577,11 +537,9 @@ export class PongGameManager {
                 const data = await response.json();
                 this.currentGameSessionId = data.game_session?.id || null;
                 // Game session created
-            } else {
-                // Failed to create game session
             }
         } catch (error) {
-            // Game service connection failed
+            console.error("Game service connection failed", error);
         }
     }
 }
