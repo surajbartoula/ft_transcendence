@@ -65,8 +65,9 @@ export class Router {
 		/** Update URL */
 		if (pushState && path !== location.pathname) {
 			history.pushState({ route: path }, '', path);
+		} else if (!pushState && path !== location.pathname) {
+			history.replaceState({ route: path }, '', path);
 		}
-
 		await this.renderPage(route);
 	}
 
