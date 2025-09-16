@@ -174,14 +174,6 @@ export class TournamentBracketPage implements Page {
                                 <div class="bg-slate-800 rounded-lg border border-slate-700 p-6">
                                     <div class="flex items-center justify-between mb-6">
                                         <h2 class="text-xl font-semibold text-white">Tournament Bracket</h2>
-                                        <div class="flex space-x-2">
-                                            <button id="refreshBracketButton" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white text-sm rounded transition-colors">
-                                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                                                </svg>
-                                                Refresh
-                                            </button>
-                                        </div>
                                     </div>
                                     
                                     <!-- Bracket Container -->
@@ -251,10 +243,6 @@ export class TournamentBracketPage implements Page {
             startNextMatchButton.addEventListener('click', this.handleStartNextMatch.bind(this));
         }
 
-        const refreshBracketButton = document.getElementById('refreshBracketButton');
-        if (refreshBracketButton) {
-            refreshBracketButton.addEventListener('click', this.refreshBracket.bind(this));
-        }
 
         const newTournamentButton = document.getElementById('newTournamentButton');
         if (newTournamentButton) {
@@ -283,10 +271,6 @@ export class TournamentBracketPage implements Page {
             startNextMatchButton.removeEventListener('click', this.handleStartNextMatch.bind(this));
         }
 
-        const refreshBracketButton = document.getElementById('refreshBracketButton');
-        if (refreshBracketButton) {
-            refreshBracketButton.removeEventListener('click', this.refreshBracket.bind(this));
-        }
 
         const newTournamentButton = document.getElementById('newTournamentButton');
         if (newTournamentButton) {
@@ -557,13 +541,6 @@ export class TournamentBracketPage implements Page {
         }
     }
 
-    private refreshBracket(): void {
-        this.updateTournamentInfo();
-        this.renderBracket();
-        this.updateUpcomingMatches();
-        this.checkForNextMatch();
-        // showNotification('Bracket refreshed', 'info');
-    }
 
     private handleBackClick(): void {
         // Clear all tournament data to allow fresh start
@@ -604,6 +581,9 @@ export class TournamentBracketPage implements Page {
 
     private handleContinueTournament(): void {
         this.hideMatchResultModal();
-        this.refreshBracket();
+        this.updateTournamentInfo();
+        this.renderBracket();
+        this.updateUpcomingMatches();
+        this.checkForNextMatch();
     }
 }

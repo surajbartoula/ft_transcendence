@@ -8,7 +8,6 @@ export class TournamentSetupPage implements Page {
 
     private players: string[] = [];
     private maxPlayers: number = 8;
-    private minPlayers: number = 2;
     private tournamentManager!: TournamentManager;
 
     public render(): string {
@@ -142,22 +141,13 @@ export class TournamentSetupPage implements Page {
                                                 value="Pong Tournament ${new Date().toLocaleDateString()}"
                                             >
                                         </div>
-                                        <div class="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-cyan-400 mb-2">Min Players</label>
-                                                <select id="minPlayersSelect" class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
-                                                    <option value="2">2</option>
-                                                    <option value="4">4</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-cyan-400 mb-2">Max Players</label>
-                                                <select id="maxPlayersSelect" class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
-                                                    <option value="4">4</option>
-                                                    <option value="8" selected>8</option>
-                                                    <option value="16">16</option>
-                                                </select>
-                                            </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-cyan-400 mb-2">Maximum Players</label>
+                                            <select id="maxPlayersSelect" class="w-full px-3 py-2 bg-slate-900/50 border border-cyan-500/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 transition-all tron-glow">
+                                                <option value="4">4</option>
+                                                <option value="8" selected>8</option>
+                                                <option value="16">16</option>
+                                            </select>
                                         </div>
                                     </div>
                                 </div>
@@ -203,6 +193,7 @@ export class TournamentSetupPage implements Page {
                                         
                                         <div class="text-xs text-gray-400">
                                             <span id="playerCount">0</span> / <span id="maxPlayerCount">8</span> players added
+                                            <div class="text-xs text-cyan-400 mt-1">Valid tournament sizes: 2, 4, 8, or 16 players</div>
                                         </div>
                                     </div>
                                 </div>
@@ -223,19 +214,12 @@ export class TournamentSetupPage implements Page {
 
                                 <!-- Action Buttons -->
                                 <div class="flex space-x-4">
-                                    <button 
+                                    <button
                                         id="startTournamentButton"
-                                        class="flex-1 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-glow"
+                                        class="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-glow"
                                         disabled
                                     >
                                         Start Tournament
-                                    </button>
-                                    <button 
-                                        id="previewBracketButton"
-                                        class="px-6 py-3 bg-slate-700/70 border border-cyan-500/30 hover:bg-slate-600/70 hover:border-cyan-400 text-white rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed tron-border"
-                                        disabled
-                                    >
-                                        Preview Bracket
                                     </button>
                                 </div>
                             </div>
@@ -251,7 +235,7 @@ export class TournamentSetupPage implements Page {
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                             </svg>
                                             No players added yet
-                                            <div class="text-sm mt-1">Add at least ${this.minPlayers} players to start</div>
+                                            <div class="text-sm mt-1">Add exactly 2, 4, 8, or 16 players to start</div>
                                         </div>
                                     </div>
                                 </div>
@@ -319,20 +303,12 @@ export class TournamentSetupPage implements Page {
             maxPlayersSelect.addEventListener('change', this.handleMaxPlayersChange.bind(this));
         }
 
-        const minPlayersSelect = document.getElementById('minPlayersSelect') as HTMLSelectElement;
-        if (minPlayersSelect) {
-            minPlayersSelect.addEventListener('change', this.handleMinPlayersChange.bind(this));
-        }
 
         const startTournamentButton = document.getElementById('startTournamentButton');
         if (startTournamentButton) {
             startTournamentButton.addEventListener('click', this.handleStartTournament.bind(this));
         }
 
-        const previewBracketButton = document.getElementById('previewBracketButton');
-        if (previewBracketButton) {
-            previewBracketButton.addEventListener('click', this.handlePreviewBracket.bind(this));
-        }
 
     }
 
@@ -362,20 +338,12 @@ export class TournamentSetupPage implements Page {
             maxPlayersSelect.removeEventListener('change', this.handleMaxPlayersChange.bind(this));
         }
 
-        const minPlayersSelect = document.getElementById('minPlayersSelect') as HTMLSelectElement;
-        if (minPlayersSelect) {
-            minPlayersSelect.removeEventListener('change', this.handleMinPlayersChange.bind(this));
-        }
 
         const startTournamentButton = document.getElementById('startTournamentButton');
         if (startTournamentButton) {
             startTournamentButton.removeEventListener('click', this.handleStartTournament.bind(this));
         }
 
-        const previewBracketButton = document.getElementById('previewBracketButton');
-        if (previewBracketButton) {
-            previewBracketButton.removeEventListener('click', this.handlePreviewBracket.bind(this));
-        }
 
         // Remove dynamically added remove-player button listeners
         const removeButtons = document.querySelectorAll('.remove-player-btn');
@@ -430,18 +398,12 @@ export class TournamentSetupPage implements Page {
         }
     }
 
-    private handleMinPlayersChange(): void {
-        const select = document.getElementById('minPlayersSelect') as HTMLSelectElement;
-        if (select) {
-            this.minPlayers = parseInt(select.value);
-            this.updateUI();
-        }
-    }
 
     private handleStartTournament(): void {
-        if (this.players.length < this.minPlayers) {
-            console.warn(`Cannot start: need at least ${this.minPlayers} players`);
-            showError(`Need at least ${this.minPlayers} players to start tournament`);
+        const validPlayerCounts = [2, 4, 8, 16];
+        if (!validPlayerCounts.includes(this.players.length)) {
+            console.warn(`Cannot start: need exactly 2, 4, 8, or 16 players`);
+            showError(`Tournament requires exactly 2, 4, 8, or 16 players. You currently have ${this.players.length} players.`);
             return;
         }
 
@@ -466,10 +428,6 @@ export class TournamentSetupPage implements Page {
         window.dispatchEvent(event);
     }
 
-    private handlePreviewBracket(): void {
-        this.updateTournamentPreview();
-        showNotification('Bracket preview updated', 'info');
-    }
 
     private addPlayer(playerName: string): boolean {
         if (!playerName) {
@@ -529,7 +487,7 @@ export class TournamentSetupPage implements Page {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
                     No players added yet
-                    <div class="text-sm mt-1">Add at least ${this.minPlayers} players to start</div>
+                    <div class="text-sm mt-1">Add exactly 2, 4, 8, or 16 players to start</div>
                 </div>
             `;
             return;
@@ -584,17 +542,19 @@ export class TournamentSetupPage implements Page {
 
     private updateActionButtons(): void {
         const startButton = document.getElementById('startTournamentButton') as HTMLButtonElement;
-        const previewButton = document.getElementById('previewBracketButton') as HTMLButtonElement;
-        
-        const canStart = this.players.length >= this.minPlayers;
-        
+
+        const validPlayerCounts = [2, 4, 8, 16];
+        const canStart = validPlayerCounts.includes(this.players.length);
+
         if (startButton) {
             startButton.disabled = !canStart;
-            startButton.textContent = canStart ? 'Start Tournament' : `Need ${this.minPlayers - this.players.length} more player${this.minPlayers - this.players.length !== 1 ? 's' : ''}`;
-        }
-        
-        if (previewButton) {
-            previewButton.disabled = !canStart;
+            if (canStart) {
+                startButton.textContent = 'Start Tournament';
+            } else {
+                const nextValidCount = validPlayerCounts.find(count => count > this.players.length) || 16;
+                const playersNeeded = nextValidCount - this.players.length;
+                startButton.textContent = `Need ${playersNeeded} more player${playersNeeded !== 1 ? 's' : ''} (${this.players.length}/${nextValidCount})`;
+            }
         }
     }
 
@@ -602,13 +562,17 @@ export class TournamentSetupPage implements Page {
         const preview = document.getElementById('tournamentPreview');
         if (!preview) return;
 
-        if (this.players.length < this.minPlayers) {
+        const validPlayerCounts = [2, 4, 8, 16];
+        if (!validPlayerCounts.includes(this.players.length)) {
+            const nextValidCount = validPlayerCounts.find(count => count > this.players.length) || 16;
+            const playersNeeded = nextValidCount - this.players.length;
             preview.innerHTML = `
                 <svg class="w-12 h-12 mx-auto mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 Tournament structure will appear here
-                <div class="text-sm mt-1">Add ${this.minPlayers - this.players.length} more player${this.minPlayers - this.players.length !== 1 ? 's' : ''} to see preview</div>
+                <div class="text-sm mt-1">Need ${playersNeeded} more player${playersNeeded !== 1 ? 's' : ''} for ${nextValidCount}-player tournament</div>
+                <div class="text-xs mt-1 text-cyan-400">Valid sizes: 2, 4, 8, or 16 players</div>
             `;
             return;
         }

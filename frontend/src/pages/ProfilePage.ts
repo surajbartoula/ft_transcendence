@@ -177,10 +177,13 @@ export class ProfilePage implements Page {
                                 
                                 <div>
                                     <label for="bio" class="block text-sm font-medium text-cyan-400 mb-2">Bio</label>
-                                    <textarea id="bio" name="bio" rows="4"
+                                    <textarea id="bio" name="bio" rows="4" maxlength="500"
                                               class="w-full p-3 bg-slate-900/50 border border-cyan-500/30 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 focus:bg-slate-900/70 transition-all resize-none tron-glow"
                                               placeholder="Tell us about yourself..."></textarea>
-                                    <p class="text-xs text-gray-500 mt-1">Maximum 500 characters</p>
+                                    <div class="flex justify-between mt-1">
+                                        <p class="text-xs text-gray-500">Maximum 500 characters</p>
+                                        <p id="bioCharCount" class="text-xs text-gray-400">0/500</p>
+                                    </div>
                                 </div>
 
                                 <!-- Action Buttons -->
@@ -205,6 +208,7 @@ export class ProfilePage implements Page {
         this.loadUserData();
         this.attachEventListeners();
         this.setupUsernameValidation();
+        this.setupBioValidation();
         this.loadProfile();
         this.loadPhoto();
     }
@@ -242,6 +246,12 @@ export class ProfilePage implements Page {
             usernameInput.removeEventListener('input', this.handleUsernameInputEvent.bind(this));
         }
         this.debouncedCheckUsername = null;
+
+        // Cleanup bio validation
+        const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
+        if (bioInput) {
+            bioInput.removeEventListener('input', this.handleBioInputEvent.bind(this));
+        }
     }
 
     private bindElements(): void {
@@ -285,7 +295,7 @@ export class ProfilePage implements Page {
 
     private setupUsernameValidation(): void {
         this.debouncedCheckUsername = debounce(this.checkUsernameAvailability.bind(this), 500);
-        
+
         const usernameInput = document.getElementById('username') as HTMLInputElement;
         if (usernameInput) {
             // Remove existing listener first to avoid duplicates
@@ -294,9 +304,25 @@ export class ProfilePage implements Page {
         }
     }
 
+    private setupBioValidation(): void {
+        const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
+        if (bioInput) {
+            bioInput.removeEventListener('input', this.handleBioInputEvent.bind(this));
+            bioInput.addEventListener('input', this.handleBioInputEvent.bind(this));
+
+            // Initialize character count
+            this.updateBioCharCount(bioInput.value.length);
+        }
+    }
+
     private handleUsernameInputEvent = (e: Event): void => {
         const username = (e.target as HTMLInputElement).value.trim();
         this.handleUsernameInput(username);
+    }
+
+    private handleBioInputEvent = (e: Event): void => {
+        const bio = (e.target as HTMLTextAreaElement).value;
+        this.updateBioCharCount(bio.length);
     }
 
     private handleUsernameInput(username: string): void {
@@ -419,6 +445,22 @@ export class ProfilePage implements Page {
         messageElement?.classList.add('hidden');
     }
 
+    private updateBioCharCount(charCount: number): void {
+        const charCountElement = document.getElementById('bioCharCount');
+        if (!charCountElement) return;
+
+        charCountElement.textContent = `${charCount}/500`;
+
+        // Update color based on character count
+        if (charCount > 500) {
+            charCountElement.className = 'text-xs text-red-400';
+        } else if (charCount > 450) {
+            charCountElement.className = 'text-xs text-yellow-400';
+        } else {
+            charCountElement.className = 'text-xs text-gray-400';
+        }
+    }
+
     private populateUserInfo(): void {
         if (!this.currentUser) return;
 
@@ -514,8 +556,10 @@ export class ProfilePage implements Page {
         }
         if (bioInput) {
             bioInput.value = profile.bio || '';
+            // Update character count when profile is loaded
+            this.updateBioCharCount(bioInput.value.length);
         }
-        
+
         // Reset validation indicators when profile is updated
         this.hideUsernameIndicators();
         this.hideUsernameMessage();
@@ -564,9 +608,10 @@ export class ProfilePage implements Page {
             this.saveButton.textContent = this.currentProfile ? 'Update Profile' : 'Create Profile';
         }
         
-        // Re-setup username validation when form is shown
+        // Re-setup validation when form is shown
         this.setupUsernameValidation();
-        
+        this.setupBioValidation();
+
         // If we have current profile, show current username as valid
         if (this.currentProfile && this.currentProfile.username) {
             const usernameInput = document.getElementById('username') as HTMLInputElement;
@@ -616,6 +661,13 @@ export class ProfilePage implements Page {
             return;
         }
         
+        // Validate bio length
+        const bio = profileData.bio || '';
+        if (bio.length > 500) {
+            showError('Bio must be no more than 500 characters long');
+            return;
+        }
+
         // Check if username is available (unless it's the same as current)
         if (username !== this.originalUsername) {
             const usernameUnavailable = document.getElementById('usernameUnavailable');
