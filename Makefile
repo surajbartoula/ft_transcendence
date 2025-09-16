@@ -29,7 +29,7 @@ clean:
 fclean:
 	@echo "🔥 Full clean: containers, images, volumes, and cache..."
 	@docker-compose down --rmi all --volumes --remove-orphans
-	@docker system prune -af
+	@docker image prune -af
 
 re:
 	$(MAKE) fclean
