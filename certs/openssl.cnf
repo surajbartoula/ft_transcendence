@@ -1,0 +1,22 @@
+[ req ]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[ req_distinguished_name ]
+C = US
+ST = CA
+L = San Francisco
+O = Development
+CN = Zubaydullos-MacBook-Pro.local
+
+[ v3_req ]
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = localhost
+DNS.2 = Zubaydullos-MacBook-Pro.local
+IP.1 = 127.0.0.1
+IP.2 = 172.20.10.2
